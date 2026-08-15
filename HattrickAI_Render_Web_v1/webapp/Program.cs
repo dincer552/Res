@@ -31,8 +31,9 @@ app.MapGet("/api/fixture-view/{matchId:int}",async(int matchId,int? recentIndex,
     var historyIndex=Math.Clamp(recentIndex??0,0,Math.Max(0,selected.RecentMatches.Count-1));var selectedHistory=selected.RecentMatches.Count>0?selected.RecentMatches[historyIndex]:null;var simulationOpponent=selectedHistory?.OpponentTeam??selected.OpponentRatings;
     var recommendation=new RecommendationEngine().Recommend(own.Players,simulationOpponent,1200,isHome);if(recommendation is null)return Results.BadRequest(new{message="Kendi kadron için en iyi 11 oluşturulamadı."});
 
-    var opponentFormation=recommendation.Formation;
-    var opponentLineup=opponent.Players.Where(p=>!p.Injured&&!p.Suspended).Take(11).ToList();
+    // Rakip için mevcut takım oyuncu listesini değil, seçilen tarihsel maçın gerçek kadrosunu kullan.
+    // CHPP matchLineup PositionCode + RoleID + Behaviour sahadaki gerçek yerleşimi verir.
+    var opponentFormation="—";
     var opponentRatings=simulationOpponent.Ratings;
     object opponentLineupView;
 
@@ -46,12 +47,13 @@ app.MapGet("/api/fixture-view/{matchId:int}",async(int matchId,int? recentIndex,
         }
         else
         {
-            opponentLineupView=BuildLineupView(opponentLineup,opponentFormation,null,opponentRatings);
+            // CHPP kadro verisi gelmezse gizli rakip skill'lerinden rating üretmeye çalışma.
+            opponentLineupView=new{formation=opponentFormation,ratings=opponentRatings,playerCount=0,players=Array.Empty<object>(),source="CHPP_MATCH_LINEUP_UNAVAILABLE"};
         }
     }
     else
     {
-        opponentLineupView=BuildLineupView(opponentLineup,opponentFormation,null,opponentRatings);
+        opponentLineupView=new{formation=opponentFormation,ratings=opponentRatings,playerCount=0,players=Array.Empty<object>(),source="CHPP_MATCH_LINEUP_UNAVAILABLE"};
     }
 
     return Results.Ok(new{fixture,isHome,selectedRecentIndex=historyIndex,selectedOpponentMatch=selectedHistory is null?null:new{selectedHistory.Fixture,selectedHistory.OpponentTeam.TeamName,selectedHistory.OpponentTeam.TacticType,selectedHistory.OpponentTeam.TacticLevel,selectedHistory.OpponentTeam.Ratings},ownTeam=new{teamId=own.TeamId,teamName=own.TeamName},opponentTeam=new{teamId=opponent.TeamId,teamName=opponent.TeamName},ownLineup=BuildLineupView(recommendation.Lineup,recommendation.Formation,recommendation.BehaviourProfile,recommendation.Ratings),opponentLineup=opponentLineupView,ownRatings=recommendation.Ratings,opponentRatings,formation=recommendation.Formation,tactic=new{recommendation.TacticName,recommendation.TacticType,recommendation.TacticLevel},recommendation=new{recommendation.Explanation,recommendation.SelectionScore},recentMatches=selected.RecentMatches.Select(m=>new{m.Fixture,opponent=new{m.OpponentTeam.TeamName,m.OpponentTeam.Ratings,m.OpponentTeam.TacticType,m.OpponentTeam.TacticLevel}})});
@@ -70,7 +72,11 @@ static object BuildLineupView(List<PlayerData> lineup,string formation,IReadOnly
 
 static object BuildHistoricalLineupView(IReadOnlyList<ChppLineupPlayer> lineup,TeamRatings ratings,string formation)
 {
-    var players=lineup.Select(p=>new{p.PlayerId,p.Name,Form=0,Stamina=0,Experience=0,role=RoleLabel(PositionRole(p.PositionCode)),roleKey=PositionRole(p.PositionCode),rating=Math.Round(p.RatingStars,2),behaviour=BehaviourText(p.Behaviour)}).ToArray();
+    var players=lineup.Select(p=>
+    {
+        var roleKey=HistoricalRole(p);
+        return new{p.PlayerId,p.Name,Form=0,Stamina=0,Experience=0,role=RoleLabel(roleKey),roleKey,rating=Math.Round(p.RatingStars,2),behaviour=BehaviourText(p.Behaviour)};
+    }).ToArray();
     return new{formation,ratings,playerCount=players.Length,players,source="CHPP_MATCH_LINEUP"};
 }
 
@@ -82,12 +88,29 @@ static string InferFormation(IReadOnlyList<ChppLineupPlayer> players)
     return $"{defenders}-{midfield}-{forwards}";
 }
 
-static string PositionRole(int position)=>position switch
+static string HistoricalRole(ChppLineupPlayer p)
 {
-    1=>"Goalkeeper",2=>"RightDefender",3=>"CentralDefender",4=>"CentralDefender",5=>"LeftDefender",
-    6=>"RightWinger",7=>"CentralMidfielder",8=>"CentralMidfielder",9=>"LeftWinger",10=>"CentralForward",11=>"CentralForward",_=>"CentralMidfielder"
-};
-static string BehaviourText(int behaviour)=>behaviour switch{1=>"Offensive",2=>"Defensive",3=>"TowardsMiddle",4=>"TowardsWing",_=>"Normal"};
+    // PositionCode gerçek oynanan hattı, RoleID ise ekstra/reposition durumunda
+    // oyuncunun orijinal yanını belirtir. İkisini birlikte kullanıyoruz.
+    if(p.PositionCode==1) return "Goalkeeper";
+    if(p.PositionCode==2) return "RightDefender";
+    if(p.PositionCode is 3 or 4) return "CentralDefender";
+    if(p.PositionCode==5) return "LeftDefender";
+    if(p.PositionCode==6) return "RightWinger";
+    if(p.PositionCode is 7 or 8) return "CentralMidfielder";
+    if(p.PositionCode==9) return "LeftWinger";
+
+    if(p.PositionCode is 10 or 11)
+    {
+        if(p.RoleId==6) return "RightForward";
+        if(p.RoleId==9) return "LeftForward";
+        return "CentralForward";
+    }
+
+    return "CentralMidfielder";
+}
+
+static string BehaviourText(int behaviour)=>behaviour switch{1=>"Offensive",2=>"Defensive",3=>"TowardsMiddle",4=>"TowardsWing",5=>"ExtraForward",6=>"ExtraMidfield",7=>"ExtraDefender",_=>"Normal"};
 static string RoleLabel(string role)=>role switch{"Goalkeeper"=>"KL","LeftDefender"=>"SLB","CentralDefender"=>"STP","RightDefender"=>"SGB","LeftMidfielder"=>"OS","CentralMidfielder"=>"OM","RightMidfielder"=>"OS","LeftWinger"=>"K","RightWinger"=>"K","LeftForward"=>"SF","CentralForward"=>"SF","RightForward"=>"SF",_=>""};
 public sealed record SimulationRequest(TeamRatings Home,TeamRatings Away,int Simulations=1000);
 public sealed record RecommendationRequest(List<PlayerData> Players,TeamData Opponent,int Simulations=1000,bool IsHome=true);
