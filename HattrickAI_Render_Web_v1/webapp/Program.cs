@@ -25,14 +25,36 @@ app.MapGet("/api/fixtures",async(ChppOAuthClient oauth)=>{var team=await new Chp
 
 app.MapGet("/api/fixture-view/{matchId:int}",async(int matchId,int? recentIndex,ChppOAuthClient oauth)=>
 {
-    var teamService=new ChppTeamDataService(oauth);var matchService=new ChppMatchDataService(oauth);var own=await teamService.LoadOwnTeamAsync();
+    var teamService=new ChppTeamDataService(oauth);var matchService=new ChppMatchDataService(oauth);var lineupService=new ChppMatchLineupService(oauth);var own=await teamService.LoadOwnTeamAsync();
     var fixtures=await matchService.LoadUpcomingFixturesAsync(own.TeamId);var fixture=fixtures.FirstOrDefault(x=>x.MatchId==matchId);if(fixture is null)return Results.NotFound(new{message="Maç bulunamadı."});
     var selected=await matchService.LoadSelectedMatchAsync(fixture,own.TeamId);var opponent=await teamService.LoadTeamAsync(selected.OpponentTeamId,selected.OpponentTeamName);var isHome=fixture.IsOwnHome(own.TeamId);
     var historyIndex=Math.Clamp(recentIndex??0,0,Math.Max(0,selected.RecentMatches.Count-1));var selectedHistory=selected.RecentMatches.Count>0?selected.RecentMatches[historyIndex]:null;var simulationOpponent=selectedHistory?.OpponentTeam??selected.OpponentRatings;
     var recommendation=new RecommendationEngine().Recommend(own.Players,simulationOpponent,1200,isHome);if(recommendation is null)return Results.BadRequest(new{message="Kendi kadron için en iyi 11 oluşturulamadı."});
-    var opponentFormation=recommendation.Formation;var opponentLineup=new BestLineupEngine().FindBestLineupForFormation(opponent.Players,opponentFormation);if(opponentLineup.Count!=11)opponentLineup=opponent.Players.Where(p=>!p.Injured&&!p.Suspended).Take(11).ToList();
-    TeamRatings opponentRatings=opponentLineup.Count==11?new LineupRatingEngine().Calculate(opponentLineup,opponentFormation):simulationOpponent.Ratings;
-    return Results.Ok(new{fixture,isHome,selectedRecentIndex=historyIndex,selectedOpponentMatch=selectedHistory is null?null:new{selectedHistory.Fixture,selectedHistory.OpponentTeam.TeamName,selectedHistory.OpponentTeam.TacticType,selectedHistory.OpponentTeam.TacticLevel,selectedHistory.OpponentTeam.Ratings},ownTeam=new{teamId=own.TeamId,teamName=own.TeamName},opponentTeam=new{teamId=opponent.TeamId,teamName=opponent.TeamName},ownLineup=BuildLineupView(recommendation.Lineup,recommendation.Formation,recommendation.BehaviourProfile,recommendation.Ratings),opponentLineup=BuildLineupView(opponentLineup,opponentFormation,null,opponentRatings),ownRatings=recommendation.Ratings,opponentRatings,formation=recommendation.Formation,tactic=new{recommendation.TacticName,recommendation.TacticType,recommendation.TacticLevel},recommendation=new{recommendation.Explanation,recommendation.SelectionScore},recentMatches=selected.RecentMatches.Select(m=>new{m.Fixture,opponent=new{m.OpponentTeam.TeamName,m.OpponentTeam.Ratings,m.OpponentTeam.TacticType,m.OpponentTeam.TacticLevel}})});
+
+    var opponentFormation=recommendation.Formation;
+    var opponentLineup=opponent.Players.Where(p=>!p.Injured&&!p.Suspended).Take(11).ToList();
+    var opponentRatings=simulationOpponent.Ratings;
+    object opponentLineupView;
+
+    if(selectedHistory is not null)
+    {
+        var historicalPlayers=await lineupService.LoadAsync(selectedHistory.Fixture.MatchId,selected.OpponentTeamId);
+        if(historicalPlayers.Count==11)
+        {
+            opponentFormation=InferFormation(historicalPlayers);
+            opponentLineupView=BuildHistoricalLineupView(historicalPlayers,opponentRatings,opponentFormation);
+        }
+        else
+        {
+            opponentLineupView=BuildLineupView(opponentLineup,opponentFormation,null,opponentRatings);
+        }
+    }
+    else
+    {
+        opponentLineupView=BuildLineupView(opponentLineup,opponentFormation,null,opponentRatings);
+    }
+
+    return Results.Ok(new{fixture,isHome,selectedRecentIndex=historyIndex,selectedOpponentMatch=selectedHistory is null?null:new{selectedHistory.Fixture,selectedHistory.OpponentTeam.TeamName,selectedHistory.OpponentTeam.TacticType,selectedHistory.OpponentTeam.TacticLevel,selectedHistory.OpponentTeam.Ratings},ownTeam=new{teamId=own.TeamId,teamName=own.TeamName},opponentTeam=new{teamId=opponent.TeamId,teamName=opponent.TeamName},ownLineup=BuildLineupView(recommendation.Lineup,recommendation.Formation,recommendation.BehaviourProfile,recommendation.Ratings),opponentLineup=opponentLineupView,ownRatings=recommendation.Ratings,opponentRatings,formation=recommendation.Formation,tactic=new{recommendation.TacticName,recommendation.TacticType,recommendation.TacticLevel},recommendation=new{recommendation.Explanation,recommendation.SelectionScore},recentMatches=selected.RecentMatches.Select(m=>new{m.Fixture,opponent=new{m.OpponentTeam.TeamName,m.OpponentTeam.Ratings,m.OpponentTeam.TacticType,m.OpponentTeam.TacticLevel}})});
 });
 
 app.MapPost("/api/simulate",(SimulationRequest request)=>{var result=new SimulationEngine().Run(request.Home,request.Away,request.Simulations);return Results.Ok(new{result.Simulations,result.HomeWinPercentage,result.DrawPercentage,result.AwayWinPercentage,result.AverageHomeGoals,result.AverageAwayGoals,MostLikelyScore=result.GetMostLikelyScore()});});
@@ -45,6 +67,27 @@ static object BuildLineupView(List<PlayerData> lineup,string formation,IReadOnly
     var players=lineup.Count==11?lineup.Select((p,i)=>(object)new{p.PlayerId,p.Name,p.Form,p.Stamina,p.Experience,role=RoleLabel(roles[i].ToString()),roleKey=roles[i].ToString(),rating=Math.Round(ratingEngine.GetPlayerPositionRating(p,roles[i],behaviours!=null&&behaviours.TryGetValue(i,out var b)?b:PlayerBehaviour.Normal),2),behaviour=behaviours!=null&&behaviours.TryGetValue(i,out var behaviour)?behaviour.ToString():"Normal"}).ToArray():Array.Empty<object>();
     return new{formation,ratings,playerCount=lineup.Count,players};
 }
+
+static object BuildHistoricalLineupView(IReadOnlyList<ChppLineupPlayer> lineup,TeamRatings ratings,string formation)
+{
+    var players=lineup.Select(p=>new{p.PlayerId,p.Name,Form=0,Stamina=0,Experience=0,role=RoleLabel(PositionRole(p.PositionCode)),roleKey=PositionRole(p.PositionCode),rating=Math.Round(p.RatingStars,2),behaviour=BehaviourText(p.Behaviour)}).ToArray();
+    return new{formation,ratings,playerCount=players.Length,players,source="CHPP_MATCH_LINEUP"};
+}
+
+static string InferFormation(IReadOnlyList<ChppLineupPlayer> players)
+{
+    var defenders=players.Count(p=>p.PositionCode is >=2 and <=5);
+    var midfield=players.Count(p=>p.PositionCode is >=6 and <=9);
+    var forwards=players.Count(p=>p.PositionCode is 10 or 11);
+    return $"{defenders}-{midfield}-{forwards}";
+}
+
+static string PositionRole(int position)=>position switch
+{
+    1=>"Goalkeeper",2=>"RightDefender",3=>"CentralDefender",4=>"CentralDefender",5=>"LeftDefender",
+    6=>"RightWinger",7=>"CentralMidfielder",8=>"CentralMidfielder",9=>"LeftWinger",10=>"CentralForward",11=>"CentralForward",_=>"CentralMidfielder"
+};
+static string BehaviourText(int behaviour)=>behaviour switch{1=>"Offensive",2=>"Defensive",3=>"TowardsMiddle",4=>"TowardsWing",_=>"Normal"};
 static string RoleLabel(string role)=>role switch{"Goalkeeper"=>"KL","LeftDefender"=>"SLB","CentralDefender"=>"STP","RightDefender"=>"SGB","LeftMidfielder"=>"OS","CentralMidfielder"=>"OM","RightMidfielder"=>"OS","LeftWinger"=>"K","RightWinger"=>"K","LeftForward"=>"SF","CentralForward"=>"SF","RightForward"=>"SF",_=>""};
 public sealed record SimulationRequest(TeamRatings Home,TeamRatings Away,int Simulations=1000);
 public sealed record RecommendationRequest(List<PlayerData> Players,TeamData Opponent,int Simulations=1000,bool IsHome=true);
