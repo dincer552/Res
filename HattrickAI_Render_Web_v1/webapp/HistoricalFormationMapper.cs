@@ -10,6 +10,9 @@ public static class HistoricalFormationMapper
         if (players is null || players.Count != 11)
             return "";
 
+        // PositionCode is the actual historical field position. RoleID can carry
+        // reposition/extra-role information and must not make a valid XI look
+        // like an impossible formation.
         var roles = players.Select(ClassifyLine).ToList();
         if (roles.Count(r => r == LineFamily.Goalkeeper) != 1)
             return "";
@@ -56,10 +59,9 @@ public static class HistoricalFormationMapper
 
     private static LineFamily ClassifyLine(ChppLineupPlayer player)
     {
-        var role = RoleFromChppRoleId(player.RoleId);
-        if (role.HasValue)
-            return RoleFamily(role.Value);
-
+        // Formation is determined strictly from the historical position code.
+        // This prevents a RoleID used for a side/repositioning detail from
+        // corrupting the 3-5-2 / 4-4-2 / 4-3-3 line counts.
         return player.PositionCode switch
         {
             1 => LineFamily.Goalkeeper,
