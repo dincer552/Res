@@ -13,5 +13,7 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '9.0.x'
+      - name: Restore webapp
+        run: dotnet restore HattrickAI_Render_Web_v1/webapp/HattrickAI.Web.csproj
       - name: Build webapp
         run: dotnet build HattrickAI_Render_Web_v1/webapp/HattrickAI.Web.csproj --configuration Release --no-restore
