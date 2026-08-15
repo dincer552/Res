@@ -14,37 +14,27 @@ public sealed record ChppLineupPlayer(
 public sealed class ChppMatchLineupService
 {
     private readonly ChppOAuthClient _oauth;
-
     public ChppMatchLineupService(ChppOAuthClient oauth) => _oauth = oauth;
 
-    public async Task<IReadOnlyList<ChppLineupPlayer>> LoadAsync(
-        int matchId,
-        int teamId,
-        CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<ChppLineupPlayer>> LoadAsync(int matchId, int teamId, CancellationToken cancellationToken = default)
     {
-        var xml = await _oauth.GetXmlAsync(
-            "matchlineup",
+        var xml = await ChppTraceHttp.GetXmlAsync(_oauth, "matchlineup",
             new Dictionary<string, string?>
             {
                 ["version"] = "1.1",
                 ["matchID"] = matchId.ToString(CultureInfo.InvariantCulture),
                 ["teamID"] = teamId.ToString(CultureInfo.InvariantCulture)
             },
-            cancellationToken);
+            $"historical opponent lineup matchId={matchId} teamId={teamId}", cancellationToken);
 
         var doc = XDocument.Parse(xml);
         var team = doc.Descendants("Team").FirstOrDefault();
-        if (team == null)
-            return Array.Empty<ChppLineupPlayer>();
+        if (team == null) return Array.Empty<ChppLineupPlayer>();
 
         return team.Descendants("Player")
             .Select(p => new ChppLineupPlayer(
-                ReadInt(p, "PlayerID"),
-                ReadText(p, "PlayerName") ?? "Bilinmeyen Oyuncu",
-                ReadInt(p, "RoleID"),
-                ReadInt(p, "PositionCode"),
-                ReadInt(p, "Behaviour"),
-                ReadDouble(p, "RatingStars")))
+                ReadInt(p, "PlayerID"), ReadText(p, "PlayerName") ?? "Bilinmeyen Oyuncu", ReadInt(p, "RoleID"),
+                ReadInt(p, "PositionCode"), ReadInt(p, "Behaviour"), ReadDouble(p, "RatingStars")))
             .Where(p => p.PlayerId > 0 && p.PositionCode > 0)
             .Take(11)
             .ToList();
@@ -55,12 +45,10 @@ public sealed class ChppMatchLineupService
         var text = ReadText(parent, name);
         return int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value) ? value : fallback;
     }
-
     private static double ReadDouble(XElement parent, string name, double fallback = 0)
     {
         var text = ReadText(parent, name);
         return double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var value) ? value : fallback;
     }
-
     private static string? ReadText(XElement parent, string name) => parent.Element(name)?.Value?.Trim();
 }
