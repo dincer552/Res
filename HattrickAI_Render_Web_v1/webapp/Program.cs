@@ -194,7 +194,18 @@ app.MapGet("/api/fixture-view/{matchId:int}", async (int matchId, int? recentInd
 app.MapPost("/api/simulate", (SimulationRequest request) =>
 {
     var result = new SimulationEngine().Run(request.Home, request.Away, request.Simulations);
-    return Results.Ok(new { result.Simulations, result.HomeWinPercentage, result.DrawPercentage, result.AwayWinPercentage, result.AverageHomeGoals, result.AverageAwayGoals, MostLikelyScore = result.GetMostLikelyScore() });
+    return Results.Ok(new
+    {
+        result.Simulations,
+        result.HomeWinPercentage,
+        result.DrawPercentage,
+        result.AwayWinPercentage,
+        result.AverageHomeGoals,
+        result.AverageAwayGoals,
+        MostLikelyScore = result.GetMostLikelyScore(),
+        ScoreDistribution = result.ScoreDistribution,
+        ScoreModel = "HO! ActionGenerator"
+    });
 });
 
 app.MapPost("/api/recommend", (RecommendationRequest request) =>
