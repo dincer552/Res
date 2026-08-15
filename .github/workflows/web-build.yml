@@ -13,7 +13,9 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '9.0.x'
-      - name: Restore webapp
-        run: dotnet restore HattrickAI_Render_Web_v1/webapp/HattrickAI.Web.csproj
+      - name: Restore solution
+        run: dotnet restore HattrickAI_Render_Web_v1/webapp/HattrickAI.Web.sln
       - name: Build webapp
-        run: dotnet build HattrickAI_Render_Web_v1/webapp/HattrickAI.Web.csproj --configuration Release --no-restore
+        run: dotnet build HattrickAI_Render_Web_v1/webapp/HattrickAI.Web.sln --configuration Release --no-restore
+      - name: Run formation regression tests
+        run: dotnet test HattrickAI_Render_Web_v1/webapp/FormationTests/HattrickAI.FormationTests.csproj --configuration Release --no-build --logger "console;verbosity=normal"
