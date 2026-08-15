@@ -4,6 +4,12 @@ using System.Linq;
 
 namespace HattrickAI.HOEngine;
 
+/// <summary>
+/// HO! RatingPredictionModel port used as the single rating source for both sides.
+/// The contribution table, experience, loyalty/form, stamina and sector scale are
+/// intentionally kept on the HO! formula path; historical match ratings are never
+/// used as simulation inputs.
+/// </summary>
 public sealed class LineupRatingEngine
 {
     private readonly PlayerRatingCalculator _calculator = new();
@@ -43,13 +49,9 @@ public sealed class LineupRatingEngine
             {
                 var role = roles[i];
                 var lineupSector = ToLineupSector(role);
-                var playerBehaviour = behaviour.TryGetValue(i, out var b)
-                    ? b
-                    : PlayerBehaviour.Normal;
+                var playerBehaviour = behaviour.TryGetValue(i, out var b) ? b : PlayerBehaviour.Normal;
 
-                double contribution = _table.GetContribution(
-                    lineup[i], role, sector, playerBehaviour, _calculator);
-
+                double contribution = _table.GetContribution(lineup[i], role, sector, playerBehaviour, _calculator);
                 if (contribution <= 0)
                     continue;
 
@@ -62,11 +64,7 @@ public sealed class LineupRatingEngine
             }
 
             raw *= SectorContextFactor(sector, context);
-
-            if (raw <= 0)
-                return .75;
-
-            return Math.Pow(raw * SectorScale[sector], 1.2) / 4.0 + 1.0;
+            return raw > 0 ? Math.Pow(raw * SectorScale[sector], 1.2) / 4.0 + 1.0 : .75;
         }
 
         return new TeamRatings(
@@ -79,25 +77,29 @@ public sealed class LineupRatingEngine
             CalculateSector(RatingSector.RightAttack));
     }
 
+    /// <summary>
+    /// Exact HO player-rating aggregation: sector contribution × sector scale,
+    /// midfield ×3, followed by pow(raw,1.2)/4.
+    /// </summary>
     public double GetPlayerPositionRating(PlayerData player, PlayerRole role, PlayerBehaviour behaviour, int minute = 0, int tacticType = 0)
     {
         double raw = 0;
         foreach (RatingSector sector in Enum.GetValues<RatingSector>())
         {
-            double c = _table.GetContribution(player, role, sector, behaviour, _calculator);
-            if (c <= 0)
+            double contribution = _table.GetContribution(player, role, sector, behaviour, _calculator);
+            if (contribution <= 0)
                 continue;
 
-            c += _calculator.ExperienceContribution(player.Experience, sector);
-            c *= _calculator.WeatherFactor(player, MatchWeather.Normal);
-            c *= _calculator.StaminaFactor(player, minute, 0, tacticType);
-            c *= SectorScale[sector];
+            contribution += _calculator.ExperienceContribution(player.Experience, sector);
+            contribution *= _calculator.WeatherFactor(player, MatchWeather.Normal);
+            contribution *= _calculator.StaminaFactor(player, minute, 0, tacticType);
+            contribution *= SectorScale[sector];
             if (sector == RatingSector.Midfield)
-                c *= 3.0;
-            raw += c;
+                contribution *= 3.0;
+            raw += contribution;
         }
 
-        return raw <= 0 ? 0 : Math.Pow(raw, 1.2) / 4.0;
+        return raw > 0 ? Math.Pow(raw, 1.2) / 4.0 : 0;
     }
 
     public static PlayerRole[] GetRoles(string formation) => formation switch
@@ -164,16 +166,13 @@ public sealed class LineupRatingEngine
         _ => LineupContributionSector.InnerMidfield
     };
 
-    private static double GetOvercrowdingPenalty(int count, LineupContributionSector sector)
+    private static double GetOvercrowdingPenalty(int count, LineupContributionSector sector) => sector switch
     {
-        return sector switch
-        {
-            LineupContributionSector.CentralDefence => count switch { 2 => .964, 3 => .90, _ => 1.0 },
-            LineupContributionSector.InnerMidfield => count switch { 2 => .935, 3 => .825, _ => 1.0 },
-            LineupContributionSector.Forward => count switch { 2 => .945, 3 => .865, _ => 1.0 },
-            _ => 1.0
-        };
-    }
+        LineupContributionSector.CentralDefence => count switch { 2 => .964, 3 => .90, _ => 1.0 },
+        LineupContributionSector.InnerMidfield => count switch { 2 => .935, 3 => .825, _ => 1.0 },
+        LineupContributionSector.Forward => count switch { 2 => .945, 3 => .865, _ => 1.0 },
+        _ => 1.0
+    };
 
     private static double SectorContextFactor(RatingSector sector, TeamMatchContext context)
     {
@@ -184,8 +183,8 @@ public sealed class LineupRatingEngine
             if (context.Attitude == TeamAttitude.PIC) factor *= .83945;
             if (context.Attitude == TeamAttitude.MOTS) factor *= 1.1149;
             if (context.IsHome) factor *= 1.19892;
-            if (context.TacticType == 2) factor *= .93; // counter attack
-            if (context.TacticType == 7) factor *= .96; // creative
+            if (context.TacticType == 2) factor *= .93; // Counter attacks
+            if (context.TacticType == 5) factor *= .96; // Long shots (HO tactic id)
             if (context.TeamSpirit > 0) factor *= .1 + .425 * Math.Sqrt(context.TeamSpirit);
         }
         else if (sector is RatingSector.LeftDefence or RatingSector.RightDefence or RatingSector.CentralDefence)
@@ -193,19 +192,19 @@ public sealed class LineupRatingEngine
             factor *= CoachFactor(sector, context.CoachModifier);
             if (sector is RatingSector.LeftDefence or RatingSector.RightDefence)
             {
-                if (context.TacticType == 3) factor *= .85; // AIM
-                if (context.TacticType == 7) factor *= .93; // creative
+                if (context.TacticType == 3) factor *= .85; // Attack in middle
+                if (context.TacticType == 7) factor *= .93; // Play creatively
             }
             else
             {
-                if (context.TacticType == 4) factor *= .85; // AOW
+                if (context.TacticType == 4) factor *= .85; // Attack in wings
                 if (context.TacticType == 7) factor *= .93;
             }
         }
         else
         {
             factor *= CoachFactor(sector, context.CoachModifier);
-            if (context.TacticType == 7) factor *= .96;
+            if (context.TacticType == 5) factor *= .96; // Long shots
             if (context.Confidence > 0) factor *= .8 + .05 * (context.Confidence + .5);
         }
 
@@ -242,6 +241,5 @@ public sealed class TeamMatchContext
     public double Confidence { get; init; }
     public MatchWeather Weather { get; init; } = MatchWeather.Normal;
     public int Minute { get; init; }
-    public IReadOnlyDictionary<int, PlayerBehaviour> SlotBehaviours { get; init; } =
-        new Dictionary<int, PlayerBehaviour>();
+    public IReadOnlyDictionary<int, PlayerBehaviour> SlotBehaviours { get; init; } = new Dictionary<int, PlayerBehaviour>();
 }
