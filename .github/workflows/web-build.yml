@@ -18,4 +18,4 @@ jobs:
       - name: Build webapp
         run: dotnet build HattrickAI_Render_Web_v1/webapp/HattrickAI.Web.sln --configuration Release --no-restore
       - name: Run formation regression tests
-        run: dotnet test HattrickAI_Render_Web_v1/webapp/FormationTests/HattrickAI.FormationTests.csproj --configuration Release --no-build --logger "console;verbosity=normal"
+        run: dotnet run --project HattrickAI_Render_Web_v1/webapp/FormationTests/HattrickAI.FormationTests.csproj --configuration Release --no-build
