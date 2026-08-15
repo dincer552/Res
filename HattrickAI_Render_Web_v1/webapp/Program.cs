@@ -202,9 +202,9 @@ app.MapPost("/api/simulate", (SimulationRequest request) =>
         result.AwayWinPercentage,
         result.AverageHomeGoals,
         result.AverageAwayGoals,
-        MostLikelyScore = result.GetMostLikelyScore(),
-        ScoreDistribution = result.ScoreDistribution,
-        ScoreModel = "HO! ActionGenerator"
+        MostLikelyNormalScore = result.GetMostLikelyNormalScore(),
+        ScoreDistribution = result.GetScoreDistribution(),
+        ScoreModel = "HO! ActionGenerator / MatchResult"
     });
 });
 
