@@ -9,7 +9,7 @@ public sealed class PlayerData
     public int Stamina { get; set; }
     public int Experience { get; set; }
     public int Leadership { get; set; }
-    public int Loyalty { get; set; } = 20;
+    public int Loyalty { get; set; }
     public bool HomeGrown { get; set; }
     public string Specialty { get; set; } = "";
 
@@ -26,7 +26,6 @@ public sealed class PlayerData
 
     public double PositionScore(string position)
     {
-        var calculator = new PlayerRatingCalculator();
         var role = position.ToLowerInvariant() switch
         {
             "kaleci" or "keeper" => PlayerRole.Goalkeeper,
