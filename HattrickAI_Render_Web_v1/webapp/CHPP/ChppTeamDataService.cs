@@ -78,6 +78,32 @@ public sealed class ChppTeamDataService
         return new ChppTeamSnapshot(teamId, teamName, ParsePlayers(playersXml), teamXml, playersXml);
     }
 
+    /// <summary>
+    /// Loads one player directly from CHPP playerDetails. This is needed for
+    /// historical lineups because a player may have left the opponent's current
+    /// squad even though he really played in the selected historical match.
+    /// </summary>
+    public async Task<PlayerData?> LoadPlayerDetailsAsync(
+        int playerId,
+        CancellationToken cancellationToken = default)
+    {
+        if (playerId <= 0)
+            return null;
+
+        var xml = await _oauth.GetXmlAsync(
+            "playerdetails",
+            new Dictionary<string, string?>
+            {
+                ["version"] = "1.1",
+                ["playerId"] = playerId.ToString(CultureInfo.InvariantCulture)
+            },
+            cancellationToken);
+
+        var doc = XDocument.Parse(xml);
+        var node = doc.Descendants("Player").FirstOrDefault();
+        return node == null ? null : ParsePlayerDetails(node);
+    }
+
     private static List<PlayerData> ParsePlayers(string xml)
     {
         var doc = XDocument.Parse(xml);
@@ -115,8 +141,38 @@ public sealed class ChppTeamDataService
         return result;
     }
 
-    private static int ReadInt(XElement parent, string name, int fallback = 0)
+    private static PlayerData ParsePlayerDetails(XElement node)
     {
+        var skills = node.Element("PlayerSkills");
+        var injuryLevel = ReadInt(node, "InjuryLevel", -1);
+        var cards = ReadInt(node, "Cards");
+
+        return new PlayerData
+        {
+            PlayerId = ReadInt(node, "PlayerID"),
+            Name = ReadText(node, "PlayerName") ?? "Bilinmeyen Oyuncu",
+            Age = ReadInt(node, "Age"),
+            Form = ReadInt(node, "PlayerForm"),
+            Experience = ReadInt(node, "Experience"),
+            Leadership = ReadInt(node, "Leadership"),
+            Specialty = ReadInt(node, "Specialty").ToString(CultureInfo.InvariantCulture),
+            Stamina = ReadInt(skills, "StaminaSkill"),
+            Keeper = ReadInt(skills, "KeeperSkill"),
+            Playmaking = ReadInt(skills, "PlaymakerSkill"),
+            Scoring = ReadInt(skills, "ScorerSkill"),
+            Passing = ReadInt(skills, "PassingSkill"),
+            Winger = ReadInt(skills, "WingerSkill"),
+            Defending = ReadInt(skills, "DefenderSkill"),
+            SetPieces = ReadInt(skills, "SetPiecesSkill"),
+            Injured = injuryLevel >= 0,
+            Suspended = cards >= 3
+        };
+    }
+
+    private static int ReadInt(XElement? parent, string name, int fallback = 0)
+    {
+        if (parent == null)
+            return fallback;
         var text = ReadText(parent, name);
         return int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value)
             ? value
