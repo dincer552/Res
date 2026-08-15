@@ -31,10 +31,7 @@ builder.Services.Configure<JsonOptions>(options =>
 var app = builder.Build();
 app.Use(async (context, next) =>
 {
-    try
-    {
-        await next();
-    }
+    try { await next(); }
     catch (Exception ex)
     {
         Console.Error.WriteLine($"UNHANDLED REQUEST ERROR: {ex}");
@@ -53,10 +50,8 @@ app.Use(async (context, next) =>
 });
 
 var port = Environment.GetEnvironmentVariable("PORT");
-if (int.TryParse(port, out var parsedPort))
-    app.Urls.Add($"http://0.0.0.0:{parsedPort}");
-else
-    app.Urls.Add("http://0.0.0.0:10000");
+if (int.TryParse(port, out var parsedPort)) app.Urls.Add($"http://0.0.0.0:{parsedPort}");
+else app.Urls.Add("http://0.0.0.0:10000");
 
 app.UseSession();
 app.UseDefaultFiles();
@@ -84,9 +79,7 @@ app.MapGet("/auth/chpp/start", async (HttpContext http) =>
 app.MapGet("/auth/chpp/callback", async (HttpContext http) =>
 {
     var verifier = http.Request.Query["oauth_verifier"].ToString();
-    if (string.IsNullOrWhiteSpace(verifier))
-        return Results.BadRequest("CHPP oauth_verifier bulunamadı.");
-
+    if (string.IsNullOrWhiteSpace(verifier)) return Results.BadRequest("CHPP oauth_verifier bulunamadı.");
     try
     {
         var oauth = http.RequestServices.GetRequiredService<ChppOAuthClient>();
@@ -112,8 +105,7 @@ app.MapGet("/api/status", async (ChppOAuthClient oauth) =>
     catch { return Results.Ok(new { connected = false }); }
 });
 
-app.MapGet("/api/team", async (ChppOAuthClient oauth) =>
-    Results.Ok(await new ChppTeamDataService(oauth).LoadOwnTeamAsync()));
+app.MapGet("/api/team", async (ChppOAuthClient oauth) => Results.Ok(await new ChppTeamDataService(oauth).LoadOwnTeamAsync()));
 
 app.MapGet("/api/fixtures", async (ChppOAuthClient oauth) =>
 {
@@ -126,7 +118,6 @@ app.MapGet("/api/fixture-view/{matchId:int}", async (int matchId, int? recentInd
 {
     using var traceScope = ChppRequestTrace.Begin("fixture-view", matchId, recentIndex);
     var trace = ChppRequestTrace.Current!;
-
     var teamService = new ChppTeamDataService(oauth);
     var matchService = new ChppMatchDataService(oauth);
     var lineupService = new ChppMatchLineupService(oauth);
@@ -134,69 +125,39 @@ app.MapGet("/api/fixture-view/{matchId:int}", async (int matchId, int? recentInd
 
     var fixtures = await matchService.LoadUpcomingFixturesAsync(own.TeamId);
     var fixture = fixtures.FirstOrDefault(x => x.MatchId == matchId);
-    if (fixture is null)
-        return Results.NotFound(new { message = "Maç bulunamadı.", chppTrace = trace.ToResponse() });
+    if (fixture is null) return Results.NotFound(new { message = "Maç bulunamadı.", chppTrace = trace.ToResponse() });
 
     var selected = await matchService.LoadSelectedMatchAsync(fixture, own.TeamId);
     var opponent = await teamService.LoadTeamAsync(selected.OpponentTeamId, selected.OpponentTeamName);
     var isHome = fixture.IsOwnHome(own.TeamId);
-
     var historyIndex = Math.Clamp(recentIndex ?? 0, 0, Math.Max(0, selected.RecentMatches.Count - 1));
     var selectedHistory = selected.RecentMatches.Count > 0 ? selected.RecentMatches[historyIndex] : null;
+
     if (selectedHistory is null)
-        return Results.BadRequest(new
-        {
-            message = "Rakibin seçilmiş geçmiş maçı bulunamadı.",
-            ratingSource = "CHPP_HISTORY_UNAVAILABLE",
-            chppTrace = trace.ToResponse()
-        });
+        return Results.BadRequest(new { message = "Rakibin seçilmiş geçmiş maçı bulunamadı.", ratingSource = "CHPP_HISTORY_UNAVAILABLE", chppTrace = trace.ToResponse() });
 
     var historicalPlayers = await lineupService.LoadAsync(selectedHistory.Fixture.MatchId, selected.OpponentTeamId);
     if (historicalPlayers.Count != 11)
-        return Results.BadRequest(new
-        {
-            message = "Rakibin geçmiş maç kadrosu CHPP'den 11 oyuncu olarak alınamadı.",
-            ratingSource = "CHPP_MATCH_LINEUP_INCOMPLETE",
-            playerCount = historicalPlayers.Count,
-            chppTrace = trace.ToResponse()
-        });
+        return Results.BadRequest(new { message = "Rakibin geçmiş maç kadrosu CHPP'den 11 oyuncu olarak alınamadı.", ratingSource = "CHPP_MATCH_LINEUP_INCOMPLETE", playerCount = historicalPlayers.Count, chppTrace = trace.ToResponse() });
 
     var opponentFormation = HistoricalFormationMapper.InferFormation(historicalPlayers);
     if (string.IsNullOrWhiteSpace(opponentFormation))
-        return Results.BadRequest(new
-        {
-            message = "Rakibin geçmiş maç formasyonu CHPP kadrosundan çözülemedi.",
-            ratingSource = "CHPP_FORMATION_UNAVAILABLE",
-            chppTrace = trace.ToResponse()
-        });
+        return Results.BadRequest(new { message = "Rakibin geçmiş maç formasyonu CHPP kadrosundan çözülemedi.", ratingSource = "CHPP_FORMATION_UNAVAILABLE", chppTrace = trace.ToResponse() });
 
-    // HO TeamAnalyzer does NOT reconstruct the opponent's historical rating
-    // from the opponent's current hidden player skills. It uses the actual
-    // sector ratings recorded in the selected historical match report.
-    // This is critical because CHPP hides opponent player skills.
+    // HO TeamAnalyzer uses the actual sector ratings recorded in the selected
+    // historical match. It does not rebuild an opponent rating from hidden
+    // opponent player skills, which CHPP does not expose.
     var simulationOpponent = new TeamData(
         selectedHistory.OpponentTeam.TeamName,
         selectedHistory.OpponentTeam.Ratings,
         selectedHistory.OpponentTeam.TacticType,
         selectedHistory.OpponentTeam.TacticLevel);
 
-    var recommendation = new RecommendationEngine().Recommend(
-        own.Players,
-        simulationOpponent,
-        1200,
-        isHome);
-
+    var recommendation = new RecommendationEngine().Recommend(own.Players, simulationOpponent, 1200, isHome);
     if (recommendation is null)
-        return Results.BadRequest(new
-        {
-            message = "Kendi kadron için en iyi 11 oluşturulamadı.",
-            chppTrace = trace.ToResponse()
-        });
+        return Results.BadRequest(new { message = "Kendi kadron için en iyi 11 oluşturulamadı.", chppTrace = trace.ToResponse() });
 
-    var opponentLineupView = BuildHistoricalLineupView(
-        historicalPlayers,
-        opponentFormation,
-        selectedHistory.OpponentTeam.Ratings);
+    var opponentLineupView = BuildHistoricalLineupView(historicalPlayers, opponentFormation, selectedHistory.OpponentTeam.Ratings);
 
     return Results.Ok(new
     {
@@ -214,36 +175,17 @@ app.MapGet("/api/fixture-view/{matchId:int}", async (int matchId, int? recentInd
         },
         ownTeam = new { teamId = own.TeamId, teamName = own.TeamName },
         opponentTeam = new { teamId = opponent.TeamId, teamName = opponent.TeamName },
-        ownLineup = BuildLineupView(
-            recommendation.Lineup,
-            recommendation.Formation,
-            recommendation.BehaviourProfile,
-            recommendation.Ratings),
+        ownLineup = BuildLineupView(recommendation.Lineup, recommendation.Formation, recommendation.BehaviourProfile, recommendation.Ratings),
         opponentLineup = opponentLineupView,
         ownRatings = recommendation.Ratings,
         opponentRatings = selectedHistory.OpponentTeam.Ratings,
         formation = recommendation.Formation,
-        tactic = new
-        {
-            recommendation.TacticName,
-            recommendation.TacticType,
-            recommendation.TacticLevel
-        },
-        recommendation = new
-        {
-            recommendation.Explanation,
-            recommendation.SelectionScore
-        },
+        tactic = new { recommendation.TacticName, recommendation.TacticType, recommendation.TacticLevel },
+        recommendation = new { recommendation.Explanation, recommendation.SelectionScore },
         recentMatches = selected.RecentMatches.Select(m => new
         {
             m.Fixture,
-            opponent = new
-            {
-                m.OpponentTeam.TeamName,
-                actualMatchRatings = m.OpponentTeam.Ratings,
-                m.OpponentTeam.TacticType,
-                m.OpponentTeam.TacticLevel
-            }
+            opponent = new { m.OpponentTeam.TeamName, actualMatchRatings = m.OpponentTeam.Ratings, m.OpponentTeam.TacticType, m.OpponentTeam.TacticLevel }
         }),
         chppTrace = trace.ToResponse()
     });
@@ -252,32 +194,14 @@ app.MapGet("/api/fixture-view/{matchId:int}", async (int matchId, int? recentInd
 app.MapPost("/api/simulate", (SimulationRequest request) =>
 {
     var result = new SimulationEngine().Run(request.Home, request.Away, request.Simulations);
-    return Results.Ok(new
-    {
-        result.Simulations,
-        result.HomeWinPercentage,
-        result.DrawPercentage,
-        result.AwayWinPercentage,
-        result.AverageHomeGoals,
-        result.AverageAwayGoals,
-        MostLikelyScore = result.GetMostLikelyScore()
-    });
+    return Results.Ok(new { result.Simulations, result.HomeWinPercentage, result.DrawPercentage, result.AwayWinPercentage, result.AverageHomeGoals, result.AverageAwayGoals, MostLikelyScore = result.GetMostLikelyScore() });
 });
 
 app.MapPost("/api/recommend", (RecommendationRequest request) =>
 {
-    if (request.Players is null || request.Players.Count < 11)
-        return Results.BadRequest(new { message = "En az 11 oyuncu gerekli." });
-
-    var result = new RecommendationEngine().Recommend(
-        request.Players,
-        request.Opponent,
-        Math.Clamp(request.Simulations, 100, 10000),
-        request.IsHome);
-
-    if (result is null)
-        return Results.BadRequest(new { message = "Kadronun en iyi 11'i oluşturulamadı." });
-
+    if (request.Players is null || request.Players.Count < 11) return Results.BadRequest(new { message = "En az 11 oyuncu gerekli." });
+    var result = new RecommendationEngine().Recommend(request.Players, request.Opponent, Math.Clamp(request.Simulations, 100, 10000), request.IsHome);
+    if (result is null) return Results.BadRequest(new { message = "Kadronun en iyi 11'i oluşturulamadı." });
     return Results.Ok(new
     {
         result.Formation,
@@ -288,30 +212,17 @@ app.MapPost("/api/recommend", (RecommendationRequest request) =>
         result.Simulation,
         result.SelectionScore,
         result.Explanation,
-        Lineup = result.Lineup.Select(p => new
-        {
-            p.PlayerId,
-            p.Name,
-            p.Age,
-            p.Form,
-            p.Stamina,
-            p.Experience
-        })
+        Lineup = result.Lineup.Select(p => new { p.PlayerId, p.Name, p.Age, p.Form, p.Stamina, p.Experience })
     });
 });
 
 app.MapFallbackToFile("index.html");
 app.Run();
 
-static object BuildLineupView(
-    List<PlayerData> lineup,
-    string formation,
-    IReadOnlyDictionary<int, PlayerBehaviour>? behaviours,
-    TeamRatings ratings)
+static object BuildLineupView(List<PlayerData> lineup, string formation, IReadOnlyDictionary<int, PlayerBehaviour>? behaviours, TeamRatings ratings)
 {
     var roles = LineupRatingEngine.GetRoles(formation);
     var ratingEngine = new LineupRatingEngine();
-
     var players = lineup.Count == 11
         ? lineup.Select((p, i) => (object)new
         {
@@ -322,60 +233,27 @@ static object BuildLineupView(
             p.Experience,
             role = RoleLabel(roles[i].ToString()),
             roleKey = roles[i].ToString(),
-            rating = Math.Round(
-                ratingEngine.GetPlayerPositionRating(
-                    p,
-                    roles[i],
-                    behaviours != null && behaviours.TryGetValue(i, out var b)
-                        ? b
-                        : PlayerBehaviour.Normal),
-                2),
-            behaviour = behaviours != null && behaviours.TryGetValue(i, out var behaviour)
-                ? behaviour.ToString()
-                : "Normal"
+            rating = Math.Round(ratingEngine.GetPlayerPositionRating(p, roles[i], behaviours != null && behaviours.TryGetValue(i, out var b) ? b : PlayerBehaviour.Normal), 2),
+            behaviour = behaviours != null && behaviours.TryGetValue(i, out var behaviour) ? behaviour.ToString() : "Normal"
         }).ToArray()
         : Array.Empty<object>();
-
-    return new
-    {
-        formation,
-        ratings,
-        playerCount = lineup.Count,
-        players
-    };
+    return new { formation, ratings, playerCount = lineup.Count, players };
 }
 
-static object BuildHistoricalLineupView(
-    IReadOnlyList<ChppLineupPlayer> historicalPlayers,
-    string formation,
-    TeamRatings ratings)
+static object BuildHistoricalLineupView(IReadOnlyList<ChppLineupPlayer> historicalPlayers, string formation, TeamRatings ratings)
 {
     var roles = LineupRatingEngine.GetRoles(formation);
-
     var players = historicalPlayers.Select((p, i) => (object)new
     {
         p.PlayerId,
         p.Name,
-        Form = p.Form,
-        Stamina = p.Stamina,
-        Experience = p.Experience,
         role = RoleLabel(roles[i].ToString()),
         roleKey = roles[i].ToString(),
-        // Historical match star rating is the rating HO/HT actually recorded
-        // for this player in that match. Do not recalculate it from hidden skills.
         rating = Math.Round(p.RatingStars, 2),
         historicalMatchRating = Math.Round(p.RatingStars, 2),
         behaviour = MapBehaviour(p.Behaviour).ToString()
     }).ToArray();
-
-    return new
-    {
-        formation,
-        ratings,
-        playerCount = players.Length,
-        players,
-        source = "HO_TEAM_ANALYZER_HISTORICAL_MATCH_RATINGS"
-    };
+    return new { formation, ratings, playerCount = players.Length, players, source = "HO_TEAM_ANALYZER_HISTORICAL_MATCH_RATINGS" };
 }
 
 static PlayerBehaviour MapBehaviour(int behaviour) => behaviour switch
