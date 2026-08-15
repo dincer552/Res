@@ -8,7 +8,7 @@ internal static class HistoricalFormationMapperTests
 {
     public static int RunAll()
     {
-        var tests = new (string Name, Action Test)[]
+        var tests = new (string Name, System.Action Test)[]
         {
             ("3-5-2", () => AssertFormation("3-5-2", new[] { 100, 101, 103, 105, 106, 107, 108, 109, 110, 111, 113 })),
             ("4-4-2", () => AssertFormation("4-4-2", new[] { 100, 101, 102, 104, 105, 106, 107, 109, 110, 111, 113 })),
