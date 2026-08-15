@@ -1,6 +1,7 @@
 using HattrickAI.CHPP;
 using HattrickAI.HOEngine;
 using HattrickAI.Web;
+using Xunit;
 
 namespace HattrickAI.FormationTests;
 
