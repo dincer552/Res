@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Globalization;
 
 namespace HattrickAI.CHPP;
@@ -15,13 +16,9 @@ public static class ChppTraceHttp
         try
         {
             var body = await oauth.GetXmlAsync(file, query, cancellationToken);
-            ChppRequestTrace.Record(
-                file,
-                context,
-                query,
-                "GET",
-                new HttpResponseMessage(System.Net.HttpStatusCode.OK),
-                Stopwatch.GetElapsedTime(started).Milliseconds,
+            using var response = new HttpResponseMessage(System.Net.HttpStatusCode.OK);
+            ChppRequestTrace.Record(file, context, query, "GET", response,
+                (long)Stopwatch.GetElapsedTime(started).TotalMilliseconds,
                 responseBodyPreview: body);
             return body;
         }
@@ -29,15 +26,9 @@ public static class ChppTraceHttp
         {
             var status = ExtractStatusCode(ex.Message);
             using var response = status.HasValue ? new HttpResponseMessage((System.Net.HttpStatusCode)status.Value) : null;
-            ChppRequestTrace.Record(
-                file,
-                context,
-                query,
-                "GET",
-                response,
-                Stopwatch.GetElapsedTime(started).Milliseconds,
-                ex,
-                ex.Message);
+            ChppRequestTrace.Record(file, context, query, "GET", response,
+                (long)Stopwatch.GetElapsedTime(started).TotalMilliseconds,
+                ex, ex.Message);
             throw;
         }
     }
@@ -50,8 +41,6 @@ public static class ChppTraceHttp
         start += marker.Length;
         var end = message.IndexOf(')', start);
         if (end < 0) return null;
-        return int.TryParse(message[start..end], NumberStyles.Integer, CultureInfo.InvariantCulture, out var status)
-            ? status
-            : null;
+        return int.TryParse(message[start..end], NumberStyles.Integer, CultureInfo.InvariantCulture, out var status) ? status : null;
     }
 }
