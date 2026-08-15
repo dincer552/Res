@@ -10,6 +10,7 @@ public sealed class PlayerData
     public int Experience { get; set; }
     public int Leadership { get; set; }
     public int Loyalty { get; set; } = 20;
+    public bool HomeGrown { get; set; }
     public string Specialty { get; set; } = "";
 
     public int Keeper { get; set; }
@@ -41,9 +42,6 @@ public sealed class PlayerData
             _ => PlayerRole.CentralMidfielder
         };
 
-        return new LineupRatingEngine().GetPlayerPositionRating(
-            this,
-            role,
-            PlayerBehaviour.Normal);
+        return new LineupRatingEngine().GetPlayerPositionRating(this, role, PlayerBehaviour.Normal);
     }
 }
