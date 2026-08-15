@@ -36,15 +36,11 @@ public sealed class LineupRatingEngine
 
         var roles = GetRoles(formation);
         var behaviours = context.SlotBehaviours;
-        var sectorCounts = roles
-            .Select(ToLineupSector)
-            .GroupBy(x => x)
-            .ToDictionary(g => g.Key, g => g.Count());
+        var sectorCounts = roles.Select(ToLineupSector).GroupBy(x => x).ToDictionary(g => g.Key, g => g.Count());
 
         double CalculateSector(RatingSector sector)
         {
             double ret = 0;
-
             for (int i = 0; i < lineup.Count; i++)
             {
                 var player = lineup[i];
@@ -53,8 +49,6 @@ public sealed class LineupRatingEngine
                 var lineupSector = ToLineupSector(role);
                 var overcrowding = GetOvercrowdingPenalty(sectorCounts[lineupSector], lineupSector);
 
-                // Exact HO getPositionContribution order:
-                // contribution * overcrowding; + experience; * weather; * stamina.
                 var contribution = _table.GetContribution(player, role, sector, behaviour, _calculator);
                 if (contribution <= 0)
                     continue;
@@ -66,7 +60,6 @@ public sealed class LineupRatingEngine
                 ret += contribution;
             }
 
-            // Exact HO calcSector() then calcRatingSectorScale().
             ret *= CalcSector(sector, context);
             return ScaleSector(sector, ret);
         }
@@ -81,14 +74,9 @@ public sealed class LineupRatingEngine
             CalculateSector(RatingSector.RightAttack));
     }
 
-    /// <summary>
-    /// Direct port of HO calcPlayerRating(). This is the individual player
-    /// position rating shown in the lineup view.
-    /// </summary>
     public double GetPlayerPositionRating(PlayerData player, PlayerRole role, PlayerBehaviour behaviour, int minute = 0, int tacticType = 0)
     {
         double ret = 0;
-
         foreach (RatingSector sector in Enum.GetValues<RatingSector>())
         {
             var contribution = _table.GetContribution(player, role, sector, behaviour, _calculator);
@@ -99,167 +87,79 @@ public sealed class LineupRatingEngine
             contribution *= _calculator.WeatherFactor(player, MatchWeather.Normal);
             contribution *= _calculator.StaminaFactor(player.Stamina, minute, 0, tacticType);
             contribution *= SectorScale[sector];
-
             if (sector == RatingSector.Midfield)
-                contribution *= 3; // HO: fit to hatstats
-
+                contribution *= 3;
             ret += contribution;
         }
-
         return ret > 0 ? Math.Pow(ret, 1.2) / 4.0 : 0;
     }
 
     private static double ScaleSector(RatingSector sector, double ret)
-    {
-        if (ret > 0)
-            return Math.Pow(ret * SectorScale[sector], 1.2) / 4.0 + 1.0;
+        => ret > 0 ? Math.Pow(ret * SectorScale[sector], 1.2) / 4.0 + 1.0 : .75;
 
-        return .75;
-    }
-
-    /// <summary>
-    /// Direct port of HO calcSector().
-    /// </summary>
     private static double CalcSector(RatingSector sector, TeamMatchContext context)
     {
         double r = 1.0;
+        var location = context.IsHome ? TeamLocation.Home : context.Location;
 
         switch (sector)
         {
             case RatingSector.Midfield:
-                if (context.Attitude == TeamAttitude.PIC)
-                    r *= 0.83945;
-                else if (context.Attitude == TeamAttitude.MOTS)
-                    r *= 1.1149;
+                if (context.Attitude == TeamAttitude.PIC) r *= 0.83945;
+                else if (context.Attitude == TeamAttitude.MOTS) r *= 1.1149;
 
-                switch (context.Location)
-                {
-                    case TeamLocation.AwayDerby:
-                        r *= 1.11493;
-                        break;
-                    case TeamLocation.Home:
-                        r *= 1.19892;
-                        break;
-                }
+                if (location == TeamLocation.AwayDerby) r *= 1.11493;
+                else if (location == TeamLocation.Home) r *= 1.19892;
 
-                if (context.TacticType == 2) // CounterAttacks
-                    r *= 0.93;
-                else if (context.TacticType == 5) // LongShots
-                    r *= 0.96;
-
+                if (context.TacticType == 2) r *= 0.93;
+                else if (context.TacticType == 5) r *= 0.96;
                 r *= CalcTeamSpirit(context.TeamSpirit);
                 break;
 
             case RatingSector.LeftDefence:
             case RatingSector.RightDefence:
                 r *= CoachFactor(sector, context.CoachModifier);
-                if (context.TacticType == 3) // AttackInTheMiddle
-                    r *= 0.85;
-                else if (context.TacticType == 7) // PlayCreatively
-                    r *= 0.93;
+                if (context.TacticType == 3) r *= 0.85;
+                else if (context.TacticType == 7) r *= 0.93;
                 break;
 
             case RatingSector.CentralDefence:
                 r *= CoachFactor(sector, context.CoachModifier);
-                if (context.TacticType == 4) // AttackInWings
-                    r *= 0.85;
-                else if (context.TacticType == 7) // PlayCreatively
-                    r *= 0.93;
+                if (context.TacticType == 4) r *= 0.85;
+                else if (context.TacticType == 7) r *= 0.93;
                 break;
 
             case RatingSector.CentralAttack:
             case RatingSector.LeftAttack:
             case RatingSector.RightAttack:
                 r *= CoachFactor(sector, context.CoachModifier);
-                if (context.TacticType == 5) // LongShots
-                    r *= 0.96;
+                if (context.TacticType == 5) r *= 0.96;
                 r *= CalcConfidence(context.Confidence);
                 break;
         }
-
         return r;
     }
 
-    private static double CalcConfidence(double confidence)
-        => 0.8 + 0.05 * (confidence + .5);
-
-    private static double CalcTeamSpirit(double teamSpirit)
-        => 0.1 + 0.425 * Math.Sqrt(Math.Max(0, teamSpirit));
+    private static double CalcConfidence(double confidence) => 0.8 + 0.05 * (confidence + .5);
+    private static double CalcTeamSpirit(double teamSpirit) => 0.1 + 0.425 * Math.Sqrt(Math.Max(0, teamSpirit));
 
     private static double CoachFactor(RatingSector sector, int modifier)
     {
         if (sector is RatingSector.LeftDefence or RatingSector.RightDefence or RatingSector.CentralDefence)
-        {
-            if (modifier <= 0)
-                return 1.02 - modifier * (1.15 - 1.02) / 10.0;
-
-            return 1.02 - modifier * (1.02 - .90) / 10.0;
-        }
-
-        if (modifier <= 0)
-            return 1.02 - modifier * (.90 - 1.02) / 10.0;
-
-        return 1.02 - modifier * (1.02 - 1.10) / 10.0;
+            return modifier <= 0 ? 1.02 - modifier * (1.15 - 1.02) / 10.0 : 1.02 - modifier * (1.02 - .90) / 10.0;
+        return modifier <= 0 ? 1.02 - modifier * (.90 - 1.02) / 10.0 : 1.02 - modifier * (1.02 - 1.10) / 10.0;
     }
 
     public static PlayerRole[] GetRoles(string formation) => formation switch
     {
-        "4-4-2" => new[]
-        {
-            PlayerRole.Goalkeeper,
-            PlayerRole.LeftDefender, PlayerRole.CentralDefender, PlayerRole.CentralDefender, PlayerRole.RightDefender,
-            PlayerRole.LeftWinger, PlayerRole.CentralMidfielder, PlayerRole.CentralMidfielder, PlayerRole.RightWinger,
-            PlayerRole.LeftForward, PlayerRole.CentralForward
-        },
-        "4-3-3" => new[]
-        {
-            PlayerRole.Goalkeeper,
-            PlayerRole.LeftDefender, PlayerRole.CentralDefender, PlayerRole.CentralDefender, PlayerRole.RightDefender,
-            PlayerRole.CentralMidfielder, PlayerRole.CentralMidfielder, PlayerRole.CentralMidfielder,
-            PlayerRole.LeftForward, PlayerRole.CentralForward, PlayerRole.RightForward
-        },
-        "3-5-2" => new[]
-        {
-            PlayerRole.Goalkeeper,
-            PlayerRole.CentralDefender, PlayerRole.CentralDefender, PlayerRole.CentralDefender,
-            PlayerRole.LeftWinger, PlayerRole.CentralMidfielder, PlayerRole.CentralMidfielder, PlayerRole.CentralMidfielder, PlayerRole.RightWinger,
-            PlayerRole.LeftForward, PlayerRole.CentralForward
-        },
-        "4-5-1" => new[]
-        {
-            PlayerRole.Goalkeeper,
-            PlayerRole.LeftDefender, PlayerRole.CentralDefender, PlayerRole.CentralDefender, PlayerRole.RightDefender,
-            PlayerRole.LeftWinger, PlayerRole.CentralMidfielder, PlayerRole.CentralMidfielder, PlayerRole.CentralMidfielder, PlayerRole.RightWinger,
-            PlayerRole.CentralForward
-        },
-        "5-4-1" => new[]
-        {
-            PlayerRole.Goalkeeper,
-            PlayerRole.LeftDefender, PlayerRole.CentralDefender, PlayerRole.CentralDefender, PlayerRole.CentralDefender, PlayerRole.RightDefender,
-            PlayerRole.LeftWinger, PlayerRole.CentralMidfielder, PlayerRole.CentralMidfielder, PlayerRole.RightWinger,
-            PlayerRole.CentralForward
-        },
-        "5-3-2" => new[]
-        {
-            PlayerRole.Goalkeeper,
-            PlayerRole.LeftDefender, PlayerRole.CentralDefender, PlayerRole.CentralDefender, PlayerRole.CentralDefender, PlayerRole.RightDefender,
-            PlayerRole.CentralMidfielder, PlayerRole.CentralMidfielder, PlayerRole.CentralMidfielder,
-            PlayerRole.LeftForward, PlayerRole.CentralForward
-        },
-        "3-4-3" => new[]
-        {
-            PlayerRole.Goalkeeper,
-            PlayerRole.CentralDefender, PlayerRole.CentralDefender, PlayerRole.CentralDefender,
-            PlayerRole.LeftWinger, PlayerRole.CentralMidfielder, PlayerRole.CentralMidfielder, PlayerRole.RightWinger,
-            PlayerRole.LeftForward, PlayerRole.CentralForward, PlayerRole.RightForward
-        },
-        _ => new[]
-        {
-            PlayerRole.Goalkeeper,
-            PlayerRole.LeftDefender, PlayerRole.CentralDefender, PlayerRole.CentralDefender, PlayerRole.RightDefender,
-            PlayerRole.LeftWinger, PlayerRole.CentralMidfielder, PlayerRole.CentralMidfielder, PlayerRole.RightWinger,
-            PlayerRole.LeftForward, PlayerRole.CentralForward
-        }
+        "4-4-2" => new[] { PlayerRole.Goalkeeper, PlayerRole.LeftDefender, PlayerRole.CentralDefender, PlayerRole.CentralDefender, PlayerRole.RightDefender, PlayerRole.LeftWinger, PlayerRole.CentralMidfielder, PlayerRole.CentralMidfielder, PlayerRole.RightWinger, PlayerRole.LeftForward, PlayerRole.CentralForward },
+        "4-3-3" => new[] { PlayerRole.Goalkeeper, PlayerRole.LeftDefender, PlayerRole.CentralDefender, PlayerRole.CentralDefender, PlayerRole.RightDefender, PlayerRole.CentralMidfielder, PlayerRole.CentralMidfielder, PlayerRole.CentralMidfielder, PlayerRole.LeftForward, PlayerRole.CentralForward, PlayerRole.RightForward },
+        "3-5-2" => new[] { PlayerRole.Goalkeeper, PlayerRole.CentralDefender, PlayerRole.CentralDefender, PlayerRole.CentralDefender, PlayerRole.LeftWinger, PlayerRole.CentralMidfielder, PlayerRole.CentralMidfielder, PlayerRole.CentralMidfielder, PlayerRole.RightWinger, PlayerRole.LeftForward, PlayerRole.CentralForward },
+        "4-5-1" => new[] { PlayerRole.Goalkeeper, PlayerRole.LeftDefender, PlayerRole.CentralDefender, PlayerRole.CentralDefender, PlayerRole.RightDefender, PlayerRole.LeftWinger, PlayerRole.CentralMidfielder, PlayerRole.CentralMidfielder, PlayerRole.CentralMidfielder, PlayerRole.RightWinger, PlayerRole.CentralForward },
+        "5-4-1" => new[] { PlayerRole.Goalkeeper, PlayerRole.LeftDefender, PlayerRole.CentralDefender, PlayerRole.CentralDefender, PlayerRole.CentralDefender, PlayerRole.RightDefender, PlayerRole.LeftWinger, PlayerRole.CentralMidfielder, PlayerRole.CentralMidfielder, PlayerRole.RightWinger, PlayerRole.CentralForward },
+        "5-3-2" => new[] { PlayerRole.Goalkeeper, PlayerRole.LeftDefender, PlayerRole.CentralDefender, PlayerRole.CentralDefender, PlayerRole.CentralDefender, PlayerRole.RightDefender, PlayerRole.CentralMidfielder, PlayerRole.CentralMidfielder, PlayerRole.CentralMidfielder, PlayerRole.LeftForward, PlayerRole.CentralForward },
+        "3-4-3" => new[] { PlayerRole.Goalkeeper, PlayerRole.CentralDefender, PlayerRole.CentralDefender, PlayerRole.CentralDefender, PlayerRole.LeftWinger, PlayerRole.CentralMidfielder, PlayerRole.CentralMidfielder, PlayerRole.RightWinger, PlayerRole.LeftForward, PlayerRole.CentralForward, PlayerRole.RightForward },
+        _ => new[] { PlayerRole.Goalkeeper, PlayerRole.LeftDefender, PlayerRole.CentralDefender, PlayerRole.CentralDefender, PlayerRole.RightDefender, PlayerRole.LeftWinger, PlayerRole.CentralMidfielder, PlayerRole.CentralMidfielder, PlayerRole.RightWinger, PlayerRole.LeftForward, PlayerRole.CentralForward }
     };
 
     private static LineupContributionSector ToLineupSector(PlayerRole role) => role switch
@@ -283,7 +183,6 @@ public sealed class LineupRatingEngine
 }
 
 public enum TeamAttitude { Normal, PIC, MOTS }
-
 public enum TeamLocation { Home, Away, AwayDerby }
 
 public sealed class TeamMatchContext
