@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>HattrickAI — Maç Analizi</title>
-  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/styles.css?v=20260815-2">
 </head>
 <body>
 <header class="topbar">
@@ -13,66 +13,22 @@
   <div id="status" class="status-chip">● BAĞLANTI KONTROL</div>
   <a id="connect" class="btn btn-primary" href="/auth/chpp/start">Hattrick'e bağlan</a>
 </header>
-
 <main class="container" id="match">
   <section class="match-head panel">
     <div class="eyebrow">SEÇİLEN MAÇ • CHPP + HO ENGINE</div>
-    <div class="teams-head">
-      <div class="team-title home"><span id="homeName">—</span><small id="homeSide">EV SAHİBİ</small></div>
-      <div class="match-center"><b>VS</b><strong id="matchDate">—</strong><span id="matchMeta">—</span></div>
-      <div class="team-title away"><span id="awayName">—</span><small id="awaySide">DEPLASMAN</small></div>
-    </div>
+    <div class="teams-head"><div class="team-title home"><span id="homeName">—</span><small id="homeSide">EV SAHİBİ</small></div><div class="match-center"><b>VS</b><strong id="matchDate">—</strong><span id="matchMeta">—</span></div><div class="team-title away"><span id="awayName">—</span><small id="awaySide">DEPLASMAN</small></div></div>
     <div class="sector-compare" id="sectorCompare"></div>
   </section>
-
   <section class="grid-2">
-    <article class="panel fixture-panel" id="fixtures">
-      <div class="panel-head"><div><div class="eyebrow">MAÇ SEÇ</div><h2>Yaklaşan maçlar</h2></div><button class="icon-btn" onclick="loadFixtures()">↻</button></div>
-      <div id="fixturesList" class="fixture-list"><div class="empty">CHPP bağlantısı gerekli.</div></div>
-    </article>
-    <article class="panel info-panel">
-      <div class="panel-head"><div><div class="eyebrow">HO ENGINE</div><h2>Otomatik analiz</h2></div><span id="formationPill" class="pill">—</span></div>
-      <div class="auto-grid">
-        <div><small>ÖNERİLEN TAKTİK</small><b id="tacticName">—</b></div>
-        <div><small>TAKTİK SEVİYESİ</small><b id="tacticLevel">—</b></div>
-        <div><small>MAÇ DURUMU</small><b id="venueInfo">—</b></div>
-      </div>
-      <p id="explanation" class="muted">Maç seçildiğinde HO Engine gerçek kadro ve rakip geçmişi üzerinden öneri üretir.</p>
-    </article>
+    <article class="panel fixture-panel" id="fixtures"><div class="panel-head"><div><div class="eyebrow">MAÇ SEÇ</div><h2>Yaklaşan maçlar</h2></div><button class="icon-btn" onclick="loadFixtures()">↻</button></div><div id="fixturesList" class="fixture-list"><div class="empty">CHPP bağlantısı gerekli.</div></div></article>
+    <article class="panel info-panel"><div class="panel-head"><div><div class="eyebrow">HO ENGINE</div><h2>Otomatik analiz</h2></div><span id="formationPill" class="pill">—</span></div><div class="auto-grid"><div><small>ÖNERİLEN TAKTİK</small><b id="tacticName">—</b></div><div><small>TAKTİK SEVİYESİ</small><b id="tacticLevel">—</b></div><div><small>MAÇ DURUMU</small><b id="venueInfo">—</b></div></div><p id="explanation" class="muted">Maç seçildiğinde HO Engine gerçek kadro ve rakip geçmişi üzerinden öneri üretir.</p></article>
   </section>
-
-  <section class="panel" id="recent">
-    <div class="panel-head"><div><div class="eyebrow">RAKİBİN SON MAÇLARI</div><h2>Maç geçmişi</h2><p class="muted">Bir maçı seç. Simülasyon, rakibin o maçtaki rating ve taktiğini baz alsın.</p></div><button class="icon-btn" onclick="loadSelectedMatch()">↻</button></div>
-    <div id="recentMatches" class="recent-grid"></div>
-    <div id="recentSelection" class="selection-bar">Henüz maç seçilmedi.</div>
-  </section>
-
+  <section class="panel" id="recent"><div class="panel-head"><div><div class="eyebrow">RAKİBİN SON MAÇLARI</div><h2>Maç geçmişi</h2><p class="muted">Bir maçı seç. Simülasyon, rakibin o maçtaki rating ve taktiğini baz alsın.</p></div><button class="icon-btn" onclick="loadSelectedMatch()">↻</button></div><div id="recentMatches" class="recent-grid"></div><div id="recentSelection" class="selection-bar">Henüz maç seçilmedi.</div></section>
   <section class="lineup-grid">
-    <article class="panel lineup-panel">
-      <div class="panel-head"><div><div class="eyebrow">RAKİP</div><h2 id="opponentLineupTitle">Rakip kadro</h2></div><span id="opponentFormation" class="pill">—</span></div>
-      <div class="rating-strip" id="opponentRatingStrip"></div>
-      <div class="pitch" id="opponentPitch"><div class="pitch-lines"></div></div>
-    </article>
-    <article class="panel lineup-panel our-panel">
-      <div class="panel-head"><div><div class="eyebrow">BİZİM TAKIM</div><h2 id="ownLineupTitle">En iyi 11</h2></div><span id="ownFormation" class="pill">—</span></div>
-      <div class="rating-strip" id="ownRatingStrip"></div>
-      <div class="pitch" id="ownPitch"><div class="pitch-lines"></div></div>
-    </article>
+    <article class="panel lineup-panel"><div class="panel-head"><div><div class="eyebrow">RAKİP</div><h2 id="opponentLineupTitle">Rakip kadro</h2></div><span id="opponentFormation" class="pill">—</span></div><div class="rating-strip" id="opponentRatingStrip"></div><div class="pitch" id="opponentPitch"><div class="pitch-lines"></div></div></article>
+    <article class="panel lineup-panel our-panel"><div class="panel-head"><div><div class="eyebrow">BİZİM TAKIM</div><h2 id="ownLineupTitle">En iyi 11</h2></div><span id="ownFormation" class="pill">—</span></div><div class="rating-strip" id="ownRatingStrip"></div><div class="pitch" id="ownPitch"><div class="pitch-lines"></div></div></article>
   </section>
-
-  <section class="grid-2" id="simulation">
-    <article class="panel">
-      <div class="panel-head"><div><div class="eyebrow">RATINGLER</div><h2>Net maç değerleri</h2></div><span class="pill">Otomatik</span></div>
-      <div class="ratings-form"><div><h3>Ev sahibi</h3><div id="homeRatings"></div></div><div><h3>Deplasman</h3><div id="awayRatings"></div></div></div>
-    </article>
-    <article class="panel">
-      <div class="panel-head"><div><div class="eyebrow">HO ENGINE</div><h2>Simülasyon</h2></div><span class="pill">1.200</span></div>
-      <div class="sim-actions"><label>Simülasyon <input id="simCount" type="number" min="100" max="10000" value="1200"></label><button class="btn btn-primary" onclick="runSimulation()">Simüle et</button></div>
-      <div id="result" class="result hidden"></div>
-    </article>
-  </section>
-</main>
-<footer>HattrickAI Web • CHPP + HO Engine</footer>
-<script src="/app.js"></script>
-</body>
-</html>
+  <section class="grid-2" id="simulation"><article class="panel"><div class="panel-head"><div><div class="eyebrow">RATINGLER</div><h2>Net maç değerleri</h2></div><span class="pill">Otomatik</span></div><div class="ratings-form"><div><h3>Ev sahibi</h3><div id="homeRatings"></div></div><div><h3>Deplasman</h3><div id="awayRatings"></div></div></div></article><article class="panel"><div class="panel-head"><div><div class="eyebrow">HO ENGINE</div><h2>Simülasyon</h2></div><span class="pill">1.200</span></div><div class="sim-actions"><label>Simülasyon <input id="simCount" type="number" min="100" max="10000" value="1200"></label><button class="btn btn-primary" onclick="runSimulation()">Simüle et</button></div><div id="result" class="result hidden"></div></article></section>
+</main><footer>HattrickAI Web • CHPP + HO Engine</footer>
+<script src="/app.js?v=20260815-2"></script>
+</body></html>
