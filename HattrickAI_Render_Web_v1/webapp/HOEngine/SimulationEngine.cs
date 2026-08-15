@@ -7,25 +7,32 @@ public class SimulationEngine
     public SimulationResult Run(
         TeamRatings homeRatings,
         TeamRatings awayRatings,
-        int simulationCount = 1000)
+        int simulationCount = 1000,
+        int homeTacticType = 0,
+        int homeTacticLevel = 0,
+        int awayTacticType = 0,
+        int awayTacticLevel = 0)
     {
+        // /api/simulate passes the seven raw sector ratings straight into HO's
+        // TeamData.  The simulator itself performs the seven pairwise sector
+        // comparisons exactly as BaseActionGenerator.compare().
         var homeTeam = new TeamData(
             "Ev Sahibi",
             homeRatings,
-            0,
-            0);
+            homeTacticType,
+            homeTacticLevel);
 
         var awayTeam = new TeamData(
             "Deplasman",
             awayRatings,
-            0,
-            0);
+            awayTacticType,
+            awayTacticLevel);
 
-        return simulator.Run(
-            homeTeam,
-            awayTeam,
-            simulationCount);
+        return simulator.Run(homeTeam, awayTeam, simulationCount);
     }
+
+    public SectorComparison CompareSectors(TeamRatings homeRatings, TeamRatings awayRatings)
+        => SectorComparison.From(homeRatings, awayRatings);
 
     public string CreateSummary(
         TeamRatings homeRatings,
@@ -33,10 +40,7 @@ public class SimulationEngine
         int simulationCount = 1000)
     {
         SimulationResult result =
-            Run(
-                homeRatings,
-                awayRatings,
-                simulationCount);
+            Run(homeRatings, awayRatings, simulationCount);
 
         return
             $"Simülasyon: {simulationCount}\n\n" +
