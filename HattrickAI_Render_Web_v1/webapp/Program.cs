@@ -1,5 +1,6 @@
 using HattrickAI.CHPP;
 using HattrickAI.HOEngine;
+using HattrickAI.Web;
 using Microsoft.AspNetCore.Http.Json;
 using System.Text.Json.Serialization;
 
@@ -35,7 +36,7 @@ app.MapGet("/api/fixture-view/{matchId:int}",async(int matchId,int? recentIndex,
     if(selectedHistory is null)return Results.BadRequest(new{message="Rakibin seçilmiş geçmiş maçı bulunamadı; aynı rating motoruyla hesaplama yapılamıyor.",ratingSource="CHPP_HISTORY_UNAVAILABLE",chppTrace=trace.ToResponse()});
     var historicalPlayers=await lineupService.LoadAsync(selectedHistory.Fixture.MatchId,selected.OpponentTeamId);
     if(historicalPlayers.Count!=11)return Results.BadRequest(new{message="Rakibin geçmiş maç kadrosu CHPP'den 11 oyuncu olarak alınamadı; sahte rating kullanılmayacak.",ratingSource="CHPP_MATCH_LINEUP_INCOMPLETE",playerCount=historicalPlayers.Count,chppTrace=trace.ToResponse()});
-    var opponentFormation=InferFormation(historicalPlayers);
+    var opponentFormation=HistoricalFormationMapper.InferFormation(historicalPlayers);
     if(string.IsNullOrWhiteSpace(opponentFormation))return Results.BadRequest(new{message="Rakibin geçmiş maç formasyonu CHPP kadrosundan çözülemedi.",ratingSource="CHPP_FORMATION_UNAVAILABLE",chppTrace=trace.ToResponse()});
     var historicalSlots=BuildHistoricalSlots(historicalPlayers,opponentFormation);var symmetricRatingEngine=new SymmetricMatchRatingEngine();
     bool opponentRatingAvailable=symmetricRatingEngine.TryCalculateHistorical(opponent.Players,historicalSlots,opponentFormation,new TeamMatchContext{IsHome=selectedHistory.Fixture.HomeTeamId==selected.OpponentTeamId,TacticType=selectedHistory.OpponentTeam.TacticType,TacticLevel=selectedHistory.OpponentTeam.TacticLevel,SlotBehaviours=historicalSlots.Select((s,i)=>(Index:i,Behaviour:s.Behaviour)).ToDictionary(x=>x.Index,x=>x.Behaviour)},out var calculatedOpponentRatings,out var calculatedOpponentLineup,out var calculatedOpponentBehaviours,out var ratingError);
@@ -63,9 +64,7 @@ static object BuildCalculatedHistoricalLineupView(List<PlayerData> lineup,string
     var players=lineup.Select((p,i)=>{behaviours.TryGetValue(i,out var behaviour);historicalById.TryGetValue(p.PlayerId,out var historical);return (object)new{p.PlayerId,p.Name,Form=p.Form,Stamina=p.Stamina,Experience=p.Experience,role=RoleLabel(roles[i].ToString()),roleKey=roles[i].ToString(),rating=Math.Round(ratingEngine.GetPlayerPositionRating(p,roles[i],behaviour),2),historicalMatchRating=historical?.RatingStars,behaviour=behaviour.ToString()};}).ToArray();
     return new{formation,ratings=calculatedRatings,playerCount=players.Length,players,source="CHPP_PLAYER_SKILLS_SAME_ENGINE"};
 }
-static List<HistoricalLineupSlot> BuildHistoricalSlots(IReadOnlyList<ChppLineupPlayer> players,string formation)=>players.Select(p=>new HistoricalLineupSlot(p.PlayerId,HistoricalRole(p,formation),MapBehaviour(p.Behaviour))).ToList();
-static string InferFormation(IReadOnlyList<ChppLineupPlayer> players){var defenders=players.Count(p=>p.PositionCode is >=2 and <=5);var midfield=players.Count(p=>p.PositionCode is >=6 and <=9);var forwards=players.Count(p=>p.PositionCode is 10 or 11);if(defenders+midfield+forwards!=11)return "";return $"{defenders}-{midfield}-{forwards}";}
-static PlayerRole HistoricalRole(ChppLineupPlayer p,string formation){if(p.PositionCode==1)return PlayerRole.Goalkeeper;var parts=formation.Split('-');int defenders=parts.Length==3&&int.TryParse(parts[0],out var d)?d:4;if(p.PositionCode is >=2 and <=5){if(defenders==3)return PlayerRole.CentralDefender;if(p.PositionCode==2)return PlayerRole.RightDefender;if(p.PositionCode==5)return PlayerRole.LeftDefender;return PlayerRole.CentralDefender;}if(p.PositionCode is 6 or 9)return p.PositionCode==6?PlayerRole.RightWinger:PlayerRole.LeftWinger;if(p.PositionCode is 7 or 8)return PlayerRole.CentralMidfielder;if(p.PositionCode is 10 or 11){if(p.RoleId==6)return PlayerRole.RightForward;if(p.RoleId==9)return PlayerRole.LeftForward;return PlayerRole.CentralForward;}return PlayerRole.CentralMidfielder;}
+static List<HistoricalLineupSlot> BuildHistoricalSlots(IReadOnlyList<ChppLineupPlayer> players,string formation)=>players.Select(p=>new HistoricalLineupSlot(p.PlayerId,HistoricalFormationMapper.HistoricalRole(p,formation),MapBehaviour(p.Behaviour))).ToList();
 static PlayerBehaviour MapBehaviour(int behaviour)=>behaviour switch{1=>PlayerBehaviour.Offensive,2=>PlayerBehaviour.Defensive,3=>PlayerBehaviour.TowardsMiddle,4=>PlayerBehaviour.TowardsWing,_=>PlayerBehaviour.Normal};
 static string RoleLabel(string role)=>role switch{"Goalkeeper"=>"KL","LeftDefender"=>"SLB","CentralDefender"=>"STP","RightDefender"=>"SGB","LeftMidfielder"=>"OS","CentralMidfielder"=>"OM","RightMidfielder"=>"OS","LeftWinger"=>"K","RightWinger"=>"K","LeftForward"=>"SF","CentralForward"=>"SF","RightForward"=>"SF",_=>""};
 public sealed record SimulationRequest(TeamRatings Home,TeamRatings Away,int Simulations=1000);
