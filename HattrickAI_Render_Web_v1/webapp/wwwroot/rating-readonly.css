@@ -1,0 +1,6 @@
+/* Net maç değerleri CHPP/HO Engine tarafından belirlenir; kullanıcı düzenleyemez. */
+#homeRatings input[type="range"],
+#awayRatings input[type="range"] {
+  pointer-events: none;
+  cursor: default;
+}
