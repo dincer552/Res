@@ -369,7 +369,7 @@ public sealed class ChppOAuthClient
         return request;
     }
 
-    private static void ClearStoredTokens()
+    private void ClearStoredTokens()
     {
         _store.Remove(AccessTokenKey);
         _store.Remove(AccessTokenSecretKey);
