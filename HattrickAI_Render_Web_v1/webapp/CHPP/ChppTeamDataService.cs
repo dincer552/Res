@@ -80,13 +80,25 @@ public sealed class ChppTeamDataService
             var cards = ReadInt(node, "Cards");
             var player = new PlayerData
             {
-                PlayerId = ReadInt(node, "PlayerID"), Name = ReadText(node, "PlayerName") ?? "Bilinmeyen Oyuncu",
-                Age = ReadInt(node, "Age"), Form = ReadInt(node, "PlayerForm"), Experience = ReadInt(node, "Experience"),
-                Leadership = ReadInt(node, "Leadership"), Specialty = ReadInt(node, "Specialty").ToString(CultureInfo.InvariantCulture),
-                Stamina = ReadInt(node, "StaminaSkill"), Keeper = ReadInt(node, "KeeperSkill"), Playmaking = ReadInt(node, "PlaymakerSkill"),
-                Scoring = ReadInt(node, "ScorerSkill"), Passing = ReadInt(node, "PassingSkill"), Winger = ReadInt(node, "WingerSkill"),
-                Defending = ReadInt(node, "DefenderSkill"), SetPieces = ReadInt(node, "SetPiecesSkill"),
-                Injured = injuryLevel >= 0, Suspended = cards >= 3
+                PlayerId = ReadInt(node, "PlayerID"),
+                Name = ReadText(node, "PlayerName") ?? "Bilinmeyen Oyuncu",
+                Age = ReadInt(node, "Age"),
+                Form = ReadInt(node, "PlayerForm"),
+                Experience = ReadInt(node, "Experience"),
+                Leadership = ReadInt(node, "Leadership"),
+                Loyalty = ReadInt(node, "Loyalty", 20),
+                HomeGrown = ReadBool(node, "MotherClubBonus"),
+                Specialty = MapSpecialty(ReadInt(node, "Specialty")),
+                Stamina = ReadInt(node, "StaminaSkill"),
+                Keeper = ReadInt(node, "KeeperSkill"),
+                Playmaking = ReadInt(node, "PlaymakerSkill"),
+                Scoring = ReadInt(node, "ScorerSkill"),
+                Passing = ReadInt(node, "PassingSkill"),
+                Winger = ReadInt(node, "WingerSkill"),
+                Defending = ReadInt(node, "DefenderSkill"),
+                SetPieces = ReadInt(node, "SetPiecesSkill"),
+                Injured = injuryLevel >= 0,
+                Suspended = cards >= 3
             };
             if (player.PlayerId > 0) result.Add(player);
         }
@@ -100,14 +112,42 @@ public sealed class ChppTeamDataService
         var cards = ReadInt(node, "Cards");
         return new PlayerData
         {
-            PlayerId = ReadInt(node, "PlayerID"), Name = ReadText(node, "PlayerName") ?? "Bilinmeyen Oyuncu",
-            Age = ReadInt(node, "Age"), Form = ReadInt(node, "PlayerForm"), Experience = ReadInt(node, "Experience"),
-            Leadership = ReadInt(node, "Leadership"), Specialty = ReadInt(node, "Specialty").ToString(CultureInfo.InvariantCulture),
-            Stamina = ReadInt(skills, "StaminaSkill"), Keeper = ReadInt(skills, "KeeperSkill"), Playmaking = ReadInt(skills, "PlaymakerSkill"),
-            Scoring = ReadInt(skills, "ScorerSkill"), Passing = ReadInt(skills, "PassingSkill"), Winger = ReadInt(skills, "WingerSkill"),
-            Defending = ReadInt(skills, "DefenderSkill"), SetPieces = ReadInt(skills, "SetPiecesSkill"),
-            Injured = injuryLevel >= 0, Suspended = cards >= 3
+            PlayerId = ReadInt(node, "PlayerID"),
+            Name = ReadText(node, "PlayerName") ?? "Bilinmeyen Oyuncu",
+            Age = ReadInt(node, "Age"),
+            Form = ReadInt(node, "PlayerForm"),
+            Experience = ReadInt(node, "Experience"),
+            Leadership = ReadInt(node, "Leadership"),
+            Loyalty = ReadInt(node, "Loyalty", 20),
+            HomeGrown = ReadBool(node, "MotherClubBonus"),
+            Specialty = MapSpecialty(ReadInt(node, "Specialty")),
+            Stamina = ReadInt(skills, "StaminaSkill"),
+            Keeper = ReadInt(skills, "KeeperSkill"),
+            Playmaking = ReadInt(skills, "PlaymakerSkill"),
+            Scoring = ReadInt(skills, "ScorerSkill"),
+            Passing = ReadInt(skills, "PassingSkill"),
+            Winger = ReadInt(skills, "WingerSkill"),
+            Defending = ReadInt(skills, "DefenderSkill"),
+            SetPieces = ReadInt(skills, "SetPiecesSkill"),
+            Injured = injuryLevel >= 0,
+            Suspended = cards >= 3
         };
+    }
+
+    private static string MapSpecialty(int value) => value switch
+    {
+        1 => "Technical",
+        2 => "Quick",
+        3 => "Powerful",
+        4 => "Unpredictable",
+        5 => "Head",
+        _ => ""
+    };
+
+    private static bool ReadBool(XElement parent, string name)
+    {
+        var text = ReadText(parent, name);
+        return text is not null && (text.Equals("true", StringComparison.OrdinalIgnoreCase) || text == "1");
     }
 
     private static int ReadInt(XElement? parent, string name, int fallback = 0)
