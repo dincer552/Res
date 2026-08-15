@@ -55,7 +55,7 @@ public sealed class LineupRatingEngine
 
                 double overcrowding = GetOvercrowdingPenalty(sectorCounts[lineupSector], lineupSector);
                 contribution *= overcrowding;
-                contribution += _calculator.ExperienceContribution(lineup[i].Experience, sector);
+                contribution += _calculator.ExperienceContribution(lineup[i], sector);
                 contribution *= _calculator.WeatherFactor(lineup[i], context.Weather);
                 contribution *= _calculator.StaminaFactor(lineup[i].Stamina, context.Minute, 0, context.TacticType);
                 raw += contribution;
@@ -88,7 +88,7 @@ public sealed class LineupRatingEngine
             if (c <= 0)
                 continue;
 
-            c += _calculator.ExperienceContribution(player.Experience, sector);
+            c += _calculator.ExperienceContribution(player, sector);
             c *= _calculator.WeatherFactor(player, MatchWeather.Normal);
             c *= _calculator.StaminaFactor(player.Stamina, minute, 0, tacticType);
             c *= SectorScale[sector];
