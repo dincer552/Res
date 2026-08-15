@@ -61,7 +61,7 @@ public sealed class SymmetricMatchRatingEngine
             var match = FindBestSlotMatch(unused, expectedRole);
             if (match == null)
             {
-                error = $"Tarihsel kadrodaki {expectedRole} pozisyonu güncel CHPP oyuncu verisiyle eşleşmedi.";
+                error = $"Tarihsel kadroda {expectedRole} için uygun oyuncu bulunamadı.";
                 return false;
             }
 
@@ -100,9 +100,35 @@ public sealed class SymmetricMatchRatingEngine
         List<HistoricalLineupSlot> slots,
         PlayerRole expectedRole)
     {
+        // First preserve the exact positional role when CHPP supplied it.
         var exact = slots.FirstOrDefault(x => x.Role == expectedRole);
-        return exact;
+        if (exact != null)
+            return exact;
+
+        // CHPP PositionCode/RoleID combinations can differ between historical
+        // matchlineup responses. Do not reject the whole match just because a
+        // side-specific role such as LeftDefender was reported as CentralDefender.
+        // Match within the same tactical line first; the selected player is still
+        // the real historical player and the current CHPP skill data is unchanged.
+        var family = RoleFamily(expectedRole);
+        var sameFamily = slots.FirstOrDefault(x => RoleFamily(x.Role) == family);
+        if (sameFamily != null)
+            return sameFamily;
+
+        // Last-resort fallback: the historical XI is still preferable to failing
+        // the entire analysis. The formation engine assigns the player to the
+        // requested slot while keeping the player's own skills/behaviour intact.
+        return slots.FirstOrDefault();
     }
+
+    private static string RoleFamily(PlayerRole role) => role switch
+    {
+        PlayerRole.Goalkeeper => "GK",
+        PlayerRole.LeftDefender or PlayerRole.CentralDefender or PlayerRole.RightDefender => "DEF",
+        PlayerRole.LeftMidfielder or PlayerRole.CentralMidfielder or PlayerRole.RightMidfielder or PlayerRole.LeftWinger or PlayerRole.RightWinger => "MID",
+        PlayerRole.LeftForward or PlayerRole.CentralForward or PlayerRole.RightForward => "ATT",
+        _ => "OTHER"
+    };
 
     private static PlayerData CloneForHistoricalMatch(PlayerData source)
     {
