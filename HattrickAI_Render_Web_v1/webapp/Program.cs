@@ -109,15 +109,16 @@ app.MapGet("/api/fixtures", async (ChppOAuthClient oauth) =>
 app.MapGet("/api/fixture/{matchId:int}", async (int matchId, ChppOAuthClient oauth) =>
 {
     var team = await new ChppTeamDataService(oauth).LoadOwnTeamAsync();
-    var fixtures = await new ChppMatchDataService(oauth).LoadUpcomingFixturesAsync(team.TeamId);
+    var matchService = new ChppMatchDataService(oauth);
+    var fixtures = await matchService.LoadUpcomingFixturesAsync(team.TeamId);
     var fixture = fixtures.FirstOrDefault(x => x.MatchId == matchId);
     if (fixture is null) return Results.NotFound(new { message = "Maç bulunamadı." });
-    var selected = await new ChppMatchDataService(oauth).LoadSelectedMatchAsync(fixture, team.TeamId);
+    var selected = await matchService.LoadSelectedMatchAsync(fixture, team.TeamId);
     return Results.Ok(selected);
 });
 
-// Rich match view: real CHPP squads + HO best lineups + player/sector ratings.
-app.MapGet("/api/fixture-view/{matchId:int}", async (int matchId, ChppOAuthClient oauth) =>
+// Rich match view: the selected opponent history match drives the simulation input.
+app.MapGet("/api/fixture-view/{matchId:int}", async (int matchId, int? recentIndex, ChppOAuthClient oauth) =>
 {
     var teamService = new ChppTeamDataService(oauth);
     var matchService = new ChppMatchDataService(oauth);
@@ -129,10 +130,13 @@ app.MapGet("/api/fixture-view/{matchId:int}", async (int matchId, ChppOAuthClien
     var selected = await matchService.LoadSelectedMatchAsync(fixture, own.TeamId);
     var opponent = await teamService.LoadTeamAsync(selected.OpponentTeamId, selected.OpponentTeamName);
     var isHome = fixture.IsOwnHome(own.TeamId);
+    var historyIndex = Math.Clamp(recentIndex ?? 0, 0, Math.Max(0, selected.RecentMatches.Count - 1));
+    var selectedHistory = selected.RecentMatches.Count > 0 ? selected.RecentMatches[historyIndex] : null;
+    var simulationOpponent = selectedHistory?.OpponentTeam ?? selected.OpponentRatings;
 
     var recommendation = new RecommendationEngine().Recommend(
         own.Players,
-        selected.OpponentRatings,
+        simulationOpponent,
         simulationCount: 1200,
         isHome: isHome);
 
@@ -144,12 +148,21 @@ app.MapGet("/api/fixture-view/{matchId:int}", async (int matchId, ChppOAuthClien
     var opponentLineup = opponentLineupEngine.FindBestLineupForFormation(opponent.Players, opponentFormation);
     TeamRatings opponentRatings = opponentLineup.Count == 11
         ? new LineupRatingEngine().Calculate(opponentLineup, opponentFormation)
-        : selected.OpponentRatings.Ratings;
+        : simulationOpponent.Ratings;
 
     return Results.Ok(new
     {
         fixture,
         isHome,
+        selectedRecentIndex = historyIndex,
+        selectedOpponentMatch = selectedHistory is null ? null : new
+        {
+            selectedHistory.Fixture,
+            selectedHistory.OpponentTeam.TeamName,
+            selectedHistory.OpponentTeam.TacticType,
+            selectedHistory.OpponentTeam.TacticLevel,
+            selectedHistory.OpponentTeam.Ratings
+        },
         ownTeam = new { teamId = own.TeamId, teamName = own.TeamName },
         opponentTeam = new { teamId = opponent.TeamId, teamName = opponent.TeamName },
         ownLineup = BuildLineupView(recommendation.Lineup, recommendation.Formation, recommendation.BehaviourProfile, recommendation.Ratings),
@@ -216,9 +229,6 @@ static object BuildLineupView(
     IReadOnlyDictionary<int, PlayerBehaviour>? behaviours,
     TeamRatings ratings)
 {
-    if (lineup.Count != 11)
-        return new { formation, ratings, players = Array.Empty<object>() };
-
     var roles = LineupRatingEngine.GetRoles(formation);
     var ratingEngine = new LineupRatingEngine();
 
@@ -226,21 +236,24 @@ static object BuildLineupView(
     {
         formation,
         ratings,
-        players = lineup.Select((p, i) => new
-        {
-            p.PlayerId,
-            p.Name,
-            p.Form,
-            p.Stamina,
-            p.Experience,
-            role = RoleLabel(roles[i].ToString()),
-            roleKey = roles[i].ToString(),
-            rating = Math.Round(ratingEngine.GetPlayerPositionRating(
-                p,
-                roles[i],
-                behaviours != null && behaviours.TryGetValue(i, out var b) ? b : PlayerBehaviour.Normal), 2),
-            behaviour = behaviours != null && behaviours.TryGetValue(i, out var behaviour) ? behaviour.ToString() : "Normal"
-        }).ToArray()
+        playerCount = lineup.Count,
+        players = lineup.Count == 11
+            ? lineup.Select((p, i) => new
+            {
+                p.PlayerId,
+                p.Name,
+                p.Form,
+                p.Stamina,
+                p.Experience,
+                role = RoleLabel(roles[i].ToString()),
+                roleKey = roles[i].ToString(),
+                rating = Math.Round(ratingEngine.GetPlayerPositionRating(
+                    p,
+                    roles[i],
+                    behaviours != null && behaviours.TryGetValue(i, out var b) ? b : PlayerBehaviour.Normal), 2),
+                behaviour = behaviours != null && behaviours.TryGetValue(i, out var behaviour) ? behaviour.ToString() : "Normal"
+            }).ToArray()
+            : Array.Empty<object>()
     };
 }
 
