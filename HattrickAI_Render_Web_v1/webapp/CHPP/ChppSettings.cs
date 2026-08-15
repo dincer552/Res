@@ -10,8 +10,12 @@ public static class ChppSettings
     {
         var key = configuration["CHPP_CONSUMER_KEY"];
         var secret = configuration["CHPP_CONSUMER_SECRET"];
+
+        Console.WriteLine($"CHPP config: consumer key configured={!string.IsNullOrWhiteSpace(key)}, consumer secret configured={!string.IsNullOrWhiteSpace(secret)}");
+
         if (string.IsNullOrWhiteSpace(key) || string.IsNullOrWhiteSpace(secret))
             throw new InvalidOperationException("CHPP_CONSUMER_KEY ve CHPP_CONSUMER_SECRET Render Environment Variables içinde tanımlanmalı.");
-        return new ChppCredentials(key, secret);
+
+        return new ChppCredentials(key.Trim(), secret.Trim());
     }
 }
