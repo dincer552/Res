@@ -4,12 +4,6 @@ using System.Linq;
 
 namespace HattrickAI.HOEngine;
 
-/// <summary>
-/// Direct C# port of HO!'s RatingPredictionModel sector-rating path.
-/// The order is intentionally the same as HO:
-/// contribution -> overcrowding -> experience -> weather -> stamina -> sector context -> scale.
-/// No custom rating normalization is applied.
-/// </summary>
 public sealed class LineupRatingEngine
 {
     private readonly PlayerRatingCalculator _calculator = new();
@@ -35,33 +29,44 @@ public sealed class LineupRatingEngine
             throw new ArgumentException("Lineup must contain eleven players.", nameof(lineup));
 
         var roles = GetRoles(formation);
-        var behaviours = context.SlotBehaviours;
-        var sectorCounts = roles.Select(ToLineupSector).GroupBy(x => x).ToDictionary(g => g.Key, g => g.Count());
+        var behaviour = context.SlotBehaviours;
 
         double CalculateSector(RatingSector sector)
         {
-            double ret = 0;
+            double raw = 0;
+            var sectorCounts = roles
+                .Select(ToLineupSector)
+                .GroupBy(x => x)
+                .ToDictionary(g => g.Key, g => g.Count());
+
             for (int i = 0; i < lineup.Count; i++)
             {
-                var player = lineup[i];
                 var role = roles[i];
-                var behaviour = behaviours.TryGetValue(i, out var b) ? b : PlayerBehaviour.Normal;
                 var lineupSector = ToLineupSector(role);
-                var overcrowding = GetOvercrowdingPenalty(sectorCounts[lineupSector], lineupSector);
+                var playerBehaviour = behaviour.TryGetValue(i, out var b)
+                    ? b
+                    : PlayerBehaviour.Normal;
 
-                var contribution = _table.GetContribution(player, role, sector, behaviour, _calculator);
+                double contribution = _table.GetContribution(
+                    lineup[i], role, sector, playerBehaviour, _calculator);
+
                 if (contribution <= 0)
                     continue;
 
+                double overcrowding = GetOvercrowdingPenalty(sectorCounts[lineupSector], lineupSector);
                 contribution *= overcrowding;
-                contribution += _calculator.ExperienceContribution(player.Experience, sector);
-                contribution *= _calculator.WeatherFactor(player, context.Weather);
-                contribution *= _calculator.StaminaFactor(player.Stamina, context.Minute, 0, context.TacticType);
-                ret += contribution;
+                contribution += _calculator.ExperienceContribution(lineup[i].Experience, sector);
+                contribution *= _calculator.WeatherFactor(lineup[i], context.Weather);
+                contribution *= _calculator.StaminaFactor(lineup[i].Stamina, context.Minute, 0, context.TacticType);
+                raw += contribution;
             }
 
-            ret *= CalcSector(sector, context);
-            return ScaleSector(sector, ret);
+            raw *= SectorContextFactor(sector, context);
+
+            if (raw <= 0)
+                return .75;
+
+            return Math.Pow(raw * SectorScale[sector], 1.2) / 4.0 + 1.0;
         }
 
         return new TeamRatings(
@@ -76,90 +81,76 @@ public sealed class LineupRatingEngine
 
     public double GetPlayerPositionRating(PlayerData player, PlayerRole role, PlayerBehaviour behaviour, int minute = 0, int tacticType = 0)
     {
-        double ret = 0;
+        double raw = 0;
         foreach (RatingSector sector in Enum.GetValues<RatingSector>())
         {
-            var contribution = _table.GetContribution(player, role, sector, behaviour, _calculator);
-            if (contribution <= 0)
+            double c = _table.GetContribution(player, role, sector, behaviour, _calculator);
+            if (c <= 0)
                 continue;
 
-            contribution += _calculator.ExperienceContribution(player.Experience, sector);
-            contribution *= _calculator.WeatherFactor(player, MatchWeather.Normal);
-            contribution *= _calculator.StaminaFactor(player.Stamina, minute, 0, tacticType);
-            contribution *= SectorScale[sector];
+            c += _calculator.ExperienceContribution(player.Experience, sector);
+            c *= _calculator.WeatherFactor(player, MatchWeather.Normal);
+            c *= _calculator.StaminaFactor(player.Stamina, minute, 0, tacticType);
+            c *= SectorScale[sector];
             if (sector == RatingSector.Midfield)
-                contribution *= 3;
-            ret += contribution;
+                c *= 3.0;
+            raw += c;
         }
-        return ret > 0 ? Math.Pow(ret, 1.2) / 4.0 : 0;
-    }
 
-    private static double ScaleSector(RatingSector sector, double ret)
-        => ret > 0 ? Math.Pow(ret * SectorScale[sector], 1.2) / 4.0 + 1.0 : .75;
-
-    private static double CalcSector(RatingSector sector, TeamMatchContext context)
-    {
-        double r = 1.0;
-        var location = context.IsHome ? TeamLocation.Home : context.Location;
-
-        switch (sector)
-        {
-            case RatingSector.Midfield:
-                if (context.Attitude == TeamAttitude.PIC) r *= 0.83945;
-                else if (context.Attitude == TeamAttitude.MOTS) r *= 1.1149;
-
-                if (location == TeamLocation.AwayDerby) r *= 1.11493;
-                else if (location == TeamLocation.Home) r *= 1.19892;
-
-                if (context.TacticType == 2) r *= 0.93;
-                else if (context.TacticType == 5) r *= 0.96;
-                r *= CalcTeamSpirit(context.TeamSpirit);
-                break;
-
-            case RatingSector.LeftDefence:
-            case RatingSector.RightDefence:
-                r *= CoachFactor(sector, context.CoachModifier);
-                if (context.TacticType == 3) r *= 0.85;
-                else if (context.TacticType == 7) r *= 0.93;
-                break;
-
-            case RatingSector.CentralDefence:
-                r *= CoachFactor(sector, context.CoachModifier);
-                if (context.TacticType == 4) r *= 0.85;
-                else if (context.TacticType == 7) r *= 0.93;
-                break;
-
-            case RatingSector.CentralAttack:
-            case RatingSector.LeftAttack:
-            case RatingSector.RightAttack:
-                r *= CoachFactor(sector, context.CoachModifier);
-                if (context.TacticType == 5) r *= 0.96;
-                r *= CalcConfidence(context.Confidence);
-                break;
-        }
-        return r;
-    }
-
-    private static double CalcConfidence(double confidence) => 0.8 + 0.05 * (confidence + .5);
-    private static double CalcTeamSpirit(double teamSpirit) => 0.1 + 0.425 * Math.Sqrt(Math.Max(0, teamSpirit));
-
-    private static double CoachFactor(RatingSector sector, int modifier)
-    {
-        if (sector is RatingSector.LeftDefence or RatingSector.RightDefence or RatingSector.CentralDefence)
-            return modifier <= 0 ? 1.02 - modifier * (1.15 - 1.02) / 10.0 : 1.02 - modifier * (1.02 - .90) / 10.0;
-        return modifier <= 0 ? 1.02 - modifier * (.90 - 1.02) / 10.0 : 1.02 - modifier * (1.02 - 1.10) / 10.0;
+        return raw <= 0 ? 0 : Math.Pow(raw, 1.2) / 4.0;
     }
 
     public static PlayerRole[] GetRoles(string formation) => formation switch
     {
-        "4-4-2" => new[] { PlayerRole.Goalkeeper, PlayerRole.LeftDefender, PlayerRole.CentralDefender, PlayerRole.CentralDefender, PlayerRole.RightDefender, PlayerRole.LeftWinger, PlayerRole.CentralMidfielder, PlayerRole.CentralMidfielder, PlayerRole.RightWinger, PlayerRole.LeftForward, PlayerRole.CentralForward },
-        "4-3-3" => new[] { PlayerRole.Goalkeeper, PlayerRole.LeftDefender, PlayerRole.CentralDefender, PlayerRole.CentralDefender, PlayerRole.RightDefender, PlayerRole.CentralMidfielder, PlayerRole.CentralMidfielder, PlayerRole.CentralMidfielder, PlayerRole.LeftForward, PlayerRole.CentralForward, PlayerRole.RightForward },
-        "3-5-2" => new[] { PlayerRole.Goalkeeper, PlayerRole.CentralDefender, PlayerRole.CentralDefender, PlayerRole.CentralDefender, PlayerRole.LeftWinger, PlayerRole.CentralMidfielder, PlayerRole.CentralMidfielder, PlayerRole.CentralMidfielder, PlayerRole.RightWinger, PlayerRole.LeftForward, PlayerRole.CentralForward },
-        "4-5-1" => new[] { PlayerRole.Goalkeeper, PlayerRole.LeftDefender, PlayerRole.CentralDefender, PlayerRole.CentralDefender, PlayerRole.RightDefender, PlayerRole.LeftWinger, PlayerRole.CentralMidfielder, PlayerRole.CentralMidfielder, PlayerRole.CentralMidfielder, PlayerRole.RightWinger, PlayerRole.CentralForward },
-        "5-4-1" => new[] { PlayerRole.Goalkeeper, PlayerRole.LeftDefender, PlayerRole.CentralDefender, PlayerRole.CentralDefender, PlayerRole.CentralDefender, PlayerRole.RightDefender, PlayerRole.LeftWinger, PlayerRole.CentralMidfielder, PlayerRole.CentralMidfielder, PlayerRole.RightWinger, PlayerRole.CentralForward },
-        "5-3-2" => new[] { PlayerRole.Goalkeeper, PlayerRole.LeftDefender, PlayerRole.CentralDefender, PlayerRole.CentralDefender, PlayerRole.CentralDefender, PlayerRole.RightDefender, PlayerRole.CentralMidfielder, PlayerRole.CentralMidfielder, PlayerRole.CentralMidfielder, PlayerRole.LeftForward, PlayerRole.CentralForward },
-        "3-4-3" => new[] { PlayerRole.Goalkeeper, PlayerRole.CentralDefender, PlayerRole.CentralDefender, PlayerRole.CentralDefender, PlayerRole.LeftWinger, PlayerRole.CentralMidfielder, PlayerRole.CentralMidfielder, PlayerRole.RightWinger, PlayerRole.LeftForward, PlayerRole.CentralForward, PlayerRole.RightForward },
-        _ => new[] { PlayerRole.Goalkeeper, PlayerRole.LeftDefender, PlayerRole.CentralDefender, PlayerRole.CentralDefender, PlayerRole.RightDefender, PlayerRole.LeftWinger, PlayerRole.CentralMidfielder, PlayerRole.CentralMidfielder, PlayerRole.RightWinger, PlayerRole.LeftForward, PlayerRole.CentralForward }
+        "4-3-3" => new[]
+        {
+            PlayerRole.Goalkeeper,
+            PlayerRole.LeftDefender, PlayerRole.CentralDefender, PlayerRole.CentralDefender, PlayerRole.RightDefender,
+            PlayerRole.CentralMidfielder, PlayerRole.CentralMidfielder, PlayerRole.CentralMidfielder,
+            PlayerRole.LeftForward, PlayerRole.CentralForward, PlayerRole.RightForward
+        },
+        "3-5-2" => new[]
+        {
+            PlayerRole.Goalkeeper,
+            PlayerRole.CentralDefender, PlayerRole.CentralDefender, PlayerRole.CentralDefender,
+            PlayerRole.LeftWinger, PlayerRole.CentralMidfielder, PlayerRole.CentralMidfielder, PlayerRole.CentralMidfielder, PlayerRole.RightWinger,
+            PlayerRole.LeftForward, PlayerRole.CentralForward
+        },
+        "4-5-1" => new[]
+        {
+            PlayerRole.Goalkeeper,
+            PlayerRole.LeftDefender, PlayerRole.CentralDefender, PlayerRole.CentralDefender, PlayerRole.RightDefender,
+            PlayerRole.LeftWinger, PlayerRole.CentralMidfielder, PlayerRole.CentralMidfielder, PlayerRole.CentralMidfielder, PlayerRole.RightWinger,
+            PlayerRole.CentralForward
+        },
+        "5-4-1" => new[]
+        {
+            PlayerRole.Goalkeeper,
+            PlayerRole.LeftDefender, PlayerRole.CentralDefender, PlayerRole.CentralDefender, PlayerRole.CentralDefender, PlayerRole.RightDefender,
+            PlayerRole.LeftWinger, PlayerRole.CentralMidfielder, PlayerRole.CentralMidfielder, PlayerRole.RightWinger,
+            PlayerRole.CentralForward
+        },
+        "5-3-2" => new[]
+        {
+            PlayerRole.Goalkeeper,
+            PlayerRole.LeftDefender, PlayerRole.CentralDefender, PlayerRole.CentralDefender, PlayerRole.CentralDefender, PlayerRole.RightDefender,
+            PlayerRole.CentralMidfielder, PlayerRole.CentralMidfielder, PlayerRole.CentralMidfielder,
+            PlayerRole.LeftForward, PlayerRole.CentralForward
+        },
+        "3-4-3" => new[]
+        {
+            PlayerRole.Goalkeeper,
+            PlayerRole.CentralDefender, PlayerRole.CentralDefender, PlayerRole.CentralDefender,
+            PlayerRole.LeftWinger, PlayerRole.CentralMidfielder, PlayerRole.CentralMidfielder, PlayerRole.RightWinger,
+            PlayerRole.LeftForward, PlayerRole.CentralForward, PlayerRole.RightForward
+        },
+        _ => new[]
+        {
+            PlayerRole.Goalkeeper,
+            PlayerRole.LeftDefender, PlayerRole.CentralDefender, PlayerRole.CentralDefender, PlayerRole.RightDefender,
+            PlayerRole.LeftWinger, PlayerRole.CentralMidfielder, PlayerRole.CentralMidfielder, PlayerRole.RightWinger,
+            PlayerRole.LeftForward, PlayerRole.CentralForward
+        }
     };
 
     private static LineupContributionSector ToLineupSector(PlayerRole role) => role switch
@@ -173,29 +164,67 @@ public sealed class LineupRatingEngine
         _ => LineupContributionSector.InnerMidfield
     };
 
-    private static double GetOvercrowdingPenalty(int count, LineupContributionSector sector) => sector switch
+    private static double GetOvercrowdingPenalty(int count, LineupContributionSector sector)
     {
-        LineupContributionSector.CentralDefence => count switch { 2 => .964, 3 => .90, _ => 1.0 },
-        LineupContributionSector.InnerMidfield => count switch { 2 => .935, 3 => .825, _ => 1.0 },
-        LineupContributionSector.Forward => count switch { 2 => .945, 3 => .865, _ => 1.0 },
-        _ => 1.0
-    };
-}
+        return sector switch
+        {
+            LineupContributionSector.CentralDefence => count switch { 2 => .964, 3 => .90, _ => 1.0 },
+            LineupContributionSector.InnerMidfield => count switch { 2 => .935, 3 => .825, _ => 1.0 },
+            LineupContributionSector.Forward => count switch { 2 => .945, 3 => .865, _ => 1.0 },
+            _ => 1.0
+        };
+    }
 
-public enum TeamAttitude { Normal, PIC, MOTS }
-public enum TeamLocation { Home, Away, AwayDerby }
+    private static double SectorContextFactor(RatingSector sector, TeamMatchContext context)
+    {
+        double factor = 1.0;
 
-public sealed class TeamMatchContext
-{
-    public int TacticType { get; init; }
-    public int TacticLevel { get; init; }
-    public TeamAttitude Attitude { get; init; } = TeamAttitude.Normal;
-    public TeamLocation Location { get; init; } = TeamLocation.Away;
-    public bool IsHome { get; init; }
-    public int CoachModifier { get; init; }
-    public double TeamSpirit { get; init; }
-    public double Confidence { get; init; }
-    public MatchWeather Weather { get; init; } = MatchWeather.Normal;
-    public int Minute { get; init; }
-    public IReadOnlyDictionary<int, PlayerBehaviour> SlotBehaviours { get; init; } = new Dictionary<int, PlayerBehaviour>();
+        if (sector == RatingSector.Midfield)
+        {
+            if (context.Attitude == TeamAttitude.PIC) factor *= .83945;
+            if (context.Attitude == TeamAttitude.MOTS) factor *= 1.1149;
+            if (context.IsHome) factor *= 1.19892;
+            if (context.TacticType == 2) factor *= .93;
+            if (context.TacticType == 7) factor *= .96;
+            if (context.TeamSpirit > 0) factor *= .1 + .425 * Math.Sqrt(context.TeamSpirit);
+        }
+        else if (sector is RatingSector.LeftDefence or RatingSector.RightDefence or RatingSector.CentralDefence)
+        {
+            factor *= CoachFactor(sector, context.CoachModifier);
+            if (sector is RatingSector.LeftDefence or RatingSector.RightDefence)
+            {
+                if (context.TacticType == 3) factor *= .85;
+                if (context.TacticType == 7) factor *= .93;
+            }
+            else
+            {
+                if (context.TacticType == 4) factor *= .85;
+                if (context.TacticType == 7) factor *= .93;
+            }
+        }
+        else
+        {
+            factor *= CoachFactor(sector, context.CoachModifier);
+            if (context.TacticType == 7) factor *= .96;
+            if (context.Confidence > 0) factor *= .8 + .05 * (context.Confidence + .5);
+        }
+
+        return factor;
+    }
+
+    private static double CoachFactor(RatingSector sector, int modifier)
+    {
+        if (modifier == 0) return 1.0;
+
+        if (sector is RatingSector.LeftDefence or RatingSector.RightDefence or RatingSector.CentralDefence)
+            return modifier <= 0
+                ? 1.02 - modifier * (1.15 - 1.02) / 10.0
+                : 1.02 - modifier * (1.02 - .90) / 10.0;
+
+        return modifier <= 0
+            ? 1.02 - modifier * (.90 - 1.02) / 10.0
+            : 1.02 - modifier * (1.02 - 1.10) / 10.0;
+    }
+
+    private enum LineupContributionSector { Goal, CentralDefence, Back, InnerMidfield, Wing, Forward }
 }
