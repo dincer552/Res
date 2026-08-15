@@ -30,25 +30,35 @@ public static class HistoricalFormationMapper
 
     public static PlayerRole HistoricalRole(ChppLineupPlayer player, string formation)
     {
+        // PositionCode is the direct position source. RoleID is used only where
+        // the formal historical slot carries an extra-role/repositioning detail.
         return player.PositionCode switch
         {
             1 => PlayerRole.Goalkeeper,
-            2 => PlayerRole.RightDefender,
-            3 or 4 => PlayerRole.CentralDefender,
-            5 => PlayerRole.LeftDefender,
-            6 => PlayerRole.RightWinger,
-            7 or 8 => PlayerRole.CentralMidfielder,
-            9 => PlayerRole.LeftWinger,
+            2 => RoleOverride(player, PlayerRole.RightDefender),
+            3 or 4 => RoleOverride(player, PlayerRole.CentralDefender),
+            5 => RoleOverride(player, PlayerRole.LeftDefender),
+            6 => RoleOverride(player, PlayerRole.RightWinger),
+            7 or 8 => RoleOverride(player, PlayerRole.CentralMidfielder),
+            9 => RoleOverride(player, PlayerRole.LeftWinger),
             10 or 11 => ForwardRoleFromChpp(player.RoleId),
-            _ => RoleFromChppRoleId(player.RoleId)
+            _ => RoleFromChppRoleId(player.RoleId) ?? PlayerRole.CentralMidfielder
         };
+    }
+
+    private static PlayerRole RoleOverride(ChppLineupPlayer player, PlayerRole positionRole)
+    {
+        var role = RoleFromChppRoleId(player.RoleId);
+        return role.HasValue && RoleFamily(role.Value) != RoleFamily(positionRole)
+            ? role.Value
+            : positionRole;
     }
 
     private static LineFamily ClassifyLine(ChppLineupPlayer player)
     {
-        var roleFamily = RoleFamily(RoleFromChppRoleId(player.RoleId));
-        if (roleFamily != LineFamily.Unknown)
-            return roleFamily;
+        var role = RoleFromChppRoleId(player.RoleId);
+        if (role.HasValue)
+            return RoleFamily(role.Value);
 
         return player.PositionCode switch
         {
@@ -67,7 +77,7 @@ public static class HistoricalFormationMapper
         _ => PlayerRole.CentralForward
     };
 
-    private static PlayerRole RoleFromChppRoleId(int roleId) => roleId switch
+    private static PlayerRole? RoleFromChppRoleId(int roleId) => roleId switch
     {
         100 => PlayerRole.Goalkeeper,
         101 => PlayerRole.RightDefender,
@@ -79,7 +89,7 @@ public static class HistoricalFormationMapper
         111 => PlayerRole.RightForward,
         112 => PlayerRole.CentralForward,
         113 => PlayerRole.LeftForward,
-        _ => PlayerRole.CentralMidfielder
+        _ => null
     };
 
     private static LineFamily RoleFamily(PlayerRole role) => role switch
