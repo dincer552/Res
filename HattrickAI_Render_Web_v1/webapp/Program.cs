@@ -144,7 +144,7 @@ app.MapGet("/api/fixture-view/{matchId:int}", async (int matchId, ChppOAuthClien
     var opponentLineup = opponentLineupEngine.FindBestLineupForFormation(opponent.Players, opponentFormation);
     TeamRatings opponentRatings = opponentLineup.Count == 11
         ? new LineupRatingEngine().Calculate(opponentLineup, opponentFormation)
-        : selected.OpponentRatings;
+        : selected.OpponentRatings.Ratings;
 
     return Results.Ok(new
     {
