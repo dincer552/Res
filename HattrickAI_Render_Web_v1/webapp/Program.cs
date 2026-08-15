@@ -42,22 +42,34 @@ app.UseStaticFiles();
 
 app.MapGet("/health", () => Results.Ok(new { ok = true, service = "HattrickAI Web" }));
 
-app.MapGet("/auth/chpp/start", async (HttpContext http, ChppOAuthClient oauth) =>
+app.MapGet("/auth/chpp/start", async (HttpContext http) =>
 {
     try
     {
+        // Resolve inside the try block. Minimal API parameter injection happens
+        // before the handler executes, so a missing CHPP environment variable
+        // would otherwise bypass this handler's exception handling and appear
+        // only as an unhandled Kestrel exception in Render.
+        var oauth = http.RequestServices.GetRequiredService<ChppOAuthClient>();
         var proto = http.Request.Headers["X-Forwarded-Proto"].FirstOrDefault() ?? http.Request.Scheme;
         var callback = $"{proto}://{http.Request.Host}/auth/chpp/callback";
+
+        Console.WriteLine($"CHPP start: callback={callback}");
         var authorizeUrl = await oauth.BeginAuthorizationAsync(callback, http.RequestAborted);
+        Console.WriteLine("CHPP start: request token received; redirecting to Hattrick authorization.");
         return Results.Redirect(authorizeUrl);
     }
     catch (Exception ex)
     {
-        return Results.Problem(ex.Message, statusCode: 500);
+        Console.Error.WriteLine($"CHPP START ERROR: {ex}");
+        return Results.Problem(
+            detail: $"CHPP bağlantısı başlatılamadı. {ex.Message}",
+            statusCode: 500,
+            title: "CHPP OAuth başlatma hatası");
     }
 });
 
-app.MapGet("/auth/chpp/callback", async (HttpContext http, ChppOAuthClient oauth) =>
+app.MapGet("/auth/chpp/callback", async (HttpContext http) =>
 {
     var verifier = http.Request.Query["oauth_verifier"].ToString();
     var token = http.Request.Query["oauth_token"].ToString();
@@ -66,12 +78,18 @@ app.MapGet("/auth/chpp/callback", async (HttpContext http, ChppOAuthClient oauth
 
     try
     {
+        var oauth = http.RequestServices.GetRequiredService<ChppOAuthClient>();
+        Console.WriteLine($"CHPP callback: oauth_token received={!string.IsNullOrWhiteSpace(token)}, verifier received={!string.IsNullOrWhiteSpace(verifier)}");
         await oauth.CompleteAuthorizationAsync(verifier, http.RequestAborted);
         return Results.Redirect("/?connected=1");
     }
     catch (Exception ex)
     {
-        return Results.Problem(ex.Message, statusCode: 500);
+        Console.Error.WriteLine($"CHPP CALLBACK ERROR: {ex}");
+        return Results.Problem(
+            detail: $"CHPP bağlantısı tamamlanamadı. {ex.Message}",
+            statusCode: 500,
+            title: "CHPP OAuth callback hatası");
     }
 });
 
