@@ -54,7 +54,7 @@ app.MapGet("/api/fixture-view/{matchId:int}",async(int matchId,int? recentIndex,
             IsHome=selectedHistory.Fixture.HomeTeamId==selected.OpponentTeamId,
             TacticType=selectedHistory.OpponentTeam.TacticType,
             TacticLevel=selectedHistory.OpponentTeam.TacticLevel,
-            SlotBehaviours=historicalSlots.Select((s,i)=>(i,s.Behaviour)).ToDictionary(x=>x.i,x=>x.s)
+            SlotBehaviours=historicalSlots.Select((s,i)=>(Index:i,Behaviour:s.Behaviour)).ToDictionary(x=>x.Index,x=>x.Behaviour)
         },
         out var calculatedOpponentRatings,
         out var calculatedOpponentLineup,
