@@ -144,16 +144,13 @@ app.MapGet("/api/fixture-view/{matchId:int}", async (int matchId, int? recentInd
     if (string.IsNullOrWhiteSpace(opponentFormation))
         return Results.BadRequest(new { message = "Rakibin geçmiş maç formasyonu CHPP kadrosundan çözülemedi.", ratingSource = "CHPP_FORMATION_UNAVAILABLE", chppTrace = trace.ToResponse() });
 
-    // HO TeamAnalyzer uses the actual sector ratings recorded in the selected
-    // historical match. It does not rebuild an opponent rating from hidden
-    // opponent player skills, which CHPP does not expose.
     var simulationOpponent = new TeamData(
         selectedHistory.OpponentTeam.TeamName,
         selectedHistory.OpponentTeam.Ratings,
         selectedHistory.OpponentTeam.TacticType,
         selectedHistory.OpponentTeam.TacticLevel);
 
-    var recommendation = new RecommendationEngine().Recommend(own.Players, simulationOpponent, 1200, isHome);
+    var recommendation = new RecommendationEngine().Recommend(own.Players, simulationOpponent, 10000, isHome);
     if (recommendation is null)
         return Results.BadRequest(new { message = "Kendi kadron için en iyi 11 oluşturulamadı.", chppTrace = trace.ToResponse() });
 
@@ -193,11 +190,12 @@ app.MapGet("/api/fixture-view/{matchId:int}", async (int matchId, int? recentInd
 
 app.MapPost("/api/simulate", (SimulationRequest request) =>
 {
+    const int simulationCount = 10000;
     var engine = new SimulationEngine();
     var result = engine.Run(
         request.Home,
         request.Away,
-        request.Simulations,
+        simulationCount,
         request.HomeTacticType,
         request.HomeTacticLevel,
         request.AwayTacticType,
@@ -224,7 +222,7 @@ app.MapPost("/api/simulate", (SimulationRequest request) =>
 app.MapPost("/api/recommend", (RecommendationRequest request) =>
 {
     if (request.Players is null || request.Players.Count < 11) return Results.BadRequest(new { message = "En az 11 oyuncu gerekli." });
-    var result = new RecommendationEngine().Recommend(request.Players, request.Opponent, Math.Clamp(request.Simulations, 100, 10000), request.IsHome);
+    var result = new RecommendationEngine().Recommend(request.Players, request.Opponent, 10000, request.IsHome);
     if (result is null) return Results.BadRequest(new { message = "Kadronun en iyi 11'i oluşturulamadı." });
     return Results.Ok(new
     {
@@ -309,10 +307,10 @@ static string RoleLabel(string role) => role switch
 public sealed record SimulationRequest(
     TeamRatings Home,
     TeamRatings Away,
-    int Simulations = 1000,
+    int Simulations = 10000,
     int HomeTacticType = 0,
     int HomeTacticLevel = 0,
     int AwayTacticType = 0,
     int AwayTacticLevel = 0);
 
-public sealed record RecommendationRequest(List<PlayerData> Players, TeamData Opponent, int Simulations = 1000, bool IsHome = true);
+public sealed record RecommendationRequest(List<PlayerData> Players, TeamData Opponent, int Simulations = 10000, bool IsHome = true);
