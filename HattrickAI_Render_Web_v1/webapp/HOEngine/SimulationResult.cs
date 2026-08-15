@@ -10,6 +10,8 @@ public class SimulationResult
 
     public int AwayWins { get; private set; }
 
+    // HO! MatchResult uses a 5x5 score table. Scores above 4 are grouped
+    // into the 4 bucket, exactly like HO!'s result table.
     public int[] ScoreDistribution { get; } = new int[25];
 
     public int HomeGoals { get; private set; }
@@ -30,9 +32,7 @@ public class SimulationResult
         int[] details = result.GetResultDetail();
 
         for (int i = 0; i < details.Length && i < ScoreDistribution.Length; i++)
-        {
             ScoreDistribution[i] += details[i];
-        }
     }
 
     public double HomeWinPercentage =>
@@ -50,6 +50,10 @@ public class SimulationResult
     public double AverageAwayGoals =>
         Simulations == 0 ? 0 : AwayGoals * 1.0 / Simulations;
 
+    /// <summary>
+    /// Returns the most frequent score from HO!'s 5x5 result table.
+    /// 4 means 4 or more goals, matching HO!'s result bucketing.
+    /// </summary>
     public string GetMostLikelyScore()
     {
         if (Simulations == 0)
