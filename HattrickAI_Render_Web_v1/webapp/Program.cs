@@ -117,7 +117,6 @@ app.MapGet("/api/fixture/{matchId:int}", async (int matchId, ChppOAuthClient oau
     return Results.Ok(selected);
 });
 
-// Rich match view: the selected opponent history match drives the simulation input.
 app.MapGet("/api/fixture-view/{matchId:int}", async (int matchId, int? recentIndex, ChppOAuthClient oauth) =>
 {
     var teamService = new ChppTeamDataService(oauth);
@@ -134,18 +133,16 @@ app.MapGet("/api/fixture-view/{matchId:int}", async (int matchId, int? recentInd
     var selectedHistory = selected.RecentMatches.Count > 0 ? selected.RecentMatches[historyIndex] : null;
     var simulationOpponent = selectedHistory?.OpponentTeam ?? selected.OpponentRatings;
 
-    var recommendation = new RecommendationEngine().Recommend(
-        own.Players,
-        simulationOpponent,
-        simulationCount: 1200,
-        isHome: isHome);
-
+    var recommendation = new RecommendationEngine().Recommend(own.Players, simulationOpponent, 1200, isHome);
     if (recommendation is null)
         return Results.BadRequest(new { message = "Kendi kadron için en iyi 11 oluşturulamadı." });
 
-    var opponentLineupEngine = new BestLineupEngine();
     var opponentFormation = recommendation.Formation;
+    var opponentLineupEngine = new BestLineupEngine();
     var opponentLineup = opponentLineupEngine.FindBestLineupForFormation(opponent.Players, opponentFormation);
+    if (opponentLineup.Count != 11)
+        opponentLineup = opponent.Players.Where(p => !p.Injured && !p.Suspended).Take(11).ToList();
+
     TeamRatings opponentRatings = opponentLineup.Count == 11
         ? new LineupRatingEngine().Calculate(opponentLineup, opponentFormation)
         : simulationOpponent.Ratings;
@@ -220,59 +217,14 @@ app.MapPost("/api/recommend", (RecommendationRequest request) =>
 });
 
 app.MapFallbackToFile("index.html");
-
 app.Run();
 
-static object BuildLineupView(
-    List<PlayerData> lineup,
-    string formation,
-    IReadOnlyDictionary<int, PlayerBehaviour>? behaviours,
-    TeamRatings ratings)
+static object BuildLineupView(List<PlayerData> lineup,string formation,IReadOnlyDictionary<int,PlayerBehaviour>? behaviours,TeamRatings ratings)
 {
-    var roles = LineupRatingEngine.GetRoles(formation);
-    var ratingEngine = new LineupRatingEngine();
-
-    return new
-    {
-        formation,
-        ratings,
-        playerCount = lineup.Count,
-        players = lineup.Count == 11
-            ? lineup.Select((p, i) => new
-            {
-                p.PlayerId,
-                p.Name,
-                p.Form,
-                p.Stamina,
-                p.Experience,
-                role = RoleLabel(roles[i].ToString()),
-                roleKey = roles[i].ToString(),
-                rating = Math.Round(ratingEngine.GetPlayerPositionRating(
-                    p,
-                    roles[i],
-                    behaviours != null && behaviours.TryGetValue(i, out var b) ? b : PlayerBehaviour.Normal), 2),
-                behaviour = behaviours != null && behaviours.TryGetValue(i, out var behaviour) ? behaviour.ToString() : "Normal"
-            }).ToArray()
-            : Array.Empty<object>()
-    };
+    var roles=LineupRatingEngine.GetRoles(formation);var ratingEngine=new LineupRatingEngine();
+    return new{formation,ratings,playerCount=lineup.Count,players=lineup.Count==11?lineup.Select((p,i)=>new{p.PlayerId,p.Name,p.Form,p.Stamina,p.Experience,role=RoleLabel(roles[i].ToString()),roleKey=roles[i].ToString(),rating=Math.Round(ratingEngine.GetPlayerPositionRating(p,roles[i],behaviours!=null&&behaviours.TryGetValue(i,out var b)?b:PlayerBehaviour.Normal),2),behaviour=behaviours!=null&&behaviours.TryGetValue(i,out var behaviour)?behaviour.ToString():"Normal"}).ToArray():Array.Empty<object>()};
 }
 
-static string RoleLabel(string role) => role switch
-{
-    "Goalkeeper" => "KL",
-    "LeftDefender" => "SLB",
-    "CentralDefender" => "STP",
-    "RightDefender" => "SGB",
-    "LeftMidfielder" => "OS",
-    "CentralMidfielder" => "OM",
-    "RightMidfielder" => "OS",
-    "LeftWinger" => "K",
-    "RightWinger" => "K",
-    "LeftForward" => "SF",
-    "CentralForward" => "SF",
-    "RightForward" => "SF",
-    _ => ""
-};
-
-public sealed record SimulationRequest(TeamRatings Home, TeamRatings Away, int Simulations = 1000);
-public sealed record RecommendationRequest(List<PlayerData> Players, TeamData Opponent, int Simulations = 1000, bool IsHome = true);
+static string RoleLabel(string role)=>role switch{"Goalkeeper"=>"KL","LeftDefender"=>"SLB","CentralDefender"=>"STP","RightDefender"=>"SGB","LeftMidfielder"=>"OS","CentralMidfielder"=>"OM","RightMidfielder"=>"OS","LeftWinger"=>"K","RightWinger"=>"K","LeftForward"=>"SF","CentralForward"=>"SF","RightForward"=>"SF",_=>""};
+public sealed record SimulationRequest(TeamRatings Home,TeamRatings Away,int Simulations=1000);
+public sealed record RecommendationRequest(List<PlayerData> Players,TeamData Opponent,int Simulations=1000,bool IsHome=true);
