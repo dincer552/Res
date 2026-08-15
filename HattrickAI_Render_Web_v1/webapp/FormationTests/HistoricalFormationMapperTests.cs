@@ -106,5 +106,3 @@ internal static class HistoricalFormationMapperTests
             throw new InvalidOperationException(message ?? $"Expected {expected}, got {actual}");
     }
 }
-
-return HistoricalFormationMapperTests.RunAll();
