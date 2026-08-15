@@ -193,7 +193,18 @@ app.MapGet("/api/fixture-view/{matchId:int}", async (int matchId, int? recentInd
 
 app.MapPost("/api/simulate", (SimulationRequest request) =>
 {
-    var result = new SimulationEngine().Run(request.Home, request.Away, request.Simulations);
+    var engine = new SimulationEngine();
+    var result = engine.Run(
+        request.Home,
+        request.Away,
+        request.Simulations,
+        request.HomeTacticType,
+        request.HomeTacticLevel,
+        request.AwayTacticType,
+        request.AwayTacticLevel);
+
+    var sectors = engine.CompareSectors(request.Home, request.Away);
+
     return Results.Ok(new
     {
         result.Simulations,
@@ -204,7 +215,9 @@ app.MapPost("/api/simulate", (SimulationRequest request) =>
         result.AverageAwayGoals,
         MostLikelyNormalScore = result.GetMostLikelyNormalScore(),
         ScoreDistribution = result.GetScoreDistribution(),
-        ScoreModel = "HO! ActionGenerator / MatchResult"
+        SectorComparison = sectors,
+        ScoreModel = "HO! ActionGenerator / MatchResult",
+        SectorModel = "HO! BaseActionGenerator.compare / linear chance"
     });
 });
 
@@ -293,5 +306,13 @@ static string RoleLabel(string role) => role switch
     _ => ""
 };
 
-public sealed record SimulationRequest(TeamRatings Home, TeamRatings Away, int Simulations = 1000);
+public sealed record SimulationRequest(
+    TeamRatings Home,
+    TeamRatings Away,
+    int Simulations = 1000,
+    int HomeTacticType = 0,
+    int HomeTacticLevel = 0,
+    int AwayTacticType = 0,
+    int AwayTacticLevel = 0);
+
 public sealed record RecommendationRequest(List<PlayerData> Players, TeamData Opponent, int Simulations = 1000, bool IsHome = true);
