@@ -3,35 +3,31 @@ using System;
 namespace HattrickAI.HOEngine;
 
 /// <summary>
-/// HO!-style player strength layer.
-/// The implementation follows the public RatingPredictionModel concepts:
-/// skill rating = max(0, skill - 1), then loyalty + form are applied to skill strength.
-/// Missing optional values are treated as neutral rather than destroying the rating.
+/// Direct C# port of the player-strength portions of HO!'s RatingPredictionModel.
+/// Skill strength follows (SkillRating + Loyalty) * Form.
 /// </summary>
 public sealed class PlayerRatingCalculator
 {
-    public double SkillRating(int skill) => Math.Max(0, skill - 1);
+    public double SkillRating(double skill) => Math.Max(0, skill - 1);
 
     public double FormFactor(int form)
     {
-        // Hattrick form is normally 1..8. When the HTML parser cannot find it,
-        // 5 is used as a neutral fallback.
-        int normalized = form <= 0 ? 5 : Math.Clamp(form, 1, 8);
-        double formRating = Math.Min(7.0, SkillRating(normalized));
-        return 0.378 * Math.Sqrt(formRating);
+        var value = Math.Min(7.0, SkillRating(form));
+        return 0.378 * Math.Sqrt(value);
     }
 
     public double LoyaltyFactor(PlayerData player)
     {
-        int loyalty = player.Loyalty <= 0 ? 20 : Math.Clamp(player.Loyalty, 0, 20);
-        return SkillRating(loyalty) / 19.0;
+        if (player.HomeGrown)
+            return 1.5;
+
+        return SkillRating(player.Loyalty) / 19.0;
     }
 
     public double ExperienceContribution(int experience, RatingSector sector)
     {
-        int normalized = experience <= 0 ? 1 : Math.Clamp(experience, 1, 20);
-        double exp = SkillRating(normalized);
-        double k =
+        var exp = SkillRating(experience);
+        var k =
             -0.00000725 * Math.Pow(exp, 4) +
              0.0005 * Math.Pow(exp, 3) -
              0.01336 * Math.Pow(exp, 2) +
@@ -44,40 +40,38 @@ public sealed class PlayerRatingCalculator
             RatingSector.Midfield => k * 0.73,
             RatingSector.LeftAttack or RatingSector.RightAttack => k * 0.375,
             RatingSector.CentralAttack => k * 0.450,
-            _ => 0
+            _ => throw new ArgumentOutOfRangeException(nameof(sector))
         };
     }
 
     public double StaminaFactor(PlayerData player, int minute = 0, int startMinute = 0, int tacticType = 0)
     {
-        int stamina = player.Stamina <= 0 ? 7 : Math.Clamp(player.Stamina, 1, 9);
-        double s = SkillRating(stamina);
-        double pressingFactor = tacticType == 1 ? 1.1 : 1.0;
-
+        var p = tacticType == 1 ? 1.1 : 1.0;
+        var s = SkillRating(player.Stamina);
         double r0;
         double delta;
 
         if (s < 7)
         {
             r0 = 102.0 + 23.0 / 7.0 * s;
-            delta = pressingFactor * (27.0 / 70.0 * s - 5.95);
+            delta = p * (27.0 / 70.0 * s - 5.95);
         }
         else
         {
-            r0 = 125.0 + (s - 7.0) * 100.0 / 7.0;
-            delta = -3.25 * pressingFactor;
+            r0 = 102.0 + 23.0 + (s - 7.0) * 100.0 / 7.0;
+            delta = -3.25 * p;
         }
 
-        double r = r0;
-        int to = Math.Min(45, minute);
+        var r = r0;
+        var to = Math.Min(45, minute);
         if (startMinute < to)
             r += (to - startMinute) * delta / 5.0;
 
-        int from = Math.Max(45, startMinute);
+        var from = Math.Max(45, startMinute);
         if (minute >= 45)
         {
             if (startMinute < 45)
-                r = Math.Min(r0, r + 18.75);
+                r = Math.Min(r0, r + 120.75 - 102.0);
 
             to = Math.Min(90, minute);
             if (from < to)
@@ -88,29 +82,32 @@ public sealed class PlayerRatingCalculator
         {
             from = Math.Max(90, startMinute);
             if (startMinute < 90)
-                r = Math.Min(r0, r + 6.25);
+                r = Math.Min(r0, r + 127.0 - 120.75);
 
             if (from < minute)
                 r += (minute - from) * delta / 5.0;
         }
 
-        return Math.Clamp(r / 100.0, 0, 1);
+        return Math.Min(1.0, r / 100.0);
     }
 
     public double WeatherFactor(PlayerData player, MatchWeather weather)
     {
-        string specialty = NormalizeSpecialty(player.Specialty);
-
-        if (specialty == "Technical" && weather == MatchWeather.Rainy)
+        var specialty = NormalizeSpecialty(player.Specialty);
+        if (specialty == "Technical")
+        {
+            if (weather == MatchWeather.Rainy) return 0.95;
+            if (weather == MatchWeather.Sunny) return 1.05;
+        }
+        else if (specialty == "Powerful")
+        {
+            if (weather == MatchWeather.Rainy) return 1.05;
+            if (weather == MatchWeather.Sunny) return 0.95;
+        }
+        else if (specialty == "Quick" && weather != MatchWeather.Normal)
+        {
             return 0.95;
-        if (specialty == "Technical" && weather == MatchWeather.Sunny)
-            return 1.05;
-        if (specialty == "Powerful" && weather == MatchWeather.Rainy)
-            return 1.05;
-        if (specialty == "Powerful" && weather == MatchWeather.Sunny)
-            return 0.95;
-        if (specialty == "Quick" && weather != MatchWeather.Normal)
-            return 0.95;
+        }
 
         return 1.0;
     }
@@ -120,7 +117,7 @@ public sealed class PlayerRatingCalculator
         if (player.Injured || player.Suspended)
             return 0;
 
-        int value = skill.ToLowerInvariant() switch
+        var value = skill.ToLowerInvariant() switch
         {
             "keeper" => player.Keeper,
             "defending" => player.Defending,
@@ -132,10 +129,10 @@ public sealed class PlayerRatingCalculator
             _ => 0
         };
 
-        if (value <= 0)
-            return 0;
-
-        return (SkillRating(value) + LoyaltyFactor(player)) * FormFactor(player.Form);
+        var skillRating = SkillRating(value);
+        var loyalty = LoyaltyFactor(player);
+        var form = FormFactor(player.Form);
+        return (skillRating + loyalty) * form;
     }
 
     public double GetSkill(PlayerData player, string skill) => SkillStrength(player, skill);
