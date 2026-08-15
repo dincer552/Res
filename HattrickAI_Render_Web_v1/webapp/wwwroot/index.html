@@ -41,6 +41,12 @@
     </article>
   </section>
 
+  <section class="panel" id="recent">
+    <div class="panel-head"><div><div class="eyebrow">RAKİBİN SON MAÇLARI</div><h2>Maç geçmişi</h2><p class="muted">Bir maçı seç. Simülasyon, rakibin o maçtaki rating ve taktiğini baz alsın.</p></div><button class="icon-btn" onclick="loadSelectedMatch()">↻</button></div>
+    <div id="recentMatches" class="recent-grid"></div>
+    <div id="recentSelection" class="selection-bar">Henüz maç seçilmedi.</div>
+  </section>
+
   <section class="lineup-grid">
     <article class="panel lineup-panel">
       <div class="panel-head"><div><div class="eyebrow">RAKİP</div><h2 id="opponentLineupTitle">Rakip kadro</h2></div><span id="opponentFormation" class="pill">—</span></div>
@@ -52,12 +58,6 @@
       <div class="rating-strip" id="ownRatingStrip"></div>
       <div class="pitch" id="ownPitch"><div class="pitch-lines"></div></div>
     </article>
-  </section>
-
-  <section class="panel" id="recent">
-    <div class="panel-head"><div><div class="eyebrow">RAKİBİN SON MAÇLARI</div><h2>Maç geçmişi</h2><p class="muted">Analize dahil etmek istediğin maçları seç.</p></div><button class="icon-btn" onclick="loadSelectedMatch()">↻</button></div>
-    <div id="recentMatches" class="recent-grid"></div>
-    <div id="recentSelection" class="selection-bar">Henüz maç seçilmedi.</div>
   </section>
 
   <section class="grid-2" id="simulation">
