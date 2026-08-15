@@ -2,7 +2,7 @@ name: Web Build
 
 on:
   push:
-    branches: [fix/symmetric-match-ratings]
+    branches: [main]
   workflow_dispatch:
 
 jobs:
