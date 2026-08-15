@@ -41,17 +41,13 @@ public sealed class RecommendationEngine
 
             foreach (var tactic in Tactics)
             {
-                var behaviours = BuildTacticBehaviours(
-                    lineup,
-                    formation,
-                    baseBehaviours,
-                    tactic.Type);
-
+                var behaviours = BuildTacticBehaviours(lineup, formation, baseBehaviours, tactic.Type);
                 var context = new TeamMatchContext
                 {
                     TacticType = tactic.Type,
                     TacticLevel = tactic.Level,
                     IsHome = isHome,
+                    Location = isHome ? TeamLocation.Home : TeamLocation.Away,
                     SlotBehaviours = behaviours
                 };
 
@@ -61,12 +57,7 @@ public sealed class RecommendationEngine
                     ? _simulator.Run(ourTeam, opponent, simulationCount)
                     : _simulator.Run(opponent, ourTeam, simulationCount);
                 double score = SelectionScore(simulation, tactic.Type, isHome);
-                string explanation = BuildExplanation(
-                    formation,
-                    tactic,
-                    ratings,
-                    opponent.Ratings,
-                    simulation);
+                string explanation = BuildExplanation(formation, tactic, ratings, opponent.Ratings, simulation);
 
                 if (best == null || score > best.SelectionScore)
                 {
@@ -101,9 +92,7 @@ public sealed class RecommendationEngine
 
         for (int i = 0; i < roles.Length; i++)
         {
-            PlayerBehaviour baseBehaviour = baseBehaviours.TryGetValue(i, out var b)
-                ? b
-                : PlayerBehaviour.Normal;
+            PlayerBehaviour baseBehaviour = baseBehaviours.TryGetValue(i, out var b) ? b : PlayerBehaviour.Normal;
 
             PlayerBehaviour behaviour = tacticType switch
             {
@@ -133,53 +122,27 @@ public sealed class RecommendationEngine
         double ourGoals = isHome ? simulation.AverageHomeGoals : simulation.AverageAwayGoals;
         double opponentGoals = isHome ? simulation.AverageAwayGoals : simulation.AverageHomeGoals;
 
-        double score =
-            ourWin * 1.20 +
-            simulation.DrawPercentage * 0.30 -
-            ourLoss * 0.75 +
-            ourGoals * 7.0 -
-            opponentGoals * 5.0;
-
-        // Tactics get only a small tie-break preference; the simulated result remains dominant.
+        double score = ourWin * 1.20 + simulation.DrawPercentage * 0.30 - ourLoss * 0.75 + ourGoals * 7.0 - opponentGoals * 5.0;
         if (tacticType == 1)
             score += simulation.HomeWinPercentage * 0.01;
-
         return score;
     }
 
-    private static string BuildExplanation(
-        string formation,
-        TacticCandidate tactic,
-        TeamRatings ours,
-        TeamRatings opponent,
-        SimulationResult simulation)
+    private static string BuildExplanation(string formation, TacticCandidate tactic, TeamRatings ours, TeamRatings opponent, SimulationResult simulation)
     {
         var points = new List<string>();
-
         double midfieldDelta = ours.Midfield - opponent.Midfield;
         double centralDefenceDelta = ours.CentralDefence - opponent.CentralAttack;
         double centralAttackDelta = ours.CentralAttack - opponent.CentralDefence;
-        double wingAttackDelta =
-            (ours.LeftAttack + ours.RightAttack) / 2.0 -
-            (opponent.LeftDefence + opponent.RightDefence) / 2.0;
+        double wingAttackDelta = (ours.LeftAttack + ours.RightAttack) / 2.0 - (opponent.LeftDefence + opponent.RightDefence) / 2.0;
 
-        if (midfieldDelta > .20)
-            points.Add("Orta saha avantajımız var.");
-        else if (midfieldDelta < -.20)
-            points.Add("Rakibin orta saha üstünlüğü var; topa sahip olmayı artırmak önemli.");
-
-        if (centralAttackDelta > .15)
-            points.Add("Merkez hücumumuz rakibin merkez savunmasına karşı güçlü.");
-
-        if (wingAttackDelta > .15)
-            points.Add("Kanat hücumlarımız rakibin kanat savunmasına göre avantajlı.");
-
-        if (centralDefenceDelta < -.15)
-            points.Add("Rakibin merkez hücumuna karşı merkez savunmayı korumak gerekiyor.");
-
+        if (midfieldDelta > .20) points.Add("Orta saha avantajımız var.");
+        else if (midfieldDelta < -.20) points.Add("Rakibin orta saha üstünlüğü var; topa sahip olmayı artırmak önemli.");
+        if (centralAttackDelta > .15) points.Add("Merkez hücumumuz rakibin merkez savunmasına karşı güçlü.");
+        if (wingAttackDelta > .15) points.Add("Kanat hücumlarımız rakibin kanat savunmasına göre avantajlı.");
+        if (centralDefenceDelta < -.15) points.Add("Rakibin merkez hücumuna karşı merkez savunmayı korumak gerekiyor.");
         points.Add($"{formation} dizilişi {tactic.Name.ToLowerInvariant()} ile simüle edildi.");
         points.Add($"{simulation.Simulations} simülasyonda beklenen skor {simulation.AverageHomeGoals:F2}-{simulation.AverageAwayGoals:F2}.");
-
         return string.Join(" ", points);
     }
 
