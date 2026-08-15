@@ -35,22 +35,19 @@ public sealed record ChppSelectedMatch(
     ChppFixture Fixture,
     int OpponentTeamId,
     string OpponentTeamName,
+    TeamData OwnTeamRatings,
     TeamData OpponentRatings,
     IReadOnlyList<ChppOpponentMatch> RecentMatches);
 
 /// <summary>
-/// Own fixture list + selected opponent history. The matches endpoint is
-/// documented as current version 2.2 and normally returns recent/upcoming
-/// matches. Match details version 1.4 supplies the seven sector ratings.
+/// Own fixture list + selected opponent history. Match details version 1.4
+/// supplies the seven sector ratings used by the HO-style simulator.
 /// </summary>
 public sealed class ChppMatchDataService
 {
     private readonly ChppOAuthClient _oauth;
 
-    public ChppMatchDataService(ChppOAuthClient oauth)
-    {
-        _oauth = oauth;
-    }
+    public ChppMatchDataService(ChppOAuthClient oauth) => _oauth = oauth;
 
     public async Task<IReadOnlyList<ChppFixture>> LoadUpcomingFixturesAsync(
         int ownTeamId,
@@ -62,8 +59,7 @@ public sealed class ChppMatchDataService
             {
                 ["version"] = "2.2",
                 ["teamID"] = ownTeamId.ToString(CultureInfo.InvariantCulture)
-            },
-            cancellationToken);
+            }, cancellationToken);
 
         return ParseMatches(xml)
             .Where(m => m.Status.Equals("UPCOMING", StringComparison.OrdinalIgnoreCase)
@@ -80,62 +76,77 @@ public sealed class ChppMatchDataService
     {
         var opponentId = fixture.OpponentTeamId(ownTeamId);
         var opponentName = fixture.OpponentName(ownTeamId);
-
         if (opponentId <= 0)
             throw new InvalidDataException("Seçilen maçın rakip takım ID'si okunamadı.");
 
-        var opponentMatchesXml = await _oauth.GetXmlAsync(
-            "matches",
-            new Dictionary<string, string?>
-            {
-                ["version"] = "2.2",
-                ["teamID"] = opponentId.ToString(CultureInfo.InvariantCulture)
-            },
-            cancellationToken);
+        // Get five completed matches for the opponent and five for our own team.
+        // Their matchDetails ratings become the automatic simulator inputs.
+        var opponentRecent = await LoadRecentFixturesAsync(opponentId, cancellationToken);
+        var ownRecent = await LoadRecentFixturesAsync(ownTeamId, cancellationToken);
 
-        var recentFixtures = ParseMatches(opponentMatchesXml)
-            .Where(m => m.Status.Equals("FINISHED", StringComparison.OrdinalIgnoreCase))
-            .Where(m => m.MatchDate < DateTime.Now.AddMinutes(5))
-            .OrderByDescending(m => m.MatchDate)
-            .Take(5)
-            .ToList();
-
-        if (recentFixtures.Count == 0)
+        if (opponentRecent.Count == 0)
             throw new InvalidDataException($"{opponentName} için tamamlanmış son maç bulunamadı.");
+        if (ownRecent.Count == 0)
+            throw new InvalidDataException("Kendi takımınız için tamamlanmış son maç bulunamadı; otomatik simülasyon ratingi üretilemedi.");
 
         var detailed = new List<ChppOpponentMatch>();
-        foreach (var recent in recentFixtures)
+        foreach (var recent in opponentRecent)
         {
             cancellationToken.ThrowIfCancellationRequested();
-
-            var xml = await _oauth.GetXmlAsync(
-                "matchdetails",
-                new Dictionary<string, string?>
-                {
-                    ["version"] = "1.4",
-                    ["matchID"] = recent.MatchId.ToString(CultureInfo.InvariantCulture)
-                },
-                cancellationToken);
-
-            var parsed = ParseMatchDetails(xml, recent);
-            var opponentTeam = parsed.HomeTeam.TeamId == opponentId
-                ? parsed.HomeTeam.Data
-                : parsed.AwayTeam.Data;
-            var otherTeam = parsed.HomeTeam.TeamId == opponentId
-                ? parsed.AwayTeam.Data
-                : parsed.HomeTeam.Data;
-
+            var parsed = await LoadMatchDetailsAsync(recent, cancellationToken);
+            var opponentTeam = parsed.HomeTeam.TeamId == opponentId ? parsed.HomeTeam.Data : parsed.AwayTeam.Data;
+            var otherTeam = parsed.HomeTeam.TeamId == opponentId ? parsed.AwayTeam.Data : parsed.HomeTeam.Data;
             detailed.Add(new ChppOpponentMatch(recent, opponentTeam, otherTeam));
         }
 
-        var average = AverageTeamData(opponentName, detailed.Select(x => x.OpponentTeam));
+        var ownDetailed = new List<TeamData>();
+        foreach (var recent in ownRecent)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var parsed = await LoadMatchDetailsAsync(recent, cancellationToken);
+            ownDetailed.Add(parsed.HomeTeam.TeamId == ownTeamId ? parsed.HomeTeam.Data : parsed.AwayTeam.Data);
+        }
+
+        var opponentAverage = AverageTeamData(opponentName, detailed.Select(x => x.OpponentTeam));
+        var ownAverage = AverageTeamData("Kendi takımınız", ownDetailed);
 
         return new ChppSelectedMatch(
             fixture,
             opponentId,
             opponentName,
-            average,
+            ownAverage,
+            opponentAverage,
             detailed);
+    }
+
+    private async Task<List<ChppFixture>> LoadRecentFixturesAsync(int teamId, CancellationToken cancellationToken)
+    {
+        var xml = await _oauth.GetXmlAsync(
+            "matches",
+            new Dictionary<string, string?>
+            {
+                ["version"] = "2.2",
+                ["teamID"] = teamId.ToString(CultureInfo.InvariantCulture)
+            }, cancellationToken);
+
+        return ParseMatches(xml)
+            .Where(m => m.Status.Equals("FINISHED", StringComparison.OrdinalIgnoreCase))
+            .Where(m => m.MatchDate < DateTime.Now.AddMinutes(5))
+            .OrderByDescending(m => m.MatchDate)
+            .Take(5)
+            .ToList();
+    }
+
+    private async Task<ParsedMatch> LoadMatchDetailsAsync(ChppFixture fixture, CancellationToken cancellationToken)
+    {
+        var xml = await _oauth.GetXmlAsync(
+            "matchdetails",
+            new Dictionary<string, string?>
+            {
+                ["version"] = "1.4",
+                ["matchID"] = fixture.MatchId.ToString(CultureInfo.InvariantCulture)
+            }, cancellationToken);
+        return ParseMatchDetails(xml, fixture);
     }
 
     private static IReadOnlyList<ChppFixture> ParseMatches(string xml)
@@ -149,23 +160,14 @@ public sealed class ChppMatchDataService
             var date = ReadDate(match, "MatchDate");
             var home = match.Element("HomeTeam");
             var away = match.Element("AwayTeam");
-
-            if (matchId <= 0 || date == DateTime.MinValue || home == null || away == null)
-                continue;
+            if (matchId <= 0 || date == DateTime.MinValue || home == null || away == null) continue;
 
             result.Add(new ChppFixture(
-                matchId,
-                date,
-                ReadInt(match, "MatchType"),
-                ReadText(match, "Status") ?? string.Empty,
-                ReadInt(home, "HomeTeamID"),
-                ReadText(home, "HomeTeamName") ?? "Ev sahibi",
-                ReadInt(away, "AwayTeamID"),
-                ReadText(away, "AwayTeamName") ?? "Deplasman",
-                ReadNullableInt(home, "HomeGoals"),
-                ReadNullableInt(away, "AwayGoals")));
+                matchId, date, ReadInt(match, "MatchType"), ReadText(match, "Status") ?? string.Empty,
+                ReadInt(home, "HomeTeamID"), ReadText(home, "HomeTeamName") ?? "Ev sahibi",
+                ReadInt(away, "AwayTeamID"), ReadText(away, "AwayTeamName") ?? "Deplasman",
+                ReadNullableInt(home, "HomeGoals"), ReadNullableInt(away, "AwayGoals")));
         }
-
         return result;
     }
 
@@ -174,7 +176,6 @@ public sealed class ChppMatchDataService
         var doc = XDocument.Parse(xml);
         var match = doc.Descendants("Match").FirstOrDefault()
             ?? throw new InvalidDataException("CHPP matchdetails XML içinde Match bulunamadı.");
-
         var home = match.Element("HomeTeam");
         var away = match.Element("AwayTeam");
         if (home == null || away == null)
@@ -189,51 +190,29 @@ public sealed class ChppMatchDataService
 
     private static ParsedTeam ParseTeam(XElement node, string idName, string nameName)
     {
-        // CHPP matchDetails ratings are on the official 1..80 scale.
-        // Our HO-style lineup engine works on the 0..20-ish team-rating scale,
-        // so the match values must be normalized before they enter comparisons
-        // and the simulator. Feeding raw 40-60 values here makes every matchup
-        // look absurdly one-sided.
         double Rating20(string elementName) =>
             Math.Clamp(ReadDouble(node, elementName) / 4.0, 0.0, 20.0);
 
         var data = new TeamData(
             ReadText(node, nameName) ?? "Bilinmeyen Takım",
             new TeamRatings(
-                Rating20("RatingMidfield"),
-                Rating20("RatingLeftDef"),
-                Rating20("RatingMidDef"),
-                Rating20("RatingRightDef"),
-                Rating20("RatingLeftAtt"),
-                Rating20("RatingMidAtt"),
-                Rating20("RatingRightAtt")),
-            ReadInt(node, "TacticType"),
-            ReadInt(node, "TacticSkill"));
-
+                Rating20("RatingMidfield"), Rating20("RatingLeftDef"), Rating20("RatingMidDef"), Rating20("RatingRightDef"),
+                Rating20("RatingLeftAtt"), Rating20("RatingMidAtt"), Rating20("RatingRightAtt")),
+            ReadInt(node, "TacticType"), ReadInt(node, "TacticSkill"));
         return new ParsedTeam(ReadInt(node, idName), data);
     }
 
     private static TeamData AverageTeamData(string name, IEnumerable<TeamData> teams)
     {
         var list = teams.ToList();
-        if (list.Count == 0)
-            throw new InvalidDataException("Rakip geçmiş maçlarından rating üretilemedi.");
+        if (list.Count == 0) throw new InvalidDataException("Maç geçmişlerinden rating üretilemedi.");
 
         var ratings = new TeamRatings(
-            list.Average(t => t.Ratings.Midfield),
-            list.Average(t => t.Ratings.LeftDefence),
-            list.Average(t => t.Ratings.CentralDefence),
-            list.Average(t => t.Ratings.RightDefence),
-            list.Average(t => t.Ratings.LeftAttack),
-            list.Average(t => t.Ratings.CentralAttack),
+            list.Average(t => t.Ratings.Midfield), list.Average(t => t.Ratings.LeftDefence), list.Average(t => t.Ratings.CentralDefence),
+            list.Average(t => t.Ratings.RightDefence), list.Average(t => t.Ratings.LeftAttack), list.Average(t => t.Ratings.CentralAttack),
             list.Average(t => t.Ratings.RightAttack));
 
-        var tactic = list
-            .GroupBy(t => t.TacticType)
-            .OrderByDescending(g => g.Count())
-            .ThenByDescending(g => g.Max(x => x.TacticLevel))
-            .First().Key;
-
+        var tactic = list.GroupBy(t => t.TacticType).OrderByDescending(g => g.Count()).ThenByDescending(g => g.Max(x => x.TacticLevel)).First().Key;
         var level = (int)Math.Round(list.Average(t => t.TacticLevel), MidpointRounding.AwayFromZero);
         return new TeamData(name, ratings, tactic, level);
     }
@@ -241,37 +220,28 @@ public sealed class ChppMatchDataService
     private static int ReadInt(XElement parent, string name, int fallback = 0)
     {
         var text = ReadText(parent, name);
-        return int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value)
-            ? value
-            : fallback;
+        return int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value) ? value : fallback;
     }
 
     private static int? ReadNullableInt(XElement parent, string name)
     {
         var text = ReadText(parent, name);
-        return int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value)
-            ? value
-            : null;
+        return int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value) ? value : null;
     }
 
     private static double ReadDouble(XElement parent, string name, double fallback = 0)
     {
         var text = ReadText(parent, name);
-        return double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var value)
-            ? value
-            : fallback;
+        return double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out var value) ? value : fallback;
     }
 
     private static DateTime ReadDate(XElement parent, string name, DateTime fallback = default)
     {
         var text = ReadText(parent, name);
-        return DateTime.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal, out var value)
-            ? value
-            : fallback;
+        return DateTime.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal, out var value) ? value : fallback;
     }
 
-    private static string? ReadText(XElement parent, string name) =>
-        parent.Element(name)?.Value?.Trim();
+    private static string? ReadText(XElement parent, string name) => parent.Element(name)?.Value?.Trim();
 
     private sealed record ParsedTeam(int TeamId, TeamData Data);
     private sealed record ParsedMatch(int MatchId, DateTime MatchDate, ParsedTeam HomeTeam, ParsedTeam AwayTeam);
