@@ -30,7 +30,7 @@
     visible=false;
   };
   const createCard=()=>{
-    const selected=document.querySelector('.fixture-card.selected');
+    const selected=document.querySelector('.fixture-card.selected,.recent-card.selected,[data-selected-match="true"]');
     if(!selected)return null;
     const old=document.querySelector('.ai-loading-inline');
     if(old)old.remove();
