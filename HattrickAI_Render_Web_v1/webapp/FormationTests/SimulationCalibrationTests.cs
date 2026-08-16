@@ -6,7 +6,7 @@ internal static class SimulationCalibrationTests
 {
     public static int RunAll()
     {
-        var tests = new (string Name, Action Test)[]
+        var tests = new (string Name, System.Action Test)[]
         {
             ("equal attack/defence uses calibrated baseline", EqualAttackDefenceUsesCalibratedBaseline),
             ("attack advantage raises scoring probability without exceeding cap", AttackAdvantageIsBounded),
