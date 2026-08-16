@@ -1,4 +1,4 @@
-using Microsoft.Data.Sqlite;
+using Npgsql;
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
@@ -8,7 +8,8 @@ namespace HattrickAI.CHPP;
 internal static class ChppXmlCache
 {
     private static readonly SemaphoreSlim Gate = new(1, 1);
-    private static readonly string DbPath = ResolvePath();
+    private static readonly object InitGate = new();
+    private static readonly string? ConnectionString = ResolveConnectionString();
     private static int _initialized;
 
     public static async Task<string?> TryGetAsync(
@@ -16,7 +17,8 @@ internal static class ChppXmlCache
         IDictionary<string, string?> query,
         CancellationToken cancellationToken = default)
     {
-        EnsureInitialized();
+        if (!EnsureInitialized()) return null;
+
         var ttl = GetTtl(file);
         await Gate.WaitAsync(cancellationToken);
         try
@@ -24,14 +26,14 @@ internal static class ChppXmlCache
             await using var connection = OpenConnection();
             await connection.OpenAsync(cancellationToken);
             await using var command = connection.CreateCommand();
-            command.CommandText = "SELECT payload, cached_at_utc FROM chpp_xml_cache WHERE cache_key = $key";
-            command.Parameters.AddWithValue("$key", BuildKey(file, query));
+            command.CommandText = "SELECT payload, cached_at_utc FROM chpp_xml_cache WHERE cache_key = @key";
+            command.Parameters.AddWithValue("key", BuildKey(file, query));
 
             await using var reader = await command.ExecuteReaderAsync(cancellationToken);
             if (!await reader.ReadAsync(cancellationToken)) return null;
 
             var payload = reader.GetString(0);
-            var cachedAt = DateTime.Parse(reader.GetString(1), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind);
+            var cachedAt = reader.GetFieldValue<DateTime>(1).ToUniversalTime();
             if (ttl.HasValue && DateTime.UtcNow - cachedAt > ttl.Value) return null;
             return payload;
         }
@@ -52,7 +54,8 @@ internal static class ChppXmlCache
         string payload,
         CancellationToken cancellationToken = default)
     {
-        EnsureInitialized();
+        if (!EnsureInitialized()) return;
+
         await Gate.WaitAsync(cancellationToken);
         try
         {
@@ -61,15 +64,15 @@ internal static class ChppXmlCache
             await using var command = connection.CreateCommand();
             command.CommandText = @"
 INSERT INTO chpp_xml_cache(cache_key, file, payload, cached_at_utc)
-VALUES($key, $file, $payload, $cachedAt)
+VALUES(@key, @file, @payload, @cachedAt)
 ON CONFLICT(cache_key) DO UPDATE SET
-    file = excluded.file,
-    payload = excluded.payload,
-    cached_at_utc = excluded.cached_at_utc;";
-            command.Parameters.AddWithValue("$key", BuildKey(file, query));
-            command.Parameters.AddWithValue("$file", file);
-            command.Parameters.AddWithValue("$payload", payload);
-            command.Parameters.AddWithValue("$cachedAt", DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture));
+    file = EXCLUDED.file,
+    payload = EXCLUDED.payload,
+    cached_at_utc = EXCLUDED.cached_at_utc;";
+            command.Parameters.AddWithValue("key", BuildKey(file, query));
+            command.Parameters.AddWithValue("file", file);
+            command.Parameters.AddWithValue("payload", payload);
+            command.Parameters.AddWithValue("cachedAt", DateTime.UtcNow);
             await command.ExecuteNonQueryAsync(cancellationToken);
         }
         catch (Exception ex)
@@ -102,46 +105,86 @@ ON CONFLICT(cache_key) DO UPDATE SET
         return Convert.ToHexString(hash);
     }
 
-    private static SqliteConnection OpenConnection()
-    {
-        var connection = new SqliteConnection($"Data Source={DbPath};Cache=Shared");
-        return connection;
-    }
+    private static NpgsqlConnection OpenConnection()
+        => new(ConnectionString!);
 
-    private static void EnsureInitialized()
+    private static bool EnsureInitialized()
     {
-        if (Interlocked.Exchange(ref _initialized, 1) != 0) return;
-        try
+        if (ConnectionString is null)
         {
-            var directory = Path.GetDirectoryName(DbPath);
-            if (!string.IsNullOrWhiteSpace(directory)) Directory.CreateDirectory(directory);
-            using var connection = OpenConnection();
-            connection.Open();
-            using var command = connection.CreateCommand();
-            command.CommandText = @"
-PRAGMA journal_mode=WAL;
-PRAGMA busy_timeout=5000;
+            Console.Error.WriteLine("CHPP CACHE DISABLED: DATABASE_URL is not configured.");
+            return false;
+        }
+
+        if (Volatile.Read(ref _initialized) != 0) return true;
+
+        lock (InitGate)
+        {
+            if (_initialized != 0) return true;
+            try
+            {
+                using var connection = OpenConnection();
+                connection.Open();
+                using var command = connection.CreateCommand();
+                command.CommandText = @"
 CREATE TABLE IF NOT EXISTS chpp_xml_cache (
     cache_key TEXT PRIMARY KEY,
     file TEXT NOT NULL,
     payload TEXT NOT NULL,
-    cached_at_utc TEXT NOT NULL
-);";
-            command.ExecuteNonQuery();
-        }
-        catch (Exception ex)
-        {
-            Interlocked.Exchange(ref _initialized, 0);
-            Console.Error.WriteLine($"CHPP CACHE INIT ERROR: {ex.Message}");
+    cached_at_utc TIMESTAMPTZ NOT NULL
+);
+CREATE INDEX IF NOT EXISTS ix_chpp_xml_cache_cached_at
+    ON chpp_xml_cache(cached_at_utc);";
+                command.ExecuteNonQuery();
+                Volatile.Write(ref _initialized, 1);
+                Console.WriteLine("CHPP CACHE: PostgreSQL persistent cache ready.");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Console.Error.WriteLine($"CHPP CACHE INIT ERROR: {ex.Message}");
+                return false;
+            }
         }
     }
 
-    private static string ResolvePath()
+    private static string? ResolveConnectionString()
     {
-        var configured = Environment.GetEnvironmentVariable("HATTRICKAI_CHPP_CACHE_DB");
-        if (!string.IsNullOrWhiteSpace(configured)) return configured;
-        var renderData = Environment.GetEnvironmentVariable("HATTRICKAI_CACHE_DB_PATH");
-        if (!string.IsNullOrWhiteSpace(renderData)) return renderData;
-        return Path.Combine(Path.GetTempPath(), "hattrickai-chpp-cache.db");
+        var configured = Environment.GetEnvironmentVariable("HATTRICKAI_DATABASE_URL")
+            ?? Environment.GetEnvironmentVariable("DATABASE_URL");
+        if (string.IsNullOrWhiteSpace(configured)) return null;
+
+        if (!Uri.TryCreate(configured, UriKind.Absolute, out var uri)
+            || (uri.Scheme != "postgres" && uri.Scheme != "postgresql"))
+            return configured;
+
+        var builder = new NpgsqlConnectionStringBuilder
+        {
+            Host = uri.Host,
+            Port = uri.IsDefaultPort ? 5432 : uri.Port,
+            Database = uri.AbsolutePath.Trim('/'),
+            SslMode = SslMode.Require
+        };
+
+        if (!string.IsNullOrEmpty(uri.UserInfo))
+        {
+            var parts = uri.UserInfo.Split(':', 2);
+            builder.Username = Uri.UnescapeDataString(parts[0]);
+            if (parts.Length == 2) builder.Password = Uri.UnescapeDataString(parts[1]);
+        }
+
+        if (!string.IsNullOrEmpty(uri.Query))
+        {
+            foreach (var pair in uri.Query.TrimStart('?').Split('&', StringSplitOptions.RemoveEmptyEntries))
+            {
+                var parts = pair.Split('=', 2);
+                if (parts.Length != 2) continue;
+                if (parts[0].Equals("sslmode", StringComparison.OrdinalIgnoreCase)
+                    && Enum.TryParse<SslMode>(parts[1], true, out var sslMode))
+                    builder.SslMode = sslMode;
+            }
+        }
+
+        return builder.ConnectionString;
     }
 }

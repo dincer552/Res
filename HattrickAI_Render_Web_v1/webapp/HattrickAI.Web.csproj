@@ -6,7 +6,7 @@
     <RootNamespace>HattrickAI.Web</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.18" />
+    <PackageReference Include="Npgsql" Version="9.0.4" />
   </ItemGroup>
   <ItemGroup>
     <Compile Remove="FormationTests\**" />
