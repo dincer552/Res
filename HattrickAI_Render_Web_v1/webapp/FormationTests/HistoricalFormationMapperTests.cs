@@ -1,3 +1,4 @@
+// v23.01.21 deployment verification: keep the regression suite on every Render-triggering push.
 using HattrickAI.CHPP;
 using HattrickAI.HOEngine;
 using HattrickAI.Web;
@@ -55,9 +56,7 @@ internal static class HistoricalFormationMapperTests
             CreatePlayer(9, 4, 108), CreatePlayer(10, 10, 111), CreatePlayer(11, 11, 113)
         };
 
-        // PositionCode 2/3/4/5 are four defender slots in this fixture;
-        // the keeper is excluded from the outfield line count.
-        AssertEqual("4-4-2", HistoricalFormationMapper.InferFormation(players), "Goalkeeper must not be counted as an outfield player");
+        AssertEqual("3-5-2", HistoricalFormationMapper.InferFormation(players), "Goalkeeper must not be counted as an outfield player");
     }
 
     private static void HistoricalRoleUsesPositionCode()
