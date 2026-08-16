@@ -8,9 +8,14 @@ public static class AppVersion
     {
         get
         {
-            var path = Path.Combine(AppContext.BaseDirectory, SourceFileName);
-            if (!File.Exists(path))
-                throw new FileNotFoundException($"Application version source not found: {path}");
+            var candidates = new[]
+            {
+                Path.Combine(AppContext.BaseDirectory, SourceFileName),
+                Path.Combine(Directory.GetCurrentDirectory(), SourceFileName)
+            };
+            var path = candidates.FirstOrDefault(File.Exists);
+            if (path is null)
+                throw new FileNotFoundException($"Application version source not found. Checked: {string.Join(", ", candidates)}");
 
             var value = File.ReadAllText(path).Trim();
             if (string.IsNullOrWhiteSpace(value) || value.StartsWith('v'))
