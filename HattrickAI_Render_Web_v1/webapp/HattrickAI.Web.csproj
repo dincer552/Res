@@ -6,6 +6,9 @@
     <RootNamespace>HattrickAI.Web</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="9.0.18" />
+  </ItemGroup>
+  <ItemGroup>
     <Compile Remove="FormationTests\**" />
     <Content Remove="FormationTests\**" />
     <None Remove="FormationTests\**" />

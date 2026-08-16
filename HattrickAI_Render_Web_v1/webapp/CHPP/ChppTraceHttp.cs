@@ -15,7 +15,15 @@ public static class ChppTraceHttp
         var started = Stopwatch.GetTimestamp();
         try
         {
+            var cached = await ChppXmlCache.TryGetAsync(file, query, cancellationToken);
+            if (cached is not null)
+            {
+                Console.WriteLine($"CHPP CACHE HIT: {file} ({context})");
+                return cached;
+            }
+
             var body = await oauth.GetXmlAsync(file, query, cancellationToken);
+            await ChppXmlCache.SetAsync(file, query, body, cancellationToken);
             using var response = new HttpResponseMessage(System.Net.HttpStatusCode.OK);
             ChppRequestTrace.Record(file, context, query, "GET", response,
                 (long)Stopwatch.GetElapsedTime(started).TotalMilliseconds,
