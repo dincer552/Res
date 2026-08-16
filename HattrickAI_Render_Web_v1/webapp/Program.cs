@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Http.Json;
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using static HattrickAI.Web.LineupViewHelpers;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddHttpContextAccessor();
@@ -161,8 +162,6 @@ app.MapGet("/api/fixture-view/{matchId:int}", async (HttpContext http, int match
     var fixture = fixtures.FirstOrDefault(x => x.MatchId == matchId);
     if (fixture is null) return Results.NotFound(new { message = "Maç bulunamadı.", chppTrace = trace.ToResponse() });
     var opponentId = fixture.OpponentTeamId(own.TeamId);
-
-    // Historical data is cache-first. The cache is scoped by both our team and opponent.
     var historyKey = $"opponent-history:{own.TeamId}:{opponentId}";
     var selected = await cache.GetSelectedMatchAsync(historyKey, http.RequestAborted);
     var historySource = "POSTGRES_CACHE";
@@ -172,14 +171,12 @@ app.MapGet("/api/fixture-view/{matchId:int}", async (HttpContext http, int match
         await cache.SetSelectedMatchAsync(historyKey, selected, own.TeamId, opponentId, http.RequestAborted);
         historySource = "CHPP_DOWNLOADED_AND_CACHED";
     }
-
     var opponentTeamId = selected.OpponentTeamId > 0 ? selected.OpponentTeamId : opponentId;
     var opponentTeamName = !string.IsNullOrWhiteSpace(selected.OpponentTeamName) ? selected.OpponentTeamName : fixture.OpponentName(own.TeamId);
     var isHome = fixture.IsOwnHome(own.TeamId);
     var historyIndex = Math.Clamp(recentIndex ?? 0, 0, Math.Max(0, selected.RecentMatches.Count - 1));
     var selectedHistory = selected.RecentMatches.Count > 0 ? selected.RecentMatches[historyIndex] : null;
     if (selectedHistory is null) return Results.BadRequest(new { message = "Rakibin seçilmiş geçmiş maçı bulunamadı.", ratingSource = "POSTGRES_HISTORY_EMPTY", chppTrace = trace.ToResponse() });
-
     var lineupKey = $"lineup:{selectedHistory.Fixture.MatchId}:{opponentTeamId}";
     var historicalPlayers = await cache.GetLineupAsync(lineupKey, http.RequestAborted);
     var lineupSource = "POSTGRES_CACHE";
@@ -192,11 +189,9 @@ app.MapGet("/api/fixture-view/{matchId:int}", async (HttpContext http, int match
     if (historicalPlayers.Count != 11) return Results.BadRequest(new { message = "Rakibin geçmiş maç kadrosu alınamadı.", ratingSource = "CHPP_MATCH_LINEUP_INCOMPLETE", playerCount = historicalPlayers.Count, chppTrace = trace.ToResponse() });
     var opponentFormation = HistoricalFormationMapper.InferFormation(historicalPlayers);
     if (string.IsNullOrWhiteSpace(opponentFormation)) return Results.BadRequest(new { message = "Rakibin geçmiş maç formasyonu çözülemedi.", chppTrace = trace.ToResponse() });
-
     var analysisKey = PostgresHistoricalCache.AnalysisKey(matchId, selectedHistory.Fixture.MatchId, own.TeamId, isHome, own.Players);
     var cachedAnalysis = await cache.GetAnalysisAsync(analysisKey, http.RequestAborted);
     if (!string.IsNullOrWhiteSpace(cachedAnalysis)) return Results.Content(cachedAnalysis, "application/json");
-
     var simulationOpponent = new TeamData(selectedHistory.OpponentTeam.TeamName, selectedHistory.OpponentTeam.Ratings, selectedHistory.OpponentTeam.TacticType, selectedHistory.OpponentTeam.TacticLevel);
     var recommendation = new RecommendationEngine().Recommend(own.Players, simulationOpponent, 10000, isHome);
     if (recommendation is null) return Results.BadRequest(new { message = "Kendi kadron için en iyi 11 oluşturulamadı.", chppTrace = trace.ToResponse() });
