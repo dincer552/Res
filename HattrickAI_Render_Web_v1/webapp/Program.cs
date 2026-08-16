@@ -57,9 +57,7 @@ else app.Urls.Add("http://0.0.0.0:10000");
 
 app.UseSession();
 
-// v23.01.11 is served without requiring another source-file commit. This keeps
-// the visible version in index.html/selection-fix.js synchronized with this
-// single-commit backend change.
+// v23.01.14 keeps the visible version synchronized with the cup-lineup feature.
 app.Use(async (context, next) =>
 {
     var rewriteVersion = context.Request.Path == "/" ||
@@ -83,7 +81,10 @@ app.Use(async (context, next) =>
             buffer.Position = 0;
             using var reader = new StreamReader(buffer);
             var text = await reader.ReadToEndAsync();
-            text = text.Replace("v23.01.10", "v23.01.11", StringComparison.Ordinal);
+            text = text.Replace("v23.01.10", "v23.01.14", StringComparison.Ordinal)
+                       .Replace("v23.01.11", "v23.01.14", StringComparison.Ordinal)
+                       .Replace("v23.01.12", "v23.01.14", StringComparison.Ordinal)
+                       .Replace("v23.01.13", "v23.01.14", StringComparison.Ordinal);
             context.Response.ContentLength = null;
             context.Response.Body = originalBody;
             await context.Response.WriteAsync(text);
@@ -104,7 +105,7 @@ app.Use(async (context, next) =>
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
-app.MapGet("/health", () => Results.Ok(new { ok = true, service = "HattrickAI Web", version = "v23.01.11" }));
+app.MapGet("/health", () => Results.Ok(new { ok = true, service = "HattrickAI Web", version = "v23.01.14" }));
 
 app.MapGet("/auth/chpp/start", async (HttpContext http) =>
 {
@@ -153,6 +154,76 @@ app.MapGet("/api/status", async (ChppOAuthClient oauth) =>
 });
 
 app.MapGet("/api/team", async (ChppOAuthClient oauth) => Results.Ok(await new ChppTeamDataService(oauth).LoadOwnTeamAsync()));
+
+app.MapGet("/api/cup-lineup/latest", async (HttpContext http, ChppOAuthClient oauth, PersistentHistoricalCache cache) =>
+{
+    using var traceScope = ChppRequestTrace.Begin("cup-lineup-latest", 0, null);
+    var trace = ChppRequestTrace.Current!;
+    var teamService = new ChppTeamDataService(oauth);
+    var matchService = new ChppMatchDataService(oauth);
+    var lineupService = new ChppMatchLineupService(oauth);
+    var own = await teamService.LoadOwnTeamAsync();
+
+    var pointerKey = $"cup-latest:{own.TeamId}:{DateTime.UtcNow:yyyyMMdd}";
+    ChppFixture? fixture = null;
+    TeamData? teamData = null;
+    IReadOnlyList<ChppLineupPlayer>? players = null;
+    var cacheHit = false;
+
+    if (cache.TryGetSelectedMatch(pointerKey, out var cachedPointer) && cachedPointer.Fixture.IsStandardCup)
+    {
+        fixture = cachedPointer.Fixture;
+        teamData = cachedPointer.OwnTeamRatings;
+        var lineupKey = $"cup-lineup:{fixture.MatchId}:{own.TeamId}";
+        if (cache.TryGetLineup(lineupKey, out var cachedPlayers) && cachedPlayers.Count == 11)
+        {
+            players = cachedPlayers;
+            cacheHit = true;
+        }
+    }
+
+    if (fixture is null)
+    {
+        fixture = await matchService.LoadLatestStandardCupFixtureAsync(own.TeamId, http.RequestAborted);
+        if (fixture is null)
+            return Results.NotFound(new { message = "Kayıtlı standart kupa maçı bulunamadı.", source = "CHPP_MATCHES_MATCHTYPE_3", chppTrace = trace.ToResponse() });
+
+        teamData = await matchService.LoadTeamDataFromHistoricalMatchAsync(fixture, own.TeamId, http.RequestAborted);
+        var pointer = new ChppSelectedMatch(fixture, fixture.OpponentTeamId(own.TeamId), fixture.OpponentName(own.TeamId), teamData, teamData, Array.Empty<ChppOpponentMatch>());
+        await cache.SetSelectedMatchAsync(pointerKey, pointer);
+    }
+
+    var cachedLineupKey = $"cup-lineup:{fixture.MatchId}:{own.TeamId}";
+    if (players is null)
+    {
+        if (!cache.TryGetLineup(cachedLineupKey, out var cachedPlayers) || cachedPlayers.Count != 11)
+        {
+            players = await lineupService.LoadAsync(fixture.MatchId, own.TeamId, http.RequestAborted);
+            if (players.Count == 11)
+                await cache.SetLineupAsync(cachedLineupKey, players);
+        }
+        else
+        {
+            players = cachedPlayers;
+        }
+    }
+
+    if (players.Count != 11)
+        return Results.BadRequest(new { message = "Son kupa maçının gerçek 11'i CHPP'den alınamadı.", playerCount = players.Count, chppTrace = trace.ToResponse() });
+
+    var formation = HistoricalFormationMapper.InferFormation(players);
+    if (string.IsNullOrWhiteSpace(formation))
+        return Results.BadRequest(new { message = "Son kupa maçının formasyonu çözülemedi.", chppTrace = trace.ToResponse() });
+
+    var record = new CupLineupRecord(fixture, own.TeamId, own.TeamName, teamData!, formation, players);
+    return Results.Ok(new
+    {
+        record,
+        cache = cacheHit ? "PERSISTENT_CACHE" : "CHPP_DOWNLOADED_AND_CACHED",
+        playerCount = players.Count,
+        chppTrace = trace.ToResponse()
+    });
+});
 
 app.MapGet("/api/fixtures", async (ChppOAuthClient oauth) =>
 {
