@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using HattrickAI.CHPP;
+using HattrickAI.HOEngine;
 using Npgsql;
 using NpgsqlTypes;
 
@@ -213,8 +214,7 @@ CREATE INDEX IF NOT EXISTS ix_historical_analysis_cache_match ON historical_anal
     private static string? NormalizeConnectionString(string? raw)
     {
         if (string.IsNullOrWhiteSpace(raw)) return null;
-        if (!raw.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase) && !raw.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase))
-            return raw;
+        if (!raw.StartsWith("postgres://", StringComparison.OrdinalIgnoreCase) && !raw.StartsWith("postgresql://", StringComparison.OrdinalIgnoreCase)) return raw;
         var uri = new Uri(raw);
         var userInfo = uri.UserInfo.Split(':', 2);
         var builder = new NpgsqlConnectionStringBuilder
