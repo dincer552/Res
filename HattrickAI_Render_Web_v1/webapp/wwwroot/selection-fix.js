@@ -1,16 +1,18 @@
 (()=>{
-  const APP_VERSION='v23.01.18';
+  const APP_VERSION='v23.01.20';
   document.querySelectorAll('.app-version').forEach(el=>el.textContent=APP_VERSION);
   const footer=document.querySelector('footer');
-  if(footer) footer.textContent=footer.textContent.replace(/v23\.01\.\d+/,'v23.01.18');
+  if(footer) footer.textContent=footer.textContent.replace(/v23\.01\.\d+/,'v23.01.20');
 
-  // v23.01.18: small per-match data state. The rating/analysis engine is untouched.
-  // Check = historical data is present; spinner = that match is being fetched/selected.
+  // v23.01.20: per-match data state. A check means THIS match's detailed
+  // data has actually been loaded in this browser session. Do not infer
+  // "loaded" merely because historical ratings exist in the list payload.
   let recentLoadingIndex=null;
 
-  const hasHistoricalData=m=>{
-    const r=m?.opponent?.actualMatchRatings||m?.opponent?.ratings||m?.opponent?.Ratings;
-    return !!r && Object.keys(r).length>0;
+  const isRecentLoaded=(match,index)=>{
+    const key=currentMatchId==null?null:`${currentMatchId}:${Math.max(0,Number(index)||0)}`;
+    if(key && fixtureViewCache.has(key)) return true;
+    return !!match?.dataLoaded;
   };
 
   const decorateRecentCards=()=>{
@@ -25,7 +27,7 @@
       if(recentLoadingIndex===i){
         state='loading';
         card.classList.add('recent-data-loading');
-      }else if(hasHistoricalData(matches[i])){
+      }else if(isRecentLoaded(matches[i],i)){
         state='loaded';
         card.classList.add('recent-data-loaded');
       }
@@ -42,6 +44,25 @@
 
   const fixtureViewCache=new Map();
   const cacheKey=(matchId,index)=>`${matchId}:${Math.max(0,Number(index)||0)}`;
+
+  const decorateFixtureCards=()=>{
+    document.querySelectorAll('#fixturesList .fixture-card').forEach(card=>{
+      card.classList.remove('recent-data-loaded','recent-data-loading');
+      card.querySelector('.recent-data-state')?.remove();
+      const onclick=card.getAttribute('onclick')||'';
+      const match=onclick.match(/selectFixture\((\d+)\)/);
+      const id=match?Number(match[1]):null;
+      if(id!==null && fixtureViewCache.has(cacheKey(id,selectedRecentIndex))){
+        card.classList.add('recent-data-loaded');
+        const el=document.createElement('span');
+        el.className='recent-data-state';
+        el.setAttribute('aria-label','Maç verileri alındı');
+        el.title='Maç verileri alındı';
+        el.textContent='✓';
+        card.appendChild(el);
+      }
+    });
+  };
 
   const showCacheInfo=(view)=>{
     if(!view?.cache)return;
@@ -71,6 +92,7 @@
       renderMatch(currentView);
       showCacheInfo(currentView);
       decorateRecentCards();
+      decorateFixtureCards();
       return;
     }
 
@@ -81,6 +103,7 @@
     }
     recentLoadingIndex=null;
     decorateRecentCards();
+    decorateFixtureCards();
   };
 
   const originalRenderRecent=window.renderRecent;
@@ -109,11 +132,12 @@
       if(explanation) explanation.textContent='Rakip maç verisi alınamadı. Mevcut analiz korunuyor.';
     }
     decorateRecentCards();
+    decorateFixtureCards();
   };
 
   const recentRefresh=document.querySelector('#recent .icon-btn');
   if(recentRefresh) recentRefresh.setAttribute('onclick','loadSelectedMatch(undefined,true)');
 
   // Catch the initial async fixture/history render, which may finish after this script loads.
-  setTimeout(decorateRecentCards,0);
+  setTimeout(()=>{decorateRecentCards();decorateFixtureCards()},0);
 })();
