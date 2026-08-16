@@ -9,6 +9,9 @@
     <PackageReference Include="Npgsql" Version="9.0.4" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="VERSION" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="Always" />
+  </ItemGroup>
+  <ItemGroup>
     <Compile Remove="FormationTests\**" />
     <Content Remove="FormationTests\**" />
     <None Remove="FormationTests\**" />
