@@ -1,13 +1,11 @@
 (()=>{
-  const APP_VERSION='v23.01.17';
+  const APP_VERSION='v23.01.18';
   document.querySelectorAll('.app-version').forEach(el=>el.textContent=APP_VERSION);
   const footer=document.querySelector('footer');
-  if(footer) footer.textContent=footer.textContent.replace(/v23\.01\.\d+/,'v23.01.17');
+  if(footer) footer.textContent=footer.textContent.replace(/v23\.01\.\d+/,'v23.01.18');
 
-  // v23.01.17: show a small per-match data state without changing the
-  // rating/analysis engine. A check means the historical match data needed
-  // by the UI is already present; a spinner is shown only while that match
-  // is being fetched/selected.
+  // v23.01.18: small per-match data state. The rating/analysis engine is untouched.
+  // Check = historical data is present; spinner = that match is being fetched/selected.
   let recentLoadingIndex=null;
 
   const hasHistoricalData=m=>{
@@ -116,9 +114,6 @@
   const recentRefresh=document.querySelector('#recent .icon-btn');
   if(recentRefresh) recentRefresh.setAttribute('onclick','loadSelectedMatch(undefined,true)');
 
-  const recentRoot=document.querySelector('#recentMatches');
-  if(recentRoot){
-    new MutationObserver(()=>decorateRecentCards()).observe(recentRoot,{childList:true});
-    decorateRecentCards();
-  }
+  // Catch the initial async fixture/history render, which may finish after this script loads.
+  setTimeout(decorateRecentCards,0);
 })();
