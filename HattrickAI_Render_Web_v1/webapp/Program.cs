@@ -65,7 +65,7 @@ app.Use(async (context, next) =>
             buffer.Position = 0;
             using var reader = new StreamReader(buffer);
             var text = await reader.ReadToEndAsync();
-            foreach (var oldVersion in new[] { "v23.01.10", "v23.01.11", "v23.01.12", "v23.01.13", "v23.01.14" }) text = text.Replace(oldVersion, "v23.01.14", StringComparison.Ordinal);
+            foreach (var oldVersion in new[] { "v23.01.10", "v23.01.11", "v23.01.12", "v23.01.13", "v23.01.14", "v23.01.15" }) text = text.Replace(oldVersion, "v23.01.15", StringComparison.Ordinal);
             context.Response.ContentLength = null;
             context.Response.Body = originalBody;
             await context.Response.WriteAsync(text);
@@ -77,7 +77,7 @@ app.Use(async (context, next) =>
 
 app.UseDefaultFiles();
 app.UseStaticFiles();
-app.MapGet("/health", (PostgresHistoricalCache cache) => Results.Ok(new { ok = true, service = "HattrickAI Web", version = "v23.01.14", historicalCache = cache.IsConfigured ? "POSTGRES" : "UNCONFIGURED" }));
+app.MapGet("/health", (PostgresHistoricalCache cache) => Results.Ok(new { ok = true, service = "HattrickAI Web", version = "v23.01.15", historicalCache = cache.IsConfigured ? "POSTGRES" : "UNCONFIGURED" }));
 
 app.MapGet("/auth/chpp/start", async (HttpContext http) =>
 {
@@ -157,7 +157,11 @@ app.MapGet("/api/fixture-view/{matchId:int}", async (HttpContext http, int match
     var fixture = fixtures.FirstOrDefault(x => x.MatchId == matchId);
     if (fixture is null) return Results.NotFound(new { message = "Maç bulunamadı.", chppTrace = trace.ToResponse() });
     var opponentId = fixture.OpponentTeamId(own.TeamId);
-    var historyKey = $"opponent-history:{opponentId}";
+
+    // v23.01.15: historical data is cache-first. The cache is scoped by both
+    // our team and opponent so one team's selection can never reuse another's
+    // history. CHPP is called only on a real history miss or explicit refresh.
+    var historyKey = $"opponent-history:{own.TeamId}:{opponentId}";
     var selected = await cache.GetSelectedMatchAsync(historyKey, http.RequestAborted);
     var historySource = "POSTGRES_CACHE";
     if (selected is null || refresh == true)
@@ -166,19 +170,23 @@ app.MapGet("/api/fixture-view/{matchId:int}", async (HttpContext http, int match
         await cache.SetSelectedMatchAsync(historyKey, selected, own.TeamId, opponentId, http.RequestAborted);
         historySource = "CHPP_DOWNLOADED_AND_CACHED";
     }
-    var opponent = selected.OpponentTeamId > 0 ? await teamService.LoadTeamAsync(selected.OpponentTeamId, selected.OpponentTeamName) : await teamService.LoadTeamAsync(opponentId, fixture.OpponentName(own.TeamId));
+
+    // Do not re-read the opponent team from CHPP: the cached historical record
+    // already contains the opponent identity needed by this page.
+    var opponentTeamId = selected.OpponentTeamId > 0 ? selected.OpponentTeamId : opponentId;
+    var opponentTeamName = !string.IsNullOrWhiteSpace(selected.OpponentTeamName) ? selected.OpponentTeamName : fixture.OpponentName(own.TeamId);
     var isHome = fixture.IsOwnHome(own.TeamId);
     var historyIndex = Math.Clamp(recentIndex ?? 0, 0, Math.Max(0, selected.RecentMatches.Count - 1));
     var selectedHistory = selected.RecentMatches.Count > 0 ? selected.RecentMatches[historyIndex] : null;
     if (selectedHistory is null) return Results.BadRequest(new { message = "Rakibin seçilmiş geçmiş maçı bulunamadı.", ratingSource = "POSTGRES_HISTORY_EMPTY", chppTrace = trace.ToResponse() });
 
-    var lineupKey = $"lineup:{selectedHistory.Fixture.MatchId}:{opponentId}";
+    var lineupKey = $"lineup:{selectedHistory.Fixture.MatchId}:{opponentTeamId}";
     var historicalPlayers = await cache.GetLineupAsync(lineupKey, http.RequestAborted);
     var lineupSource = "POSTGRES_CACHE";
     if (historicalPlayers is null || historicalPlayers.Count != 11)
     {
-        historicalPlayers = await lineupService.LoadAsync(selectedHistory.Fixture.MatchId, opponentId, http.RequestAborted);
-        if (historicalPlayers.Count == 11) await cache.SetLineupAsync(lineupKey, selectedHistory.Fixture.MatchId, opponentId, historicalPlayers, http.RequestAborted);
+        historicalPlayers = await lineupService.LoadAsync(selectedHistory.Fixture.MatchId, opponentTeamId, http.RequestAborted);
+        if (historicalPlayers.Count == 11) await cache.SetLineupAsync(lineupKey, selectedHistory.Fixture.MatchId, opponentTeamId, historicalPlayers, http.RequestAborted);
         lineupSource = "CHPP_DOWNLOADED_AND_CACHED";
     }
     if (historicalPlayers.Count != 11) return Results.BadRequest(new { message = "Rakibin geçmiş maç kadrosu alınamadı.", ratingSource = "CHPP_MATCH_LINEUP_INCOMPLETE", playerCount = historicalPlayers.Count, chppTrace = trace.ToResponse() });
@@ -196,10 +204,10 @@ app.MapGet("/api/fixture-view/{matchId:int}", async (HttpContext http, int match
     var response = new
     {
         fixture, isHome, selectedRecentIndex = historyIndex,
-        cache = new { history = historySource, lineup = lineupSource, analysis = "COMPUTED_AND_CACHED", database = cache.IsConfigured ? "POSTGRES" : "UNCONFIGURED" },
+        cache = new { mode = "CACHE_FIRST", history = historySource, lineup = lineupSource, analysis = "COMPUTED_AND_CACHED", database = cache.IsConfigured ? "POSTGRES" : "UNCONFIGURED" },
         selectedOpponentMatch = new { selectedHistory.Fixture, selectedHistory.OpponentTeam.TeamName, selectedHistory.OpponentTeam.TacticType, selectedHistory.OpponentTeam.TacticLevel, actualMatchRatings = selectedHistory.OpponentTeam.Ratings, ratingSource = "HO_TEAM_ANALYZER_HISTORICAL_MATCH_RATINGS" },
         ownTeam = new { teamId = own.TeamId, teamName = own.TeamName },
-        opponentTeam = new { teamId = opponent.TeamId, teamName = opponent.TeamName },
+        opponentTeam = new { teamId = opponentTeamId, teamName = opponentTeamName },
         ownLineup = BuildLineupView(recommendation.Lineup, recommendation.Formation, recommendation.BehaviourProfile, recommendation.Ratings),
         opponentLineup = opponentLineupView, ownRatings = recommendation.Ratings, opponentRatings = selectedHistory.OpponentTeam.Ratings,
         formation = recommendation.Formation,
