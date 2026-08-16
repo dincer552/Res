@@ -65,8 +65,11 @@ app.Use(async (context, next) =>
             buffer.Position = 0;
             using var reader = new StreamReader(buffer);
             var text = await reader.ReadToEndAsync();
-            foreach (var oldVersion in new[] { "v23.01.10", "v23.01.11", "v23.01.12", "v23.01.13", "v23.01.14", "v23.01.15" }) text = text.Replace(oldVersion, "v23.01.15", StringComparison.Ordinal);
+            text = text.Replace("__HATTRICKAI_VERSION__", AppVersion.Display, StringComparison.Ordinal);
             context.Response.ContentLength = null;
+            context.Response.Headers.CacheControl = "no-store, no-cache, must-revalidate, max-age=0";
+            context.Response.Headers.Pragma = "no-cache";
+            context.Response.Headers.Expires = "0";
             context.Response.Body = originalBody;
             await context.Response.WriteAsync(text);
         }
@@ -77,7 +80,8 @@ app.Use(async (context, next) =>
 
 app.UseDefaultFiles();
 app.UseStaticFiles();
-app.MapGet("/health", (PostgresHistoricalCache cache) => Results.Ok(new { ok = true, service = "HattrickAI Web", version = "v23.01.15", historicalCache = cache.IsConfigured ? "POSTGRES" : "UNCONFIGURED" }));
+app.MapGet("/health", (PostgresHistoricalCache cache) => Results.Ok(new { ok = true, service = "HattrickAI Web", version = AppVersion.Display, historicalCache = cache.IsConfigured ? "POSTGRES" : "UNCONFIGURED" }));
+app.MapGet("/api/version", () => Results.Ok(new { version = AppVersion.Display, source = AppVersion.SourceFileName }));
 
 app.MapGet("/auth/chpp/start", async (HttpContext http) =>
 {
@@ -158,9 +162,7 @@ app.MapGet("/api/fixture-view/{matchId:int}", async (HttpContext http, int match
     if (fixture is null) return Results.NotFound(new { message = "Maç bulunamadı.", chppTrace = trace.ToResponse() });
     var opponentId = fixture.OpponentTeamId(own.TeamId);
 
-    // v23.01.15: historical data is cache-first. The cache is scoped by both
-    // our team and opponent so one team's selection can never reuse another's
-    // history. CHPP is called only on a real history miss or explicit refresh.
+    // Historical data is cache-first. The cache is scoped by both our team and opponent.
     var historyKey = $"opponent-history:{own.TeamId}:{opponentId}";
     var selected = await cache.GetSelectedMatchAsync(historyKey, http.RequestAborted);
     var historySource = "POSTGRES_CACHE";
@@ -171,8 +173,6 @@ app.MapGet("/api/fixture-view/{matchId:int}", async (HttpContext http, int match
         historySource = "CHPP_DOWNLOADED_AND_CACHED";
     }
 
-    // Do not re-read the opponent team from CHPP: the cached historical record
-    // already contains the opponent identity needed by this page.
     var opponentTeamId = selected.OpponentTeamId > 0 ? selected.OpponentTeamId : opponentId;
     var opponentTeamName = !string.IsNullOrWhiteSpace(selected.OpponentTeamName) ? selected.OpponentTeamName : fixture.OpponentName(own.TeamId);
     var isHome = fixture.IsOwnHome(own.TeamId);
@@ -238,29 +238,3 @@ app.MapPost("/api/recommend", (RecommendationRequest request) =>
     return Results.Ok(new { result.Formation, result.TacticName, result.TacticType, result.TacticLevel, result.Ratings, result.Simulation, result.SelectionScore, result.Explanation, Lineup = result.Lineup.Select(p => new { p.PlayerId, p.Name, p.Age, p.Form, p.Stamina, p.Experience }) });
 });
 app.MapFallbackToFile("index.html");
-app.Run();
-
-static object BuildLineupView(List<PlayerData> lineup, string formation, IReadOnlyDictionary<int, PlayerBehaviour>? behaviours, TeamRatings ratings)
-{
-    var roles = LineupRatingEngine.GetRoles(formation);
-    var ratingEngine = new LineupRatingEngine();
-    var players = lineup.Count == 11 ? lineup.Select((p, i) => (object)new
-    {
-        p.PlayerId, p.Name, p.Form, p.Stamina, p.Experience,
-        role = RoleLabel(roles[i].ToString()), roleKey = roles[i].ToString(),
-        rating = Math.Round(ratingEngine.GetPlayerPositionRating(p, roles[i], behaviours != null && behaviours.TryGetValue(i, out var b) ? b : PlayerBehaviour.Normal), 2),
-        behaviour = behaviours != null && behaviours.TryGetValue(i, out var behaviour) ? behaviour.ToString() : "Normal"
-    }).ToArray() : Array.Empty<object>();
-    return new { formation, ratings, playerCount = lineup.Count, players };
-}
-static object BuildHistoricalLineupView(IReadOnlyList<ChppLineupPlayer> players, string formation, TeamRatings ratings)
-{
-    var roles = LineupRatingEngine.GetRoles(formation);
-    var result = players.Select((p, i) => (object)new { p.PlayerId, p.Name, role = RoleLabel(roles[i].ToString()), roleKey = roles[i].ToString(), rating = Math.Round(p.RatingStars, 2), historicalMatchRating = Math.Round(p.RatingStars, 2), behaviour = MapBehaviour(p.Behaviour).ToString() }).ToArray();
-    return new { formation, ratings, playerCount = result.Length, players = result, source = "HO_TEAM_ANALYZER_HISTORICAL_MATCH_RATINGS" };
-}
-static PlayerBehaviour MapBehaviour(int behaviour) => behaviour switch { 1 => PlayerBehaviour.Offensive, 2 => PlayerBehaviour.Defensive, 3 => PlayerBehaviour.TowardsMiddle, 4 => PlayerBehaviour.TowardsWing, _ => PlayerBehaviour.Normal };
-static string RoleLabel(string role) => role switch { "Goalkeeper" => "KL", "LeftDefender" => "SLB", "CentralDefender" => "STP", "RightDefender" => "SGB", "LeftMidfielder" => "OS", "CentralMidfielder" => "OM", "RightMidfielder" => "OS", "LeftWinger" => "K", "RightWinger" => "K", "LeftForward" => "SF", "CentralForward" => "SF", "RightForward" => "SF", _ => "" };
-
-public sealed record SimulationRequest(TeamRatings Home, TeamRatings Away, int Simulations = 10000, int HomeTacticType = 0, int HomeTacticLevel = 0, int AwayTacticType = 0, int AwayTacticLevel = 0);
-public sealed record RecommendationRequest(List<PlayerData> Players, TeamData Opponent, int Simulations = 10000, bool IsHome = true);
