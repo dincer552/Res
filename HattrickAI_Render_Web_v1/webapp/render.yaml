@@ -3,9 +3,12 @@ services:
     name: hattrickai-web
     runtime: docker
     plan: free
+    branch: main
+    rootDir: ./HattrickAI_Render_Web_v1/webapp
     dockerfilePath: ./Dockerfile
+    dockerContext: .
     healthCheckPath: /health
-    autoDeploy: true
+    autoDeployTrigger: commit
     envVars:
       - key: CHPP_CONSUMER_KEY
         sync: false
