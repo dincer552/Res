@@ -55,7 +55,9 @@ internal static class HistoricalFormationMapperTests
             CreatePlayer(9, 4, 108), CreatePlayer(10, 10, 111), CreatePlayer(11, 11, 113)
         };
 
-        AssertEqual("3-5-2", HistoricalFormationMapper.InferFormation(players), "Goalkeeper must not be counted as an outfield player");
+        // PositionCode 2/3/4/5 are four defender slots in this fixture;
+        // the keeper is excluded from the outfield line count.
+        AssertEqual("4-4-2", HistoricalFormationMapper.InferFormation(players), "Goalkeeper must not be counted as an outfield player");
     }
 
     private static void HistoricalRoleUsesPositionCode()
