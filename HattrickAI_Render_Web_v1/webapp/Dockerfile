@@ -11,7 +11,8 @@ WORKDIR /app
 # additional inotify instances.
 ENV DOTNET_USE_POLLING_FILE_WATCHER=1
 ENV ASPNETCORE_URLS=http://0.0.0.0:10000
+ENV HATTRICKAI_VERSION_SOURCE=/app/VERSION
 COPY --from=build /app/publish .
 EXPOSE 10000
-# DEPLOY TRIGGER: v23.01.21 - force a fresh Render image from main.
+# The runtime version is read from /app/VERSION, published from the repository VERSION source.
 ENTRYPOINT ["dotnet", "HattrickAI.Web.dll"]
