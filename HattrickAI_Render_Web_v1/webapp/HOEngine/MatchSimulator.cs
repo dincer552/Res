@@ -5,12 +5,18 @@ namespace HattrickAI.HOEngine;
 
 /// <summary>
 /// C# port of HO!'s core prediction engine ActionGenerator/BaseActionGenerator.
-/// The important point is that scoring uses HO!'s effectiveness curve directly;
-/// there is no extra invented goal-conversion layer.
+/// Chance creation follows the HO-style midfield/action model, while the final
+/// attack-vs-defence conversion uses a calibrated scoring probability so that
+/// a rating advantage does not turn every chance into a goal.
 /// </summary>
 public sealed class MatchSimulator
 {
-    private readonly Random _random = new();
+    private readonly Random _random;
+
+    public MatchSimulator(int? seed = null)
+    {
+        _random = seed.HasValue ? new Random(seed.Value) : new Random();
+    }
 
     public MatchResult Simulate(TeamData homeTeam, TeamData awayTeam)
     {
@@ -240,7 +246,7 @@ public sealed class MatchSimulator
 
     private bool IsScore(HoTeamGameData team, int area)
     {
-        double chance = area switch
+        double attack = area switch
         {
             -1 => team.Ratings.LeftAttack,
             0 => team.Ratings.CentralAttack,
@@ -248,16 +254,22 @@ public sealed class MatchSimulator
             _ => 0
         };
 
-        // IMPORTANT: this is HO's exact BaseActionGenerator.isScore().
-        // Do not replace it with a custom baseline/floor/ceiling conversion.
-        int effectiveness = (int)GetEffectiveness(chance);
-        return Next(100) < effectiveness;
+        double defence = area switch
+        {
+            -1 => team.Ratings.LeftDefence,
+            0 => team.Ratings.CentralDefence,
+            1 => team.Ratings.RightDefence,
+            _ => 0
+        };
+
+        double probability = GoalProbabilityModel.Calculate(attack, defence);
+        return Next(10000) < probability * 10000d;
     }
 
     private static double LinearChance(double first, double second)
         => first / (first + second);
 
-    /// <summary>Exact BaseActionGenerator.getEffectiveness().</summary>
+    /// <summary>HO midfield effectiveness curve, retained only for chance creation.</summary>
     private static double GetEffectiveness(double value)
     {
         double x = value * 100d;
