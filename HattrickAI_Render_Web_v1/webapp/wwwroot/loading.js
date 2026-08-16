@@ -44,7 +44,7 @@
     if(old)old.remove();
     const card=document.createElement('div');
     card.className='ai-loading-inline show';
-    card.innerHTML='<div class="ai-loading-title">Rakip verileri yükleniyor</div><div class="ai-loading-text" id="aiLoadingText">CHPP geçmiş maç, kadro ve rating bilgileri alınıyor…</div><div class="ai-loading-track"><div class="ai-loading-bar" id="aiLoadingBar"></div></div><div class="ai-loading-percent" id="aiLoadingPercent">7%</div>';
+    card.innerHTML='<div class="ai-loading-title">Rakip verileri yükleniyor</div><div class="ai-loading-text" id="aiLoadingText">Önce PostgreSQL cache kontrol ediliyor…</div><div class="ai-loading-track"><div class="ai-loading-bar" id="aiLoadingBar"></div></div><div class="ai-loading-percent" id="aiLoadingPercent">7%</div>';
     selected.insertAdjacentElement('afterend',card);
     return card;
   };
@@ -52,11 +52,11 @@
     clearTimers();
     currentCard=createCard();
     if(!currentCard)return;
-    visible=true;requestId++;setProgress(7,'CHPP geçmiş maç, kadro ve rating bilgileri alınıyor…');
-    timers.push(setTimeout(()=>setProgress(24,'Geçmiş maç listesi hazırlanıyor…'),280));
-    timers.push(setTimeout(()=>setProgress(48,'Seçilen maçın 11 oyuncusu getiriliyor…'),750));
-    timers.push(setTimeout(()=>setProgress(70,'Oyuncu yetenekleri ve saha yerleşimi eşleştiriliyor…'),1350));
-    timers.push(setTimeout(()=>setProgress(86,'HO Engine ratingleri hesaplıyor…'),2100));
+    visible=true;requestId++;setProgress(7,'Önce PostgreSQL cache kontrol ediliyor…');
+    timers.push(setTimeout(()=>setProgress(24,'PostgreSQL geçmiş maç kayıtları kontrol ediliyor…'),280));
+    timers.push(setTimeout(()=>setProgress(48,'Eksik kayıt varsa CHPP’den getiriliyor…'),750));
+    timers.push(setTimeout(()=>setProgress(70,'Kayıtlı rating ve kadro eşleştiriliyor…'),1350));
+    timers.push(setTimeout(()=>setProgress(86,'Kayıtlı HO Engine sonucu kontrol ediliyor…'),2100));
     timers.push(setTimeout(()=>setProgress(94,'Analiz tamamlanmak üzere…'),3200));
   };
   const finish=(ok,source)=>{
@@ -95,8 +95,9 @@
         const data=await response.clone().json();
         const history=data?.cache?.history;
         const lineup=data?.cache?.lineup;
-        if(history==='POSTGRES_CACHE'&&lineup==='POSTGRES_CACHE') source='PostgreSQL cache’den hazırlandı • CHPP isteği yapılmadı';
-        else if(history==='CHPP_DOWNLOADED_AND_CACHED') source='Yeni veriler CHPP’den alındı ve PostgreSQL cache’e kaydedildi';
+        const analysis=data?.cache?.analysis;
+        if(history==='POSTGRES_CACHE'&&lineup==='POSTGRES_CACHE'&&analysis==='COMPUTED_AND_CACHED') source='PostgreSQL cache’den hazırlandı • CHPP isteği yapılmadı';
+        else if(history==='CHPP_DOWNLOADED_AND_CACHED') source='Yeni geçmiş veriler CHPP’den alındı ve PostgreSQL cache’e kaydedildi';
         else if(history==='POSTGRES_CACHE') source='PostgreSQL cache’den hazırlandı';
       }catch{}
       finish(response.ok,source);
