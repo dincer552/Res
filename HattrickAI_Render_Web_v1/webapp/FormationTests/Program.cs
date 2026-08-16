@@ -1,3 +1,6 @@
 using HattrickAI.FormationTests;
 
-return HistoricalFormationMapperTests.RunAll();
+var failures = 0;
+failures += HistoricalFormationMapperTests.RunAll();
+failures += SimulationCalibrationTests.RunAll();
+return failures;
