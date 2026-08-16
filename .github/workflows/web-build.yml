@@ -19,3 +19,5 @@ jobs:
         run: dotnet build HattrickAI_Render_Web_v1/webapp/HattrickAI.Web.sln --configuration Release --no-restore
       - name: Run formation regression tests
         run: dotnet run --project HattrickAI_Render_Web_v1/webapp/FormationTests/HattrickAI.FormationTests.csproj --configuration Release --no-build
+      - name: Build Render Docker image
+        run: docker build --pull -t hattrickai-web:ci HattrickAI_Render_Web_v1/webapp
