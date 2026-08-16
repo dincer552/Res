@@ -2,6 +2,7 @@ using HattrickAI.CHPP;
 using HattrickAI.HOEngine;
 using HattrickAI.Web;
 using Microsoft.AspNetCore.Http.Json;
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -16,6 +17,7 @@ builder.Services.AddSession(options =>
     options.IdleTimeout = TimeSpan.FromHours(8);
 });
 builder.Services.AddSingleton<ChppSessionTokenStore>();
+builder.Services.AddSingleton<PersistentHistoricalCache>();
 builder.Services.AddScoped<ChppOAuthClient>(sp =>
 {
     var credentials = ChppSettings.Load(builder.Configuration);
@@ -54,10 +56,55 @@ if (int.TryParse(port, out var parsedPort)) app.Urls.Add($"http://0.0.0.0:{parse
 else app.Urls.Add("http://0.0.0.0:10000");
 
 app.UseSession();
+
+// v23.01.11 is served without requiring another source-file commit. This keeps
+// the visible version in index.html/selection-fix.js synchronized with this
+// single-commit backend change.
+app.Use(async (context, next) =>
+{
+    var rewriteVersion = context.Request.Path == "/" ||
+                         context.Request.Path == "/index.html" ||
+                         context.Request.Path == "/selection-fix.js";
+    if (!rewriteVersion)
+    {
+        await next();
+        return;
+    }
+
+    var originalBody = context.Response.Body;
+    await using var buffer = new MemoryStream();
+    context.Response.Body = buffer;
+    try
+    {
+        await next();
+        if (context.Response.ContentType?.Contains("text/html", StringComparison.OrdinalIgnoreCase) == true ||
+            context.Response.ContentType?.Contains("javascript", StringComparison.OrdinalIgnoreCase) == true)
+        {
+            buffer.Position = 0;
+            using var reader = new StreamReader(buffer);
+            var text = await reader.ReadToEndAsync();
+            text = text.Replace("v23.01.10", "v23.01.11", StringComparison.Ordinal);
+            context.Response.ContentLength = null;
+            context.Response.Body = originalBody;
+            await context.Response.WriteAsync(text);
+        }
+        else
+        {
+            buffer.Position = 0;
+            context.Response.Body = originalBody;
+            await buffer.CopyToAsync(originalBody);
+        }
+    }
+    finally
+    {
+        context.Response.Body = originalBody;
+    }
+});
+
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
-app.MapGet("/health", () => Results.Ok(new { ok = true, service = "HattrickAI Web" }));
+app.MapGet("/health", () => Results.Ok(new { ok = true, service = "HattrickAI Web", version = "v23.01.11" }));
 
 app.MapGet("/auth/chpp/start", async (HttpContext http) =>
 {
@@ -114,7 +161,7 @@ app.MapGet("/api/fixtures", async (ChppOAuthClient oauth) =>
     return Results.Ok(new { teamId = team.TeamId, teamName = team.TeamName, fixtures });
 });
 
-app.MapGet("/api/fixture-view/{matchId:int}", async (int matchId, int? recentIndex, ChppOAuthClient oauth) =>
+app.MapGet("/api/fixture-view/{matchId:int}", async (int matchId, int? recentIndex, ChppOAuthClient oauth, PersistentHistoricalCache cache) =>
 {
     using var traceScope = ChppRequestTrace.Begin("fixture-view", matchId, recentIndex);
     var trace = ChppRequestTrace.Current!;
@@ -127,8 +174,18 @@ app.MapGet("/api/fixture-view/{matchId:int}", async (int matchId, int? recentInd
     var fixture = fixtures.FirstOrDefault(x => x.MatchId == matchId);
     if (fixture is null) return Results.NotFound(new { message = "Maç bulunamadı.", chppTrace = trace.ToResponse() });
 
-    var selected = await matchService.LoadSelectedMatchAsync(fixture, own.TeamId);
-    var opponent = await teamService.LoadTeamAsync(selected.OpponentTeamId, selected.OpponentTeamName);
+    var selectedCacheKey = $"selected:{fixture.MatchId}:{own.TeamId}:{fixture.OpponentTeamId(own.TeamId)}";
+    ChppSelectedMatch selected;
+    var selectedFromCache = cache.TryGetSelectedMatch(selectedCacheKey, out selected!);
+    if (!selectedFromCache)
+    {
+        selected = await matchService.LoadSelectedMatchAsync(fixture, own.TeamId);
+        await cache.SetSelectedMatchAsync(selectedCacheKey, selected);
+    }
+
+    var opponent = selected.OpponentTeamId > 0
+        ? await teamService.LoadTeamAsync(selected.OpponentTeamId, selected.OpponentTeamName)
+        : await teamService.LoadTeamAsync(fixture.OpponentTeamId(own.TeamId), fixture.OpponentName(own.TeamId));
     var isHome = fixture.IsOwnHome(own.TeamId);
     var historyIndex = Math.Clamp(recentIndex ?? 0, 0, Math.Max(0, selected.RecentMatches.Count - 1));
     var selectedHistory = selected.RecentMatches.Count > 0 ? selected.RecentMatches[historyIndex] : null;
@@ -136,7 +193,20 @@ app.MapGet("/api/fixture-view/{matchId:int}", async (int matchId, int? recentInd
     if (selectedHistory is null)
         return Results.BadRequest(new { message = "Rakibin seçilmiş geçmiş maçı bulunamadı.", ratingSource = "CHPP_HISTORY_UNAVAILABLE", chppTrace = trace.ToResponse() });
 
-    var historicalPlayers = await lineupService.LoadAsync(selectedHistory.Fixture.MatchId, selected.OpponentTeamId);
+    var lineupCacheKey = $"lineup:{selectedHistory.Fixture.MatchId}:{selected.OpponentTeamId}";
+    IReadOnlyList<ChppLineupPlayer> historicalPlayers;
+    var lineupFromCache = cache.TryGetLineup(lineupCacheKey, out var cachedLineup);
+    if (lineupFromCache)
+    {
+        historicalPlayers = cachedLineup;
+    }
+    else
+    {
+        historicalPlayers = await lineupService.LoadAsync(selectedHistory.Fixture.MatchId, selected.OpponentTeamId);
+        if (historicalPlayers.Count == 11)
+            await cache.SetLineupAsync(lineupCacheKey, historicalPlayers);
+    }
+
     if (historicalPlayers.Count != 11)
         return Results.BadRequest(new { message = "Rakibin geçmiş maç kadrosu CHPP'den 11 oyuncu olarak alınamadı.", ratingSource = "CHPP_MATCH_LINEUP_INCOMPLETE", playerCount = historicalPlayers.Count, chppTrace = trace.ToResponse() });
 
@@ -161,6 +231,11 @@ app.MapGet("/api/fixture-view/{matchId:int}", async (int matchId, int? recentInd
         fixture,
         isHome,
         selectedRecentIndex = historyIndex,
+        cache = new
+        {
+            selectedMatch = selectedFromCache ? "PERSISTENT_CACHE" : "CHPP_DOWNLOADED_AND_CACHED",
+            lineup = lineupFromCache ? "PERSISTENT_CACHE" : "CHPP_DOWNLOADED_AND_CACHED"
+        },
         selectedOpponentMatch = new
         {
             selectedHistory.Fixture,
@@ -314,3 +389,112 @@ public sealed record SimulationRequest(
     int AwayTacticLevel = 0);
 
 public sealed record RecommendationRequest(List<PlayerData> Players, TeamData Opponent, int Simulations = 10000, bool IsHome = true);
+
+public sealed class PersistentHistoricalCache
+{
+    private readonly string _path;
+    private readonly SemaphoreSlim _gate = new(1, 1);
+    private readonly JsonSerializerOptions _json = new(JsonSerializerDefaults.Web) { WriteIndented = false, PropertyNameCaseInsensitive = true };
+    private CacheDocument _document;
+
+    public PersistentHistoricalCache(IConfiguration configuration)
+    {
+        _path = configuration["HATTRICKAI_CACHE_PATH"]
+            ?? Environment.GetEnvironmentVariable("HATTRICKAI_CACHE_PATH")
+            ?? Path.Combine(AppContext.BaseDirectory, "data", "historical-cache.json");
+        _document = LoadFromDisk();
+    }
+
+    public bool TryGetSelectedMatch(string key, out ChppSelectedMatch selected)
+    {
+        lock (_document)
+        {
+            if (_document.SelectedMatches.TryGetValue(key, out var entry))
+            {
+                selected = entry.Data;
+                return true;
+            }
+        }
+        selected = null!;
+        return false;
+    }
+
+    public bool TryGetLineup(string key, out IReadOnlyList<ChppLineupPlayer> lineup)
+    {
+        lock (_document)
+        {
+            if (_document.Lineups.TryGetValue(key, out var entry))
+            {
+                lineup = entry.Players;
+                return true;
+            }
+        }
+        lineup = Array.Empty<ChppLineupPlayer>();
+        return false;
+    }
+
+    public async Task SetSelectedMatchAsync(string key, ChppSelectedMatch selected)
+    {
+        await _gate.WaitAsync();
+        try
+        {
+            lock (_document) _document.SelectedMatches[key] = new CachedSelectedMatch(selected, DateTime.UtcNow);
+            await SaveToDiskAsync();
+        }
+        finally { _gate.Release(); }
+    }
+
+    public async Task SetLineupAsync(string key, IReadOnlyList<ChppLineupPlayer> lineup)
+    {
+        await _gate.WaitAsync();
+        try
+        {
+            lock (_document) _document.Lineups[key] = new CachedLineup(lineup.ToList(), DateTime.UtcNow);
+            await SaveToDiskAsync();
+        }
+        finally { _gate.Release(); }
+    }
+
+    private CacheDocument LoadFromDisk()
+    {
+        try
+        {
+            if (!File.Exists(_path)) return new CacheDocument();
+            var json = File.ReadAllText(_path);
+            return JsonSerializer.Deserialize<CacheDocument>(json, _json) ?? new CacheDocument();
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"HISTORICAL CACHE LOAD ERROR: {ex.Message}");
+            return new CacheDocument();
+        }
+    }
+
+    private async Task SaveToDiskAsync()
+    {
+        var directory = Path.GetDirectoryName(_path);
+        if (!string.IsNullOrWhiteSpace(directory)) Directory.CreateDirectory(directory);
+        var tempPath = _path + ".tmp";
+        CacheDocument snapshot;
+        lock (_document)
+        {
+            snapshot = new CacheDocument
+            {
+                SelectedMatches = new Dictionary<string, CachedSelectedMatch>(_document.SelectedMatches),
+                Lineups = new Dictionary<string, CachedLineup>(_document.Lineups)
+            };
+        }
+        var json = JsonSerializer.Serialize(snapshot, _json);
+        await File.WriteAllTextAsync(tempPath, json);
+        File.Move(tempPath, _path, true);
+    }
+
+    private sealed class CacheDocument
+    {
+        public Dictionary<string, CachedSelectedMatch> SelectedMatches { get; set; } = new();
+        public Dictionary<string, CachedLineup> Lineups { get; set; } = new();
+    }
+
+    private sealed record CachedSelectedMatch(ChppSelectedMatch Data, DateTime CachedAtUtc);
+    private sealed record CachedLineup(List<ChppLineupPlayer> Players, DateTime CachedAtUtc);
+}
