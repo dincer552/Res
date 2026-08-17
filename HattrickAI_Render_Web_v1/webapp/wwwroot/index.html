@@ -11,7 +11,8 @@
   <link rel="stylesheet" href="/rating-readonly.css">
   <link rel="stylesheet" href="/recent-status.css">
   <link rel="stylesheet" href="/own-lineup-selector.css?v=20260817-formation-01">
-  <link rel="stylesheet" href="/availability-panel.css?v=20260817-availability-03">
+  <link rel="stylesheet" href="/availability-panel.css?v=20260817-availability-04">
+  <link rel="stylesheet" href="/player-behaviour.css?v=20260817-behaviour-01">
 </head>
 <body>
 <header class="topbar">
@@ -37,7 +38,7 @@
     <article class="panel lineup-panel our-panel"><div class="panel-head"><div><div class="eyebrow">BİZİM TAKIM</div><h2 id="ownLineupTitle">En iyi 11</h2></div><span id="ownFormation" class="pill">—</span></div><div class="rating-strip" id="ownRatingStrip"></div><div class="pitch" id="ownPitch"><div class="pitch-lines"></div></div></article>
   </section>
   <section id="availabilityPanel" class="panel availability-panel hidden">
-    <div class="availability-head"><div class="availability-icon">!</div><div><div class="eyebrow">KADRO KONTROLÜ</div><h2>Oynaması mümkün olmayan oyuncular <span id="availabilityCount" class="pill"></span></h2></div></div>
+    <div class="availability-head"><div class="availability-icon">!</div><div><div class="eyebrow">KADRO KONTROLÜ</div><span id="availabilityCount" class="pill"></span></div></div>
     <div id="availabilityList" class="availability-list"></div>
   </section>
   <section class="grid-2" id="simulation"><article class="panel"><div class="panel-head"><div><div class="eyebrow">RATINGLER</div><h2>Net maç değerleri</h2></div><span class="pill">Otomatik</span></div><div class="ratings-form"><div><h3>Ev sahibi</h3><div id="homeRatings"></div></div><div><h3>Deplasman</h3><div id="awayRatings"></div></div></article><article class="panel"><div class="panel-head"><div><div class="eyebrow">HO ENGINE</div><h2>Simülasyon</h2></div><span class="pill">10.000</span></div><div class="sim-actions"><button class="btn btn-primary" onclick="runSimulation()">Simüle et</button></div><div id="result" class="result hidden"></div></article></section>
@@ -47,7 +48,8 @@
 <script src="/match-types.js"></script>
 <script src="/selection-fix.js"></script>
 <script src="/own-lineup-selector.js?v=20260817-formation-01"></script>
-<script src="/availability-panel.js?v=20260817-availability-03"></script>
+<script src="/availability-panel.js?v=20260817-availability-04"></script>
+<script src="/player-behaviour.js?v=20260817-behaviour-01"></script>
 <script>
 (async function () {
   const el = document.getElementById('deployVersion');
