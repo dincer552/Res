@@ -80,20 +80,27 @@ public sealed class BestLineupEngine
                 PlayerRole role = roles[slot];
                 PlayerData? bestPlayer = null;
                 PlayerBehaviour bestBehaviour = PlayerBehaviour.Normal;
-                double bestPositionRating = double.MinValue;
+                double bestPositionScore = double.MinValue;
 
                 foreach (var player in remaining)
                 {
                     foreach (var behaviour in BehavioursFor(role))
                     {
-                        double rating = _ratingEngine.GetPlayerPositionRating(
+                        double rawRating = _ratingEngine.GetPlayerPositionRating(
                             player,
                             role,
                             behaviour);
 
-                        if (rating > bestPositionRating)
+                        // Do not let the raw contribution score move a clearly
+                        // midfield/forward player into defence just because he
+                        // happens to produce a few extra points there. Hattrick's
+                        // main positional skills must remain the primary signal.
+                        double positionFit = PositionFit(player, role);
+                        double score = rawRating * positionFit;
+
+                        if (score > bestPositionScore)
                         {
-                            bestPositionRating = rating;
+                            bestPositionScore = score;
                             bestPlayer = player;
                             bestBehaviour = behaviour;
                         }
@@ -135,6 +142,67 @@ public sealed class BestLineupEngine
         LastFormationName = formation;
         LastBehaviourProfile = new Dictionary<int, PlayerBehaviour>(bestBehaviours);
         return bestLineup;
+    }
+
+    private static double PositionFit(PlayerData player, PlayerRole role)
+    {
+        if (role == PlayerRole.Goalkeeper)
+            return player.Keeper > 0 ? 1.0 : 0.10;
+
+        // Main positional skill profiles. The engine remains flexible for
+        // multi-skilled players, but strongly discounts obvious cross-line
+        // assignments such as a playmaker being selected as a centre-back.
+        double defence =
+            player.Defending * 1.00 +
+            player.Playmaking * 0.20 +
+            player.Passing * 0.10 +
+            player.Winger * 0.05;
+
+        double midfield =
+            player.Playmaking * 1.00 +
+            player.Passing * 0.20 +
+            player.Defending * 0.15 +
+            player.Winger * 0.10 +
+            player.Stamina * 0.05;
+
+        double wing =
+            player.Winger * 1.00 +
+            player.Playmaking * 0.35 +
+            player.Passing * 0.15 +
+            player.Defending * 0.10;
+
+        double attack =
+            player.Scoring * 1.00 +
+            player.Passing * 0.25 +
+            player.Winger * 0.15 +
+            player.Playmaking * 0.10;
+
+        double target = role switch
+        {
+            PlayerRole.LeftDefender or PlayerRole.CentralDefender or PlayerRole.RightDefender => defence,
+            PlayerRole.LeftMidfielder or PlayerRole.CentralMidfielder or PlayerRole.RightMidfielder => midfield,
+            PlayerRole.LeftWinger or PlayerRole.RightWinger => wing,
+            PlayerRole.LeftForward or PlayerRole.CentralForward or PlayerRole.RightForward => attack,
+            _ => midfield
+        };
+
+        double bestAlternative = role switch
+        {
+            PlayerRole.LeftDefender or PlayerRole.CentralDefender or PlayerRole.RightDefender => Math.Max(midfield, Math.Max(wing, attack)),
+            PlayerRole.LeftMidfielder or PlayerRole.CentralMidfielder or PlayerRole.RightMidfielder => Math.Max(defence, Math.Max(wing, attack)),
+            PlayerRole.LeftWinger or PlayerRole.RightWinger => Math.Max(midfield, Math.Max(defence, attack)),
+            PlayerRole.LeftForward or PlayerRole.CentralForward or PlayerRole.RightForward => Math.Max(midfield, Math.Max(defence, wing)),
+            _ => 0
+        };
+
+        if (target <= 0)
+            return 0.25;
+
+        // A versatile player keeps a near-1.0 multiplier. A player whose
+        // strongest skill profile clearly belongs to another line is heavily
+        // discounted, preventing accidental cross-line placement.
+        double ratio = bestAlternative <= 0 ? 1.0 : target / bestAlternative;
+        return Math.Clamp(0.40 + ratio * 0.60, 0.40, 1.00);
     }
 
     private static IEnumerable<int[]> BuildSlotOrders(PlayerRole[] roles)
