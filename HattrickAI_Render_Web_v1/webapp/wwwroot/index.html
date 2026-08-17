@@ -15,7 +15,7 @@
 <body>
 <header class="topbar">
   <a class="brand" href="/"><span class="brand-name">Hattrick<span>AI</span></span></a>
-  <span class="app-version" id="deployVersion" aria-label="Canlı Render sürümü">build …</span>
+  <span class="app-version" id="deployVersion" aria-label="Canlı Render build">build …</span>
   <nav><a href="#match">Maç Analizi</a><a href="#recent">Rakip Maçları</a><a href="#simulation">Simülasyon</a></nav>
   <div id="status" class="status-chip">● BAĞLANTI KONTROL</div>
   <a id="connect" class="btn btn-primary" href="/auth/chpp/start">Hattrick'e bağlan</a>
@@ -46,11 +46,11 @@
 (async function () {
   const el = document.getElementById('deployVersion');
   try {
-    const r = await fetch('/api/build?t=' + Date.now(), { cache: 'no-store' });
-    if (!r.ok) throw new Error('build endpoint');
-    const x = await r.json();
-    el.textContent = x.commit && x.commit !== 'unknown' ? 'build ' + x.commit.substring(0, 7) : 'build ?';
-    el.title = x.commit || '';
+    const r = await fetch('/render-commit.txt?t=' + Date.now(), { cache: 'no-store' });
+    const commit = (await r.text()).trim();
+    if (!r.ok || !/^[0-9a-f]{7,40}$/i.test(commit)) throw new Error('invalid build id');
+    el.textContent = 'build ' + commit.substring(0, 7);
+    el.title = commit;
   } catch (_) { el.textContent = 'build ?'; }
 })();
 </script>
