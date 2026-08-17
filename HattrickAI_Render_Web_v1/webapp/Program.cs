@@ -104,6 +104,11 @@ app.MapGet("/auth/chpp/callback", async (HttpContext http) =>
 app.MapPost("/auth/chpp/logout", async (ChppOAuthClient oauth) => { try { await oauth.InvalidateStoredAccessTokenAsync(); } catch { } return Results.Ok(new { ok = true }); });
 app.MapGet("/api/status", async (ChppOAuthClient oauth) => { try { return Results.Ok(new { connected = await oauth.ValidateStoredAccessTokenAsync() }); } catch { return Results.Ok(new { connected = false }); } });
 app.MapGet("/api/team", async (ChppOAuthClient oauth) => Results.Ok(await new ChppTeamDataService(oauth).LoadOwnTeamAsync()));
+app.MapGet("/api/training", async (ChppOAuthClient oauth) =>
+{
+    try { return Results.Ok(await new ChppTrainingDataService(oauth).LoadOwnTrainingAsync()); }
+    catch (Exception ex) { return Results.Problem($"Antrenman bilgisi alınamadı. {ex.Message}", statusCode: 502); }
+});
 
 app.MapGet("/api/cup-lineup/latest", async (HttpContext http, ChppOAuthClient oauth, PostgresHistoricalCache cache) =>
 {
@@ -158,6 +163,10 @@ app.MapGet("/api/fixture-view/{matchId:int}", async (HttpContext http, int match
     var matchService = new ChppMatchDataService(oauth);
     var lineupService = new ChppMatchLineupService(oauth);
     var own = await teamService.LoadOwnTeamAsync();
+    TrainingRecommendationProfile? training = null;
+    try { training = await new ChppTrainingDataService(oauth).LoadOwnTrainingAsync(http.RequestAborted); }
+    catch (Exception ex) { Console.WriteLine($"TRAINING LOAD FAILED: {ex.Message}"); }
+
     var fixtures = await matchService.LoadUpcomingFixturesAsync(own.TeamId);
     var fixture = fixtures.FirstOrDefault(x => x.MatchId == matchId);
     if (fixture is null) return Results.NotFound(new { message = "Maç bulunamadı.", chppTrace = trace.ToResponse() });
@@ -189,17 +198,39 @@ app.MapGet("/api/fixture-view/{matchId:int}", async (HttpContext http, int match
     if (historicalPlayers.Count != 11) return Results.BadRequest(new { message = "Rakibin geçmiş maç kadrosu alınamadı.", ratingSource = "CHPP_MATCH_LINEUP_INCOMPLETE", playerCount = historicalPlayers.Count, chppTrace = trace.ToResponse() });
     var opponentFormation = HistoricalFormationMapper.InferFormation(historicalPlayers);
     if (string.IsNullOrWhiteSpace(opponentFormation)) return Results.BadRequest(new { message = "Rakibin geçmiş maç formasyonu çözülemedi.", chppTrace = trace.ToResponse() });
-    var analysisKey = PostgresHistoricalCache.AnalysisKey(matchId, selectedHistory.Fixture.MatchId, own.TeamId, isHome, own.Players);
+
+    var baseAnalysisKey = PostgresHistoricalCache.AnalysisKey(matchId, selectedHistory.Fixture.MatchId, own.TeamId, isHome, own.Players);
+    var trainingKey = training == null ? "no-training" : $"tr{training.TrainingType}-exp{string.Join("-", training.FormationExperience.OrderBy(x => x.Key).Select(x => $"{x.Key.Replace("-", "", StringComparison.Ordinal)}{x.Value}"))}";
+    var analysisKey = $"{baseAnalysisKey}:{trainingKey}";
     var cachedAnalysis = await cache.GetAnalysisAsync(analysisKey, http.RequestAborted);
     if (!string.IsNullOrWhiteSpace(cachedAnalysis)) return Results.Content(cachedAnalysis, "application/json");
+
     var simulationOpponent = new TeamData(selectedHistory.OpponentTeam.TeamName, selectedHistory.OpponentTeam.Ratings, selectedHistory.OpponentTeam.TacticType, selectedHistory.OpponentTeam.TacticLevel);
-    var recommendation = new RecommendationEngine().Recommend(own.Players, simulationOpponent, 10000, isHome);
+    var recommendation = new RecommendationEngine().Recommend(
+        own.Players,
+        simulationOpponent,
+        10000,
+        isHome,
+        training?.TrainingType ?? -1,
+        training?.FormationExperience);
     if (recommendation is null) return Results.BadRequest(new { message = "Kendi kadron için en iyi 11 oluşturulamadı.", chppTrace = trace.ToResponse() });
     var opponentLineupView = BuildHistoricalLineupView(historicalPlayers, opponentFormation, selectedHistory.OpponentTeam.Ratings);
     var response = new
     {
         fixture, isHome, selectedRecentIndex = historyIndex,
         cache = new { mode = "CACHE_FIRST", history = historySource, lineup = lineupSource, analysis = "COMPUTED_AND_CACHED", database = cache.IsConfigured ? "POSTGRES" : "UNCONFIGURED" },
+        training = training == null ? null : new
+        {
+            training.TrainingType,
+            training.TrainingName,
+            training.TrainingLevel,
+            training.StaminaTrainingPart,
+            training.FormationExperience,
+            preferredFormations = new[] { "4-3-3", "4-5-1", "3-5-2", "5-3-2", "3-4-3", "5-4-1" }
+                .OrderByDescending(f => RecommendationEngine.TrainingFormationFit(training.TrainingType, f))
+                .ThenByDescending(f => training.Experience(f))
+                .ToArray()
+        },
         selectedOpponentMatch = new { selectedHistory.Fixture, selectedHistory.OpponentTeam.TeamName, selectedHistory.OpponentTeam.TacticType, selectedHistory.OpponentTeam.TacticLevel, actualMatchRatings = selectedHistory.OpponentTeam.Ratings, ratingSource = "HO_TEAM_ANALYZER_HISTORICAL_MATCH_RATINGS" },
         ownTeam = new { teamId = own.TeamId, teamName = own.TeamName },
         opponentTeam = new { teamId = opponentTeamId, teamName = opponentTeamName },
@@ -207,7 +238,7 @@ app.MapGet("/api/fixture-view/{matchId:int}", async (HttpContext http, int match
         opponentLineup = opponentLineupView, ownRatings = recommendation.Ratings, opponentRatings = selectedHistory.OpponentTeam.Ratings,
         formation = recommendation.Formation,
         tactic = new { recommendation.TacticName, recommendation.TacticType, recommendation.TacticLevel },
-        recommendation = new { recommendation.Explanation, recommendation.SelectionScore },
+        recommendation = new { recommendation.Explanation, recommendation.SelectionScore, recommendation.TrainingFit, recommendation.FormationExperience, recommendation.TrainingName, recommendation.TrainingPriority },
         recentMatches = selected.RecentMatches.Select(m => new { m.Fixture, opponent = new { m.OpponentTeam.TeamName, actualMatchRatings = m.OpponentTeam.Ratings, m.OpponentTeam.TacticType, m.OpponentTeam.TacticLevel } }),
         chppTrace = trace.ToResponse()
     };
@@ -225,10 +256,21 @@ app.MapPost("/api/simulate", (SimulationRequest request) =>
     return Results.Ok(new { result.Simulations, result.HomeWinPercentage, result.DrawPercentage, result.AwayWinPercentage, result.AverageHomeGoals, result.AverageAwayGoals, MostLikelyNormalScore = result.GetMostLikelyNormalScore(), ScoreDistribution = result.GetScoreDistribution(), SectorComparison = sectors, ScoreModel = "HO! ActionGenerator / MatchResult", SectorModel = "HO! BaseActionGenerator.compare / linear chance" });
 });
 
-app.MapPost("/api/recommend", (RecommendationRequest request) =>
+app.MapPost("/api/recommend", async (RecommendationRequest request, ChppOAuthClient oauth) =>
 {
     if (request.Players is null || request.Players.Count < 11) return Results.BadRequest(new { message = "En az 11 oyuncu gerekli." });
-    var result = new RecommendationEngine().Recommend(request.Players, request.Opponent, 10000, request.IsHome);
+
+    TrainingRecommendationProfile? training = null;
+    try { training = await new ChppTrainingDataService(oauth).LoadOwnTrainingAsync(); }
+    catch (Exception ex) { Console.WriteLine($"TRAINING LOAD FAILED /api/recommend: {ex.Message}"); }
+
+    var result = new RecommendationEngine().Recommend(
+        request.Players,
+        request.Opponent,
+        10000,
+        request.IsHome,
+        training?.TrainingType ?? -1,
+        training?.FormationExperience);
     if (result is null) return Results.BadRequest(new { message = "Kadronun en iyi 11'i oluşturulamadı." });
     var roles = LineupRatingEngine.GetRoles(result.Formation);
     var ratingEngine = new LineupRatingEngine();
@@ -248,7 +290,7 @@ app.MapPost("/api/recommend", (RecommendationRequest request) =>
             behaviour = behaviour.ToString()
         };
     }).ToArray();
-    return Results.Ok(new { result.Formation, result.TacticName, result.TacticType, result.TacticLevel, result.Ratings, result.Simulation, result.SelectionScore, result.Explanation, Lineup = lineup });
+    return Results.Ok(new { result.Formation, result.TacticName, result.TacticType, result.TacticLevel, result.Ratings, result.Simulation, result.SelectionScore, result.Explanation, result.TrainingFit, result.FormationExperience, result.TrainingName, result.TrainingPriority, Lineup = lineup });
 });
 app.MapFallbackToFile("index.html");
 app.Run();
