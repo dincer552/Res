@@ -53,8 +53,8 @@ internal static class RecommendationEngineTests
         var partial = engine.RecommendForFormation(players, opponent, "4-4-2", 100, true, trainingType: 4);
         AssertTrue(full != null, "Full-fit formation must produce a recommendation");
         AssertTrue(partial != null, "Partial-fit formation must produce a recommendation");
-        AssertTrue(full!.TrainingFit == "Tam antrenman uyumu", "Full-fit recommendation must be marked as full training");
-        AssertTrue(partial!.TrainingFit == "Kısmi antrenman uyumu", "Partial-fit recommendation must be marked as partial training");
+        AssertTrue(full!.TrainingFit == 2, "Full-fit recommendation must be marked as tier 2");
+        AssertTrue(partial!.TrainingFit == 1, "Partial-fit recommendation must be marked as tier 1");
         AssertTrue(full.SelectionScore > partial.SelectionScore, "Full training tier must beat partial training tier even when match simulation is evaluated");
     }
 
@@ -63,6 +63,7 @@ internal static class RecommendationEngineTests
         var result = new RecommendationEngine().Recommend(BuildSquad(), BuildOpponent(), 100, true, trainingType: 4);
         AssertTrue(result != null, "Automatic recommendation must produce a result");
         AssertNear(1.00, RecommendationEngine.TrainingFormationFit(4, result!.Formation), "Automatic scoring recommendation must stay inside the full-training tier");
+        AssertTrue(result.TrainingFit == 2, "Automatic recommendation must report full training tier");
         AssertTrue(result.TrainingPriority == "Tam antrenman uyumu", "Automatic recommendation must report the training priority correctly");
     }
 
