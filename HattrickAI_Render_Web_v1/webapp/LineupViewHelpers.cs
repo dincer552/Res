@@ -23,13 +23,23 @@ public static class LineupViewHelpers
 
     public static object BuildHistoricalLineupView(IReadOnlyList<ChppLineupPlayer> players, string formation, TeamRatings ratings)
     {
-        var roles = LineupRatingEngine.GetRoles(formation);
-        var result = players.Select((p, i) => (object)new
+        // Historical CHPP lineup order is not guaranteed to match the canonical
+        // formation slot order. Use each player's actual PositionCode instead of
+        // assigning roles by array index; otherwise a valid 3-4-3/4-4-2 etc. can
+        // render as a single horizontal line on the pitch.
+        var result = players.Select(p =>
         {
-            p.PlayerId, p.Name,
-            role = RoleLabel(roles[i].ToString()), roleKey = roles[i].ToString(),
-            rating = Math.Round(p.RatingStars, 2), historicalMatchRating = Math.Round(p.RatingStars, 2),
-            behaviour = MapBehaviour(p.Behaviour).ToString()
+            var role = HistoricalFormationMapper.HistoricalRole(p, formation);
+            return (object)new
+            {
+                p.PlayerId,
+                p.Name,
+                role = RoleLabel(role.ToString()),
+                roleKey = role.ToString(),
+                rating = Math.Round(p.RatingStars, 2),
+                historicalMatchRating = Math.Round(p.RatingStars, 2),
+                behaviour = MapBehaviour(p.Behaviour).ToString()
+            };
         }).ToArray();
         return new { formation, ratings, playerCount = result.Length, players = result, source = "HO_TEAM_ANALYZER_HISTORICAL_MATCH_RATINGS" };
     }
@@ -47,7 +57,8 @@ public static class LineupViewHelpers
     {
         "Goalkeeper" => "KL", "LeftDefender" => "SLB", "CentralDefender" => "STP", "RightDefender" => "SGB",
         "LeftMidfielder" => "OS", "CentralMidfielder" => "OM", "RightMidfielder" => "OS",
-        "LeftWinger" => "K", "RightWinger" => "K", "LeftForward" => "SF", "CentralForward" => "SF", "RightForward" => "SF",
+        "LeftWinger" => "K", "RightWinger" => "K", "LeftWinger" => "K", "RightWinger" => "K",
+        "LeftForward" => "SF", "CentralForward" => "SF", "RightForward" => "SF",
         _ => ""
     };
 }
