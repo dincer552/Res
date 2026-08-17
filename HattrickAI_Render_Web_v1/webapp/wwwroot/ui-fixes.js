@@ -1,5 +1,5 @@
 // Small UI overrides kept separate from the main app bundle.
-// Match history cards stay selectable; the explicit simulation-base labels are removed.
+// Match history cards stay selectable; the selected-match details are shown above the opponent pitch.
 
 function renderRecent(matches){
   const root=$('#recentMatches');
@@ -19,6 +19,21 @@ function renderRecent(matches){
     : '<div class="empty">Rakibin son maçları bulunamadı.</div>';
 }
 
+function matchTypeIcon(m){
+  const type=String(m?.fixture?.matchType??m?.fixture?.matchTypeName??m?.matchType??'').toLowerCase();
+  const text=String(m?.fixture?.matchTypeName??m?.fixture?.typeText??'').toLowerCase();
+  if(type.includes('cup')||type.includes('kupa')||text.includes('cup')||text.includes('kupa')) return '🏆';
+  return '⚽';
+}
+
+function matchTypeLabel(m){
+  const type=String(m?.fixture?.matchType??m?.fixture?.matchTypeName??m?.matchType??'').toLowerCase();
+  const text=String(m?.fixture?.matchTypeName??m?.fixture?.typeText??'').toLowerCase();
+  if(type.includes('cup')||type.includes('kupa')||text.includes('cup')||text.includes('kupa')) return 'Kupa';
+  if(type.includes('league')||type.includes('lig')||text.includes('league')||text.includes('lig')) return 'Lig';
+  return '';
+}
+
 function applyRecentSelection(i){
   if(!currentView?.recentMatches?.length){
     $('#selectedOpponentMatch').innerHTML='';
@@ -33,10 +48,12 @@ function applyRecentSelection(i){
   const home=f.homeTeamName||'';
   const away=f.awayTeamName||'';
   const score=`${f.homeGoals??'—'} - ${f.awayGoals??'—'}`;
+  const typeIcon=matchTypeIcon(m);
+  const typeLabel=matchTypeLabel(m);
 
   const root=$('#selectedOpponentMatch');
   if(root){
-    root.innerHTML=`<span class="selected-opponent-label">BAZ ALINAN RAKİP MAÇI</span><strong>${fmtDay(f.matchDate)} • ${escapeHtml(home)} ${score} ${escapeHtml(away)}</strong><small>${opponent.formation||'—'} • ${tacticText(opponent.tacticType)} ${opponent.tacticLevel?`Lv.${opponent.tacticLevel}`:''} • MF ${midfield(ratings).toFixed(2)} / DEF ${avg(ratings).toFixed(2)} / ATT ${attack(ratings).toFixed(2)}</small>`;
+    root.innerHTML=`<div class="selected-opponent-main"><span class="selected-match-type-icon" title="${typeLabel||'Maç'}">${typeIcon}</span><div><strong>${fmtDay(f.matchDate)} • ${escapeHtml(home)} ${score} ${escapeHtml(away)}</strong><small>${opponent.formation||'—'} • ${tacticText(opponent.tacticType)} ${opponent.tacticLevel?`Lv.${opponent.tacticLevel}`:''} • MF ${midfield(ratings).toFixed(2)} / DEF ${avg(ratings).toFixed(2)} / ATT ${attack(ratings).toFixed(2)}</small></div></div>`;
   }
 
   renderRecent(currentView.recentMatches);
