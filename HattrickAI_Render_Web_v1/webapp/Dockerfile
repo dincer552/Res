@@ -11,8 +11,10 @@ WORKDIR /app
 # additional inotify instances.
 ENV DOTNET_USE_POLLING_FILE_WATCHER=1
 ENV ASPNETCORE_URLS=http://0.0.0.0:10000
+# Keep one authoritative production version source and explicitly place it in
+# the final image so a stale/published VERSION can never be used at runtime.
 ENV HATTRICKAI_VERSION_SOURCE=/app/VERSION
 COPY --from=build /app/publish .
+COPY VERSION /app/VERSION
 EXPOSE 10000
-# The runtime version is read from /app/VERSION, published from the repository VERSION source.
 ENTRYPOINT ["dotnet", "HattrickAI.Web.dll"]
