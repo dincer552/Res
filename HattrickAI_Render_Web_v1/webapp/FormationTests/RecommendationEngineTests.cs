@@ -1,3 +1,4 @@
+using HattrickAI.CHPP;
 using HattrickAI.HOEngine;
 
 namespace HattrickAI.FormationTests;
@@ -13,12 +14,14 @@ internal static class RecommendationEngineTests
             TestAutomaticRecommendationRespectsTrainingTier();
             TestForcedFormationStillWorks();
             TestInsufficientSquadRejected();
-            Console.WriteLine("PASS recommendation engine training-priority tests");
+            TestLatestCupFixtureSelectionUsesCompletedCupMatch();
+            TestLatestCupFixtureSelectionDoesNotDependOnStatusText();
+            Console.WriteLine("PASS recommendation/cup regression tests");
             return 0;
         }
         catch (Exception ex)
         {
-            Console.Error.WriteLine($"FAIL recommendation engine training-priority tests: {ex.Message}");
+            Console.Error.WriteLine($"FAIL recommendation/cup regression tests: {ex.Message}");
             return 1;
         }
     }
@@ -80,6 +83,26 @@ internal static class RecommendationEngineTests
     {
         var result = new RecommendationEngine().Recommend(BuildSquad().Take(10).ToList(), BuildOpponent(), 100, true, trainingType: 4);
         AssertTrue(result == null, "A squad with fewer than 11 players must be rejected");
+    }
+
+    private static void TestLatestCupFixtureSelectionUsesCompletedCupMatch()
+    {
+        var now = DateTime.Now;
+        var fixtures = new[]
+        {
+            new ChppFixture(100, now.AddDays(-3), 1, "FINISHED", 7, "Own", 8, "League Opp", 2, 0),
+            new ChppFixture(200, now.AddDays(-2), 3, "FINISHED", 7, "Own", 9, "Old Cup", 1, 0),
+            new ChppFixture(300, now.AddDays(-1), 3, "FINISHED", 10, "Other", 7, "Own", 0, 2)
+        };
+        var selected = ChppMatchDataService.SelectLatestStandardCupFixture(fixtures, 7);
+        AssertTrue(selected?.MatchId == 300, "Latest completed cup match must be selected regardless of home/away side");
+    }
+
+    private static void TestLatestCupFixtureSelectionDoesNotDependOnStatusText()
+    {
+        var fixture = new ChppFixture(400, DateTime.Now.AddHours(-2), 3, "", 7, "Own", 11, "Cup Opp", 3, 1);
+        var selected = ChppMatchDataService.SelectLatestStandardCupFixture(new[] { fixture }, 7);
+        AssertTrue(selected?.MatchId == 400, "Completed cup selection must use score/date and not require a specific Status string");
     }
 
     private static List<PlayerData> BuildSquad()
