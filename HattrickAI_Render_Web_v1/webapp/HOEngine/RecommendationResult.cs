@@ -13,4 +13,8 @@ public sealed class RecommendationResult
     public string Explanation { get; init; } = "";
     public IReadOnlyDictionary<int, PlayerBehaviour> BehaviourProfile { get; init; } =
         new Dictionary<int, PlayerBehaviour>();
+    public int TrainingFit { get; init; }
+    public int FormationExperience { get; init; }
+    public string TrainingName { get; init; } = "";
+    public string TrainingPriority { get; init; } = "";
 }
