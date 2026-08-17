@@ -32,6 +32,18 @@ public sealed class ChppMatchDataService
         return ParseMatches(xml).Where(m => m.Status.Equals("UPCOMING", StringComparison.OrdinalIgnoreCase) || m.Status.Equals("ONGOING", StringComparison.OrdinalIgnoreCase)).Where(m => m.MatchDate >= DateTime.Now.AddMinutes(-10)).OrderBy(m => m.MatchDate).ToList();
     }
 
+    public async Task<ChppFixture?> LoadLatestStandardCupFixtureAsync(int ownTeamId, CancellationToken cancellationToken = default)
+    {
+        var xml = await ChppTraceHttp.GetXmlAsync(_oauth, "matches", new Dictionary<string, string?> { ["version"] = "2.2", ["teamID"] = ownTeamId.ToString(CultureInfo.InvariantCulture) }, $"latest standard cup fixture ownTeamId={ownTeamId}", cancellationToken);
+        return ParseMatches(xml)
+            .Where(m => m.IsStandardCup)
+            .Where(m => m.Status.Equals("FINISHED", StringComparison.OrdinalIgnoreCase))
+            .Where(m => m.HomeTeamId == ownTeamId || m.AwayTeamId == ownTeamId)
+            .Where(m => m.HomeGoals.HasValue && m.AwayGoals.HasValue)
+            .OrderByDescending(m => m.MatchDate)
+            .FirstOrDefault();
+    }
+
     public async Task<IReadOnlyList<ChppFixture>> LoadRecentCompletedFixturesAsync(int teamId, int take = 30, CancellationToken cancellationToken = default)
     {
         var xml = await ChppTraceHttp.GetXmlAsync(_oauth, "matches", new Dictionary<string, string?> { ["version"] = "2.2", ["teamID"] = teamId.ToString(CultureInfo.InvariantCulture) }, $"backtest fixtures teamId={teamId}", cancellationToken);
