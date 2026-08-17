@@ -57,7 +57,7 @@ public static class LineupViewHelpers
     {
         "Goalkeeper" => "KL", "LeftDefender" => "SLB", "CentralDefender" => "STP", "RightDefender" => "SGB",
         "LeftMidfielder" => "OS", "CentralMidfielder" => "OM", "RightMidfielder" => "OS",
-        "LeftWinger" => "K", "RightWinger" => "K", "LeftWinger" => "K", "RightWinger" => "K",
+        "LeftWinger" => "K", "RightWinger" => "K",
         "LeftForward" => "SF", "CentralForward" => "SF", "RightForward" => "SF",
         _ => ""
     };
