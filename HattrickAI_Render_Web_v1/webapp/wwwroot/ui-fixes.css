@@ -1,0 +1,2 @@
+.selected-opponent-match{margin:-4px 0 11px;padding:8px 10px;border:1px solid #24536a;border-radius:9px;background:#081d29;display:flex;align-items:center;gap:8px;flex-wrap:wrap}.selected-opponent-label{color:var(--yellow);font-size:8px;font-weight:900;letter-spacing:1px}.selected-opponent-match strong{font-size:10px;color:var(--text)}.selected-opponent-match small{width:100%;font-size:8px;color:var(--muted)}
+@media(max-width:600px){.selected-opponent-match{gap:5px;padding:7px 8px}.selected-opponent-match strong{font-size:9px}.selected-opponent-match small{font-size:7px}}
