@@ -106,8 +106,9 @@ async function runSimulation(){
     const awayName=fixture.awayTeamName||'Deplasman';
     const score=String(x.mostLikelyNormalScore||'—');
     const type=matchTypeInfo({fixture});
+    const showMatchTypeIcon=type.kind==='cup'||type.kind==='league';
 
-    result.innerHTML=`<div class="result-grid"><div class="result-stat win"><b>${num(x.homeWinPercentage).toFixed(1)}%</b><span>Ev sahibi</span></div><div class="result-stat draw"><b>${num(x.drawPercentage).toFixed(1)}%</b><span>Beraberlik</span></div><div class="result-stat loss"><b>${num(x.awayWinPercentage).toFixed(1)}%</b><span>Deplasman</span></div></div><div class="result-score-label">En olası normal skor</div><div class="result-score-wrap">${type.kind==='cup'?matchTypeIconHtml({fixture},'result-match-type-icon'):''}<div class="result-score"><span>${escapeHtml(homeName)}</span> <strong>${escapeHtml(score.replace('-', ' - '))}</strong> <span>${escapeHtml(awayName)}</span></div></div><div class="muted">Ortalama ${num(x.averageHomeGoals).toFixed(2)} — ${num(x.averageAwayGoals).toFixed(2)} • ${x.simulations} simülasyon</div><div class="score-dist-title">HO skor dağılım</div>${renderScoreDistributionClean(x.scoreDistribution)}`;
+    result.innerHTML=`<div class="result-grid"><div class="result-stat win"><b>${num(x.homeWinPercentage).toFixed(1)}%</b><span>Ev sahibi</span></div><div class="result-stat draw"><b>${num(x.drawPercentage).toFixed(1)}%</b><span>Beraberlik</span></div><div class="result-stat loss"><b>${num(x.awayWinPercentage).toFixed(1)}%</b><span>Deplasman</span></div></div><div class="result-score-label">En olası normal skor</div><div class="result-score-wrap">${showMatchTypeIcon?matchTypeIconHtml({fixture},'result-match-type-icon'):''}<div class="result-score"><span>${escapeHtml(homeName)}</span> <strong>${escapeHtml(score.replace('-', ' - '))}</strong> <span>${escapeHtml(awayName)}</span></div></div><div class="muted">Ortalama ${num(x.averageHomeGoals).toFixed(2)} — ${num(x.averageAwayGoals).toFixed(2)}</div><div class="score-dist-title">HO skor dağılım</div>${renderScoreDistributionClean(x.scoreDistribution)}`;
   }catch(e){
     result.textContent=e.message;
   }
