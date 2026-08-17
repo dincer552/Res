@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Xml.Linq;
+using HattrickAI.Backtest;
 using HattrickAI.HOEngine;
 
 namespace HattrickAI.CHPP;
@@ -48,7 +49,6 @@ public sealed class ChppMatchDataService
         var opponentRecent = await LoadRecentCompletedFixturesBeforeAsync(opponentId, fixture.MatchDate, 5, cancellationToken);
         if (ownRecent.Count == 0 || opponentRecent.Count == 0) throw new InvalidDataException($"{fixture.MatchId} için maç öncesi geçmiş yetersiz.");
 
-        // Build the pre-match team state only from matches strictly before the cutoff.
         var ownData = new List<TeamData>();
         foreach (var m in ownRecent)
         {
@@ -63,7 +63,7 @@ public sealed class ChppMatchDataService
             var other = parsed.HomeTeam.TeamId == opponentId ? parsed.AwayTeam.Data : parsed.HomeTeam.Data;
             opponentData.Add(new ChppOpponentMatch(m, opp, other));
         }
-        return new HistoricalMatchSnapshot(fixture, fixture.MatchDate, fixture, AverageTeamData(fixture.HomeTeamId == ownTeamId ? fixture.HomeTeamName : fixture.AwayTeamName, ownData), AverageTeamData(fixture.OpponentName(ownTeamId), opponentData.Select(x => x.OpponentTeam)), opponentData);
+        return new HistoricalMatchSnapshot(fixture.MatchId, fixture.MatchDate, fixture, AverageTeamData(fixture.HomeTeamId == ownTeamId ? fixture.HomeTeamName : fixture.AwayTeamName, ownData), AverageTeamData(fixture.OpponentName(ownTeamId), opponentData.Select(x => x.OpponentTeam)), opponentData);
     }
 
     private async Task<List<ChppFixture>> LoadRecentCompletedFixturesBeforeAsync(int teamId, DateTime cutoff, int take, CancellationToken cancellationToken)
