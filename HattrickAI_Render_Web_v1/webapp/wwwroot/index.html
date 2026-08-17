@@ -19,6 +19,7 @@
   <div id="status" class="status-chip">● BAĞLANTI KONTROL</div>
   <a id="connect" class="btn btn-primary" href="/auth/chpp/start">Hattrick'e bağlan</a>
 </header>
+<div id="versionDiagnostic" style="margin:8px auto;max-width:1200px;padding:6px 10px;border:1px solid #999;font-size:12px;background:#fffbe6;color:#333">SÜRÜM TESTİ — Sunucunun HTML'e bastığı: <b id="serverVersion">__HATTRICKAI_VERSION__</b> | Şu an başlıkta görünen: <b id="domVersion">ölçülüyor...</b></div>
 <main class="container" id="match">
   <section class="match-head panel">
     <div class="eyebrow">SEÇİLEN MAÇ</div>
@@ -41,4 +42,11 @@
 <script src="/match-types.js?v=__HATTRICKAI_VERSION__"></script>
 <script src="/selection-fix.js?v=__HATTRICKAI_VERSION__"></script>
 <script src="/own-lineup-selector.js?v=__HATTRICKAI_VERSION__"></script>
+<script>
+  window.addEventListener('load',()=>{
+    const el=document.querySelector('.app-version');
+    const diagnostic=document.getElementById('domVersion');
+    if(diagnostic) diagnostic.textContent=el?.textContent?.trim()||'YOK';
+  });
+</script>
 </body></html>
