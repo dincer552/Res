@@ -39,6 +39,9 @@ public sealed class PostgresHistoricalCache
 
     public async Task<ChppSelectedMatch?> GetSelectedMatchAsync(string key, CancellationToken cancellationToken = default)
     {
+        // The latest-cup pointer must never become stale. The CHPP matches feed is
+        // authoritative for which cup match is the latest; only its lineup/data are cached.
+        if (key.StartsWith("cup-latest:", StringComparison.Ordinal)) return null;
         if (!IsConfigured) return null;
         try
         {
