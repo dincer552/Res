@@ -9,7 +9,46 @@ public sealed record ChppLineupPlayer(
     int RoleId,
     int PositionCode,
     int Behaviour,
-    double RatingStars);
+    double RatingStars)
+{
+    // These are presentation fields for the web lineup. PositionCode is the
+    // player's actual final position in the historical match; RoleId is only
+    // the formal slot before repositioning.
+    public string RoleKey => PositionCode switch
+    {
+        1 => "Goalkeeper",
+        2 => "RightDefender",
+        3 or 4 => "CentralDefender",
+        5 => "LeftDefender",
+        6 => "RightWinger",
+        7 or 8 => "CentralMidfielder",
+        9 => "LeftWinger",
+        10 or 11 => RoleId switch
+        {
+            10 => "CentralForward",
+            11 => "RightForward",
+            _ => "CentralForward"
+        },
+        _ => "CentralMidfielder"
+    };
+
+    public string Role => RoleKey switch
+    {
+        "Goalkeeper" => "KL",
+        "RightDefender" => "SGB",
+        "CentralDefender" => "STP",
+        "LeftDefender" => "SLB",
+        "RightWinger" => "K",
+        "CentralMidfielder" => "OM",
+        "LeftWinger" => "K",
+        "RightForward" or "LeftForward" or "CentralForward" => "SF",
+        _ => "OM"
+    };
+
+    public double Rating => RatingStars;
+    public string Form => "-";
+    public string Stamina => "-";
+}
 
 public sealed class ChppMatchLineupService
 {
