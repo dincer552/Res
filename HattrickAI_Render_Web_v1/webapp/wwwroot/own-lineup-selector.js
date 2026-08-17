@@ -13,12 +13,28 @@
   const ratingsOf=mode=>mode==='cup'?(latestCup?.record?.teamData?.ratings||{}):(currentView?.ownRatings||{});
   const playersOf=mode=>mode==='cup'?(latestCup?.record?.players||[]).map(p=>({name:p.name,role:p.role,roleKey:p.roleKey,rating:p.rating,behaviour:p.behaviour,form:'-',stamina:'-'})):(currentView?.ownLineup?.players||[]);
 
+  function renderRecommendationLogic(){
+    const t=currentView?.training;
+    const r=currentView?.recommendation;
+    const pill=document.getElementById('trainingNamePill');
+    const note=document.getElementById('trainingRecommendation');
+    const list=document.getElementById('trainingFormationList');
+    if(!pill||!note||!list)return;
+    if(!t){pill.textContent='CHPP verisi yok';note.textContent='Antrenman bilgisi alınamadı. Motor maç analizine devam eder; ancak antrenman önceliği uygulanamaz.';list.innerHTML='';return;}
+    pill.textContent=t.trainingName||'Antrenman';
+    const selected=currentView?.formation||'—';
+    const exp=r?.formationExperience??t.formationExperience?.[selected]??0;
+    note.innerHTML=`<b>${esc(t.trainingName)}</b> aktif. Motor önce antrenmanla tam uyumlu dizilişleri değerlendirir; aynı seviyede formasyon deneyimini öne alır; ardından rakibe karşı kazanma ihtimalini ve ratingleri seçer. Şu an önerilen <b>${esc(selected)}</b> • deneyim <b>${exp}</b>.`;
+    const forms=t.preferredFormations||[];
+    list.innerHTML=forms.map((f,i)=>{const e=t.formationExperience?.[f]??0;return `<span class="${f===selected?'primary':''}">${i+1}. ${esc(f)} • exp ${e}</span>`}).join('');
+  }
+
   function ensureControls(){
     const panel=document.querySelector('.our-panel'); if(!panel)return;
     const head=panel.querySelector('.panel-head'); if(!head)return;
     if(!document.getElementById('ownLineupMode')){
       const wrap=document.createElement('div');wrap.id='ownLineupMode';wrap.className='own-lineup-mode';
-      wrap.innerHTML=`<div class="own-mode-label">ANALİZ KADROSU</div><div class="own-mode-buttons"><button type="button" data-mode="best" class="active">En iyi 11</button><button type="button" data-mode="cup">Son kupa 11</button></div><div id="ownModeSource" class="own-mode-source">Lig analizi / en iyi 11</div>`;
+      wrap.innerHTML=`<div class="own-mode-label">KADRO TÜRÜ</div><div class="own-mode-buttons"><button type="button" data-mode="best" class="active">Lig Kadrosu</button><button type="button" data-mode="cup">Kupa Kadrosu</button></div><div id="ownModeSource" class="own-mode-source">Lig analizi / antrenman + maç kazanma öncelikli</div>`;
       head.appendChild(wrap);wrap.querySelectorAll('button').forEach(b=>b.addEventListener('click',()=>{selectedMode=b.dataset.mode;applyOwnMode();}));
     }
     if(!document.getElementById('ownFormationWrap')){
@@ -55,17 +71,19 @@
       x.lineup=(x.lineup||[]).map(p=>({...p,role:roleText(p.roleKey)}));
       currentView.__selectedFormationResult=x;currentView.ownRatings=x.ratings||currentView.ownRatings;
       currentView.ownLineup={formation:x.formation,ratings:x.ratings,playerCount:x.lineup.length,players:x.lineup.map(p=>({name:p.name,role:p.role,roleKey:p.roleKey,rating:p.rating,behaviour:p.behaviour,form:p.form,stamina:p.stamina}))};
-      currentView.formation=x.formation;currentView.tactic={tacticName:x.tacticName,tacticType:x.tacticType,tacticLevel:x.tacticLevel};selectedFormation=x.formation;
-      renderSelectedFormationResult(x);if(status)status.textContent=`HO Engine • ${x.formation} • ${x.tacticName||'Normal'}`;
+      currentView.formation=x.formation;currentView.tactic={tacticName:x.tacticName,tacticType:x.tacticType,tacticLevel:x.tacticLevel};
+      currentView.recommendation={...(currentView.recommendation||{}),explanation:x.explanation,selectionScore:x.selectionScore,trainingFit:x.trainingFit,formationExperience:x.formationExperience,trainingName:x.trainingName,trainingPriority:x.trainingPriority};
+      selectedFormation=x.formation;
+      renderSelectedFormationResult(x);renderRecommendationLogic();if(status)status.textContent=`HO Engine • ${x.formation} • ${x.tacticName||'Normal'}`;
     }catch(e){if(status)status.textContent=e.message||'Diziliş hesaplanamadı.';}
     finally{formationBusy=false;if(btn){btn.classList.remove('loading');btn.textContent=selectedFormation||'—';}updateFormationChecks();}
   }
 
   function renderSelectedFormationResult(x){
     const r=x.ratings||{};const strip=document.getElementById('ownRatingStrip');if(strip&&typeof renderRatingSummary==='function')strip.innerHTML=renderRatingSummary(r);
-    const pill=document.getElementById('ownFormation');if(pill)pill.textContent=x.formation||selectedFormation||'—';const title=document.getElementById('ownLineupTitle');if(title)title.textContent='En iyi 11';
+    const pill=document.getElementById('ownFormation');if(pill)pill.textContent=x.formation||selectedFormation||'—';const title=document.getElementById('ownLineupTitle');if(title)title.textContent='Lig Kadrosu';
     if(typeof renderPitch==='function')renderPitch('#ownPitch',x.lineup||[],false);
-    const source=document.getElementById('ownModeSource');if(source)source.textContent=`HO Engine • ${x.formation} • ${x.tacticName||'Normal'}`;
+    const source=document.getElementById('ownModeSource');if(source)source.textContent=`Lig Kadrosu • ${x.formation} • ${x.tacticName||'Normal'} • antrenman öncelikli`;
     if(typeof ratingForm==='function'&&currentView){const home=currentView.isHome?(x.ratings||{}):(currentView.opponentRatings||{});const away=currentView.isHome?(currentView.opponentRatings||{}):(x.ratings||{});ratingForm('#homeRatings','home',home);ratingForm('#awayRatings','away',away);}
   }
 
@@ -73,20 +91,20 @@
     ensureControls();
     if(selectedMode==='cup'&&!latestCup?.record){
       document.querySelectorAll('#ownLineupMode button').forEach(b=>b.classList.toggle('active',b.dataset.mode===selectedMode));
-      const source=document.getElementById('ownModeSource');if(source)source.textContent='Son kupa 11 verisi alınamadı.';
+      const source=document.getElementById('ownModeSource');if(source)source.textContent='Kupa Kadrosu verisi alınamadı.';
       return;
     }
     document.querySelectorAll('#ownLineupMode button').forEach(b=>b.classList.toggle('active',b.dataset.mode===selectedMode));
-    if(selectedMode==='best'&&currentView?.__selectedFormationResult){const x=currentView.__selectedFormationResult;selectedFormation=x.formation||selectedFormation;updateFormationChecks();renderSelectedFormationResult(x);return;}
+    if(selectedMode==='best'&&currentView?.__selectedFormationResult){const x=currentView.__selectedFormationResult;selectedFormation=x.formation||selectedFormation;updateFormationChecks();renderSelectedFormationResult(x);renderRecommendationLogic();return;}
     const r=ratingsOf(selectedMode),players=playersOf(selectedMode),formation=selectedMode==='cup'?(latestCup?.record?.formation||'—'):(currentView?.ownLineup?.formation||'—');
     if(selectedMode==='cup'&&!selectedFormation)selectedFormation=formation;
-    const strip=document.getElementById('ownRatingStrip');if(strip&&typeof renderRatingSummary==='function')strip.innerHTML=renderRatingSummary(r);const pill=document.getElementById('ownFormation');if(pill)pill.textContent=formation;const title=document.getElementById('ownLineupTitle');if(title)title.textContent=selectedMode==='cup'?'Son kupa 11':'En iyi 11';if(typeof renderPitch==='function')renderPitch('#ownPitch',players,false);
-    const source=document.getElementById('ownModeSource');if(source){if(selectedMode==='cup'){const f=latestCup?.record?.fixture||{};source.textContent=`Kupa: ${fmtDay(f.matchDate)} • ${typeText(f.matchType)} • ${tacticText(latestCup?.record?.teamData?.tacticType)} Lv.${latestCup?.record?.teamData?.tacticLevel??'—'}`;}else source.textContent=`Lig analizi • HO Engine en iyi 11${formation&&formation!=='—'?` • ${formation}`:''}`;}
+    const strip=document.getElementById('ownRatingStrip');if(strip&&typeof renderRatingSummary==='function')strip.innerHTML=renderRatingSummary(r);const pill=document.getElementById('ownFormation');if(pill)pill.textContent=formation;const title=document.getElementById('ownLineupTitle');if(title)title.textContent=selectedMode==='cup'?'Kupa Kadrosu':'Lig Kadrosu';if(typeof renderPitch==='function')renderPitch('#ownPitch',players,false);
+    const source=document.getElementById('ownModeSource');if(source){if(selectedMode==='cup'){const f=latestCup?.record?.fixture||{};source.textContent=`Kupa Kadrosu • ${fmtDay(f.matchDate)} • ${typeText(f.matchType)} • ${tacticText(latestCup?.record?.teamData?.tacticType)} Lv.${latestCup?.record?.teamData?.tacticLevel??'—'}`;}else source.textContent=`Lig Kadrosu • HO Engine • antrenman + maç kazanma öncelikli${formation&&formation!=='—'?` • ${formation}`:''}`;}
     if(currentView){if(!currentView.__bestTactic)currentView.__bestTactic=currentView.tactic||{};if(selectedMode==='cup')currentView.tactic={tacticType:latestCup.record.teamData.tacticType??0,tacticLevel:latestCup.record.teamData.tacticLevel??0,tacticName:tacticText(latestCup.record.teamData.tacticType)};else currentView.tactic=currentView.__bestTactic;const home=currentView.isHome?r:(currentView.opponentRatings||{}),away=currentView.isHome?(currentView.opponentRatings||{}):r;if(typeof ratingForm==='function'){ratingForm('#homeRatings','home',home);ratingForm('#awayRatings','away',away);}}
-    updateFormationChecks();
+    updateFormationChecks();renderRecommendationLogic();
   }
 
-  function patchRender(){if(typeof window.renderMatch!=='function')return false;const old=window.renderMatch;if(old.__formationPatched)return true;const wrapped=function(x){old(x);ensureControls();selectedFormation=x?.ownLineup?.formation||selectedFormation;updateFormationChecks();applyOwnMode();decorateOpponentSource();};wrapped.__formationPatched=true;window.renderMatch=wrapped;return true;}
+  function patchRender(){if(typeof window.renderMatch!=='function')return false;const old=window.renderMatch;if(old.__formationPatched)return true;const wrapped=function(x){old(x);ensureControls();selectedFormation=x?.ownLineup?.formation||selectedFormation;updateFormationChecks();applyOwnMode();renderRecommendationLogic();decorateOpponentSource();};wrapped.__formationPatched=true;window.renderMatch=wrapped;return true;}
   function decorateOpponentSource(){if(typeof currentView==='undefined'||!currentView)return;const i=Number(currentView.selectedRecentIndex??0),m=currentView.recentMatches?.[i],bar=document.getElementById('recentSelection');if(!bar||!m?.fixture)return;const f=m.fixture;bar.innerHTML=`<b>Simülasyon baz alınan rakip maçı:</b> ${fmtDate(f.matchDate)} • ${esc(f.homeTeamName)} ${f.homeGoals??'—'} - ${f.awayGoals??'—'} ${esc(f.awayTeamName)} <span>• ${typeText(f.matchType)} • ${esc(m.opponent?.formation||'—')} • ${tacticText(m.opponent?.tacticType)} ${m.opponent?.tacticLevel?`Lv.${m.opponent.tacticLevel}`:''}</span>`;}
   async function loadCup(){
     const source=document.getElementById('ownModeSource');
@@ -101,10 +119,10 @@
       applyOwnMode();
     }catch(e){
       latestCup=null;
-      if(source)source.textContent=`Son kupa 11 alınamadı: ${e.message||'CHPP verisi yok.'}`;
+      if(source)source.textContent=`Kupa Kadrosu alınamadı: ${e.message||'CHPP verisi yok.'}`;
     }
   }
-  const start=()=>{ensureControls();patchRender();loadCup();setTimeout(()=>{ensureControls();patchRender();decorateOpponentSource();applyOwnMode();if(selectedFormation&&typeof currentView!=='undefined'&&currentView)runFormationAnalysis();},700);};
+  const start=()=>{ensureControls();patchRender();loadCup();setTimeout(()=>{ensureControls();patchRender();decorateOpponentSource();applyOwnMode();renderRecommendationLogic();if(selectedFormation&&typeof currentView!=='undefined'&&currentView)runFormationAnalysis();},700);};
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start);else start();
   window.setOwnAnalysisMode=m=>{selectedMode=m==='cup'?'cup':'best';applyOwnMode();};
 })();
