@@ -5,4 +5,5 @@ failures += HistoricalFormationMapperTests.RunAll();
 failures += SimulationCalibrationTests.RunAll();
 failures += VersionSourceTests.RunAll();
 failures += IndividualOrderOptimizationTests.RunAll();
+failures += RecommendationEngineTests.RunAll();
 return failures;
