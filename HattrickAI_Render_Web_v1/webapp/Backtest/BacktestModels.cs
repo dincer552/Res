@@ -1,3 +1,4 @@
+using HattrickAI.CHPP;
 using HattrickAI.HOEngine;
 
 namespace HattrickAI.Backtest;
