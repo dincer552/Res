@@ -7,15 +7,15 @@
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
   <title>HattrickAI — Maç Analizi</title>
-  <link rel="stylesheet" href="/styles.css?v=__HATTRICKAI_VERSION__">
-  <link rel="stylesheet" href="/rating-readonly.css?v=__HATTRICKAI_VERSION__">
-  <link rel="stylesheet" href="/recent-status.css?v=__HATTRICKAI_VERSION__">
-  <link rel="stylesheet" href="/own-lineup-selector.css?v=__HATTRICKAI_VERSION__">
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/rating-readonly.css">
+  <link rel="stylesheet" href="/recent-status.css">
+  <link rel="stylesheet" href="/own-lineup-selector.css">
 </head>
 <body>
 <header class="topbar">
   <a class="brand" href="/"><span class="brand-name">Hattrick<span>AI</span></span></a>
-  <span class="app-version" aria-label="Uygulama sürümü">v__HATTRICKAI_VERSION__</span>
+  <span class="app-version" id="deployVersion" aria-label="Canlı Render sürümü">build …</span>
   <nav><a href="#match">Maç Analizi</a><a href="#recent">Rakip Maçları</a><a href="#simulation">Simülasyon</a></nav>
   <div id="status" class="status-chip">● BAĞLANTI KONTROL</div>
   <a id="connect" class="btn btn-primary" href="/auth/chpp/start">Hattrick'e bağlan</a>
@@ -37,9 +37,21 @@
   </section>
   <section class="grid-2" id="simulation"><article class="panel"><div class="panel-head"><div><div class="eyebrow">RATINGLER</div><h2>Net maç değerleri</h2></div><span class="pill">Otomatik</span></div><div class="ratings-form"><div><h3>Ev sahibi</h3><div id="homeRatings"></div></div><div><h3>Deplasman</h3><div id="awayRatings"></div></div></article><article class="panel"><div class="panel-head"><div><div class="eyebrow">HO ENGINE</div><h2>Simülasyon</h2></div><span class="pill">10.000</span></div><div class="sim-actions"><button class="btn btn-primary" onclick="runSimulation()">Simüle et</button></div><div id="result" class="result hidden"></div></article></section>
 </main><footer>HattrickAI Web • CHPP + HO Engine</footer>
-<script src="/loading.js?v=__HATTRICKAI_VERSION__"></script>
-<script src="/app.js?v=__HATTRICKAI_VERSION__"></script>
-<script src="/match-types.js?v=__HATTRICKAI_VERSION__"></script>
-<script src="/selection-fix.js?v=__HATTRICKAI_VERSION__"></script>
-<script src="/own-lineup-selector.js?v=__HATTRICKAI_VERSION__"></script>
+<script src="/loading.js"></script>
+<script src="/app.js"></script>
+<script src="/match-types.js"></script>
+<script src="/selection-fix.js"></script>
+<script src="/own-lineup-selector.js"></script>
+<script>
+(async function () {
+  const el = document.getElementById('deployVersion');
+  try {
+    const r = await fetch('/api/build?t=' + Date.now(), { cache: 'no-store' });
+    if (!r.ok) throw new Error('build endpoint');
+    const x = await r.json();
+    el.textContent = x.commit && x.commit !== 'unknown' ? 'build ' + x.commit.substring(0, 7) : 'build ?';
+    el.title = x.commit || '';
+  } catch (_) { el.textContent = 'build ?'; }
+})();
+</script>
 </body></html>
