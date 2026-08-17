@@ -1,5 +1,4 @@
 (()=>{
-  const VERSION='v23.01.19';
   let latestCup=null;
   let selectedMode='best';
 
@@ -9,10 +8,6 @@
   const ratingsOf=(mode)=>mode==='cup' ? (latestCup?.record?.teamData?.ratings||{}) : (currentView?.ownRatings||{});
   const playersOf=(mode)=>mode==='cup' ? (latestCup?.record?.players||[]).map(p=>({name:p.name,role:p.role,roleKey:p.roleKey,rating:p.rating,behaviour:p.behaviour,form:'-',stamina:'-'})) : (currentView?.ownLineup?.players||[]);
 
-  function setVersion(){
-    document.querySelectorAll('.app-version').forEach(e=>e.textContent=VERSION);
-    const f=document.querySelector('footer');if(f)f.textContent=f.textContent.replace(/v23\.01\.\d+/g,VERSION);
-  }
   function ensureControls(){
     const panel=document.querySelector('.our-panel'); if(!panel)return;
     const head=panel.querySelector('.panel-head'); if(!head)return;
@@ -74,7 +69,7 @@
     catch(e){const s=document.getElementById('ownModeSource');if(s)s.textContent='Son kupa 11 alınamadı; En iyi 11 kullanılabilir.';}
   }
   const start=()=>{
-    setVersion();ensureControls();
+    ensureControls();
     patchRender();
     loadCup();
     setTimeout(()=>{ensureControls();decorateOpponentSource();applyOwnMode();},250);
