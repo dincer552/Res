@@ -10,6 +10,10 @@ public class TeamData
 
     public int TacticLevel { get; set; }
 
+    // Optional UI-selected formation. When set, RecommendationEngine evaluates
+    // the requested formation instead of searching all formations.
+    public string? PreferredFormation { get; set; }
+
     public TeamData(
         string teamName,
         TeamRatings ratings,
