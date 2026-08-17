@@ -50,12 +50,12 @@ internal static class RecommendationEngineTests
         var players = BuildSquad();
         var opponent = BuildOpponent();
         var full = engine.RecommendForFormation(players, opponent, "3-4-3", 100, true, trainingType: 4);
-        var partial = engine.RecommendForFormation(players, opponent, "4-4-2", 100, true, trainingType: 4);
+        var poor = engine.RecommendForFormation(players, opponent, "4-4-2", 100, true, trainingType: 4);
         AssertTrue(full != null, "Full-fit formation must produce a recommendation");
-        AssertTrue(partial != null, "Partial-fit formation must produce a recommendation");
+        AssertTrue(poor != null, "Low-fit formation must produce a recommendation");
         AssertTrue(full!.TrainingFit == 2, "Full-fit recommendation must be marked as tier 2");
-        AssertTrue(partial!.TrainingFit == 1, "Partial-fit recommendation must be marked as tier 1");
-        AssertTrue(full.SelectionScore > partial.SelectionScore, "Full training tier must beat partial training tier even when match simulation is evaluated");
+        AssertTrue(poor!.TrainingFit == 0, "4-4-2 scoring fit must be tier 0");
+        AssertTrue(full.SelectionScore > poor.SelectionScore, "Full training tier must beat low training tier even when match simulation is evaluated");
     }
 
     private static void TestAutomaticRecommendationRespectsTrainingTier()
