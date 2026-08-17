@@ -19,18 +19,23 @@ function renderRecent(matches){
     : '<div class="empty">Rakibin son maçları bulunamadı.</div>';
 }
 
+function rawMatchType(m){
+  return m?.fixture?.matchType ?? m?.fixture?.matchTypeId ?? m?.fixture?.matchTypeName ?? m?.fixture?.typeText ?? m?.matchType ?? m?.matchTypeId ?? '';
+}
+
 function matchTypeIcon(m){
-  const type=String(m?.fixture?.matchType??m?.fixture?.matchTypeName??m?.matchType??'').toLowerCase();
-  const text=String(m?.fixture?.matchTypeName??m?.fixture?.typeText??'').toLowerCase();
-  if(type.includes('cup')||type.includes('kupa')||text.includes('cup')||text.includes('kupa')) return '🏆';
+  const raw=rawMatchType(m);
+  const type=String(raw).toLowerCase();
+  if(Number(raw)===2 || type.includes('cup') || type.includes('kupa')) return '🏆';
+  if(Number(raw)===1 || type.includes('league') || type.includes('lig')) return '⚽';
   return '⚽';
 }
 
 function matchTypeLabel(m){
-  const type=String(m?.fixture?.matchType??m?.fixture?.matchTypeName??m?.matchType??'').toLowerCase();
-  const text=String(m?.fixture?.matchTypeName??m?.fixture?.typeText??'').toLowerCase();
-  if(type.includes('cup')||type.includes('kupa')||text.includes('cup')||text.includes('kupa')) return 'Kupa';
-  if(type.includes('league')||type.includes('lig')||text.includes('league')||text.includes('lig')) return 'Lig';
+  const raw=rawMatchType(m);
+  const type=String(raw).toLowerCase();
+  if(Number(raw)===2 || type.includes('cup') || type.includes('kupa')) return 'Kupa';
+  if(Number(raw)===1 || type.includes('league') || type.includes('lig')) return 'Lig';
   return '';
 }
 
@@ -53,7 +58,7 @@ function applyRecentSelection(i){
 
   const root=$('#selectedOpponentMatch');
   if(root){
-    root.innerHTML=`<div class="selected-opponent-main"><span class="selected-match-type-icon" title="${typeLabel||'Maç'}">${typeIcon}</span><div><strong>${fmtDay(f.matchDate)} • ${escapeHtml(home)} ${score} ${escapeHtml(away)}</strong><small>${opponent.formation||'—'} • ${tacticText(opponent.tacticType)} ${opponent.tacticLevel?`Lv.${opponent.tacticLevel}`:''} • MF ${midfield(ratings).toFixed(2)} / DEF ${avg(ratings).toFixed(2)} / ATT ${attack(ratings).toFixed(2)}</small></div></div>`;
+    root.innerHTML=`<div class="selected-opponent-main"><span class="selected-match-type-icon" title="${typeLabel||'Maç'}">${typeIcon}</span><div><strong>${fmtDay(f.matchDate)} • ${escapeHtml(home)} ${score} ${escapeHtml(away)}</strong><small>${typeLabel?`${typeLabel} • `:''}${opponent.formation||'—'} • ${tacticText(opponent.tacticType)} ${opponent.tacticLevel?`Lv.${opponent.tacticLevel}`:''} • MF ${midfield(ratings).toFixed(2)} / DEF ${avg(ratings).toFixed(2)} / ATT ${attack(ratings).toFixed(2)}</small></div></div>`;
   }
 
   renderRecent(currentView.recentMatches);
