@@ -17,4 +17,7 @@ ENV HATTRICKAI_VERSION_SOURCE=/app/VERSION
 COPY --from=build /app/publish .
 COPY VERSION /app/VERSION
 EXPOSE 10000
-ENTRYPOINT ["dotnet", "HattrickAI.Web.dll"]
+# Render exposes the deployed Git commit as RENDER_GIT_COMMIT at runtime.
+# Persist it into the served web root so the browser can display the exact
+# commit running in this container, without hard-coding a version in the UI.
+ENTRYPOINT ["sh", "-c", "printf '%s' \"${RENDER_GIT_COMMIT:-unknown}\" > /app/render-commit.txt && exec dotnet HattrickAI.Web.dll"]
