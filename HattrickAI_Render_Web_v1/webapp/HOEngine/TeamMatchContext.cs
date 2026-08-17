@@ -18,8 +18,9 @@ public enum TeamLocation
 }
 
 /// <summary>
-/// Match-level modifiers consumed by LineupRatingEngine.
-/// Kept in its own file so all rating engines share the same context type.
+/// Match-level modifiers consumed by LineupRatingEngine and the individual
+/// order optimizer. OpponentRatings is optional; when supplied, individual
+/// orders can be chosen against the opponent's actual sector strengths.
 /// </summary>
 public sealed class TeamMatchContext
 {
@@ -33,6 +34,7 @@ public sealed class TeamMatchContext
     public double Confidence { get; init; }
     public MatchWeather Weather { get; init; } = MatchWeather.Normal;
     public int Minute { get; init; }
+    public TeamRatings? OpponentRatings { get; init; }
     public IReadOnlyDictionary<int, PlayerBehaviour> SlotBehaviours { get; init; }
         = new Dictionary<int, PlayerBehaviour>();
 }
