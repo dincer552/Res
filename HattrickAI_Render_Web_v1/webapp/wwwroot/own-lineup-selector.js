@@ -104,7 +104,7 @@
       if(source)source.textContent=`Son kupa 11 alınamadı: ${e.message||'CHPP verisi yok.'}`;
     }
   }
-  const start=()=>{ensureControls();patchRender();loadCup();setTimeout(()=>{ensureControls();patchRender();decorateOpponentSource();applyOwnMode();},250);};
+  const start=()=>{ensureControls();patchRender();loadCup();setTimeout(()=>{ensureControls();patchRender();decorateOpponentSource();applyOwnMode();if(selectedFormation&&typeof currentView!=='undefined'&&currentView)runFormationAnalysis();},700);};
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',start);else start();
   window.setOwnAnalysisMode=m=>{selectedMode=m==='cup'?'cup':'best';applyOwnMode();};
 })();
