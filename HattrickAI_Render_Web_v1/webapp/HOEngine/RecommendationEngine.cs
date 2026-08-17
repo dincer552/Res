@@ -23,6 +23,9 @@ public sealed class RecommendationEngine
     public RecommendationResult? Recommend(List<PlayerData> players, TeamData opponent, int simulationCount = 1000, bool isHome = true)
     {
         if (players == null || players.Count < 11) return null;
+        if (!string.IsNullOrWhiteSpace(opponent.PreferredFormation))
+            return RecommendForFormation(players, opponent, opponent.PreferredFormation!, simulationCount, isHome);
+
         RecommendationResult? best = null;
         foreach (string formation in BestLineupEngine.SupportedFormations)
         {
