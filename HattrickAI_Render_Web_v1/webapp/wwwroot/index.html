@@ -13,6 +13,7 @@
   <link rel="stylesheet" href="/own-lineup-selector.css?v=20260817-formation-01">
   <link rel="stylesheet" href="/availability-panel.css?v=20260817-availability-04">
   <link rel="stylesheet" href="/player-behaviour.css?v=20260817-behaviour-01">
+  <link rel="stylesheet" href="/recommendation-panel.css?v=20260817-recommendation-01">
   <link rel="stylesheet" href="/ui-fixes.css?v=20260817-selected-match-02">
 </head>
 <body>
@@ -33,10 +34,21 @@
     <article class="panel fixture-panel" id="fixtures"><div class="panel-head"><div><div class="eyebrow">MAÇ SEÇ</div><h2>Yaklaşan maçlar</h2></div><button class="icon-btn" onclick="loadFixtures()">↻</button></div><div id="fixturesList" class="fixture-list"><div class="empty">CHPP bağlantısı gerekli.</div></div></article>
     <article class="panel info-panel"><div class="panel-head"><div><div class="eyebrow">HO ENGINE</div><h2>Otomatik analiz</h2></div><span id="formationPill" class="pill">—</span></div><div class="auto-grid"><div><small>ÖNERİLEN TAKTİK</small><b id="tacticName">—</b></div><div><small>TAKTİK SEVİYESİ</small><b id="tacticLevel">—</b></div><div><small>MAÇ DURUMU</small><b id="venueInfo">—</b></div></div><p id="explanation" class="muted">Maç seçildiğinde HO Engine gerçek kadro ve rakip geçmişi üzerinden öneri üretir.</p></article>
   </section>
+  <section class="panel recommendation-panel" id="recommendationLogic">
+    <div class="panel-head"><div><div class="eyebrow">ÖNERİ MANTIĞI</div><h2>Öneri nasıl seçiliyor?</h2></div><span id="trainingNamePill" class="pill">—</span></div>
+    <div class="recommendation-summary">
+      <div class="recommendation-step"><small>1. ÖNCELİK</small><b>Antrenmana uygun diziliş</b></div>
+      <div class="recommendation-step"><small>2. ÖNCELİK</small><b>Formasyon deneyimi</b></div>
+      <div class="recommendation-step"><small>3. ÖNCELİK</small><b>Maç kazanma olasılığı</b></div>
+      <div class="recommendation-step"><small>4. SONRA</small><b>Oyuncu davranışları</b></div>
+    </div>
+    <div id="trainingRecommendation" class="recommendation-note">CHPP antrenman verisi bekleniyor.</div>
+    <div id="trainingFormationList" class="training-formation-list"></div>
+  </section>
   <section class="panel" id="recent"><div class="panel-head"><div><div class="eyebrow">RAKİBİN SON MAÇLARI</div><h2>Maç geçmişi</h2></div><button class="icon-btn" onclick="loadSelectedMatch()">↻</button></div><div id="recentMatches" class="recent-grid"></div></section>
   <section class="lineup-grid">
     <article class="panel lineup-panel"><div class="panel-head"><div><div class="eyebrow">RAKİP</div><h2 id="opponentLineupTitle">Rakip kadro</h2></div><span id="opponentFormation" class="pill">—</span></div><div id="selectedOpponentMatch" class="selected-opponent-match"></div><div class="rating-strip" id="opponentRatingStrip"></div><div class="pitch" id="opponentPitch"><div class="pitch-lines"></div></div></article>
-    <article class="panel lineup-panel our-panel"><div class="panel-head"><div><div class="eyebrow">BİZİM TAKIM</div><h2 id="ownLineupTitle">En iyi 11</h2></div><span id="ownFormation" class="pill">—</span></div><div class="rating-strip" id="ownRatingStrip"></div><div class="pitch" id="ownPitch"><div class="pitch-lines"></div></div></article>
+    <article class="panel lineup-panel our-panel"><div class="panel-head"><div><div class="eyebrow">BİZİM TAKIM</div><h2 id="ownLineupTitle">Lig Kadrosu</h2></div><span id="ownFormation" class="pill">—</span></div><div class="rating-strip" id="ownRatingStrip"></div><div class="pitch" id="ownPitch"><div class="pitch-lines"></div></div></article>
   </section>
   <section id="availabilityPanel" class="panel availability-panel hidden">
     <div class="availability-head"><div class="availability-icon">!</div><div><div class="eyebrow">KADRO KONTROLÜ</div><span id="availabilityCount" class="pill"></span></div></div>
@@ -48,7 +60,7 @@
 <script src="/app.js"></script>
 <script src="/match-types.js"></script>
 <script src="/selection-fix.js"></script>
-<script src="/own-lineup-selector.js?v=20260817-lineup-refresh-01"></script>
+<script src="/own-lineup-selector.js?v=20260817-lineup-refresh-02"></script>
 <script src="/availability-panel.js?v=20260817-availability-04"></script>
 <script src="/player-behaviour.js?v=20260817-behaviour-01"></script>
 <script src="/ui-fixes.js?v=20260817-selected-match-02"></script>
