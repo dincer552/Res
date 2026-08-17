@@ -34,15 +34,19 @@ public sealed class ChppMatchDataService
 
     public async Task<ChppFixture?> LoadLatestStandardCupFixtureAsync(int ownTeamId, CancellationToken cancellationToken = default)
     {
-        // Prefer the normal matches feed, but do not depend on its Status text being
-        // populated exactly as expected. The goals/date are the authoritative signal
-        // that the match is completed. If the recent feed no longer contains the cup
-        // match, fall back to the archive so an older cup game can still be copied.
-        var xml = await ChppTraceHttp.GetXmlAsync(_oauth, "matches", new Dictionary<string, string?> { ["version"] = "2.2", ["teamID"] = ownTeamId.ToString(CultureInfo.InvariantCulture) }, $"latest standard cup fixture ownTeamId={ownTeamId}", cancellationToken);
+        // Always inspect the live matches feed first. A cached "latest" pointer can
+        // become stale after a new cup match is played, so it must never decide which
+        // historical cup match is displayed.
+        var xml = await ChppTraceHttp.GetXmlAsync(_oauth, "matches", new Dictionary<string, string?>
+        {
+            ["version"] = "2.2",
+            ["teamID"] = ownTeamId.ToString(CultureInfo.InvariantCulture)
+        }, $"latest standard cup fixture ownTeamId={ownTeamId}", cancellationToken);
         var latest = SelectLatestStandardCupFixture(ParseMatches(xml), ownTeamId);
         if (latest is not null) return latest;
 
-        var firstDate = DateTime.Now.AddDays(-120).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        // The normal feed can be limited. Search the archive as a fallback.
+        var firstDate = DateTime.Now.AddDays(-365).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
         var lastDate = DateTime.Now.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
         var archiveXml = await ChppTraceHttp.GetXmlAsync(_oauth, "matchesArchive", new Dictionary<string, string?>
         {
