@@ -84,6 +84,13 @@ public sealed class BestLineupEngine
 
                 foreach (var player in remaining)
                 {
+                    // HARD POSITION GATE:
+                    // A player who is clearly a midfielder/winger/forward must not
+                    // be sacrificed into defence merely because the global rating
+                    // calculation can squeeze a few points out of that placement.
+                    if (!IsNaturalCandidateForRole(player, role))
+                        continue;
+
                     foreach (var behaviour in BehavioursFor(role))
                     {
                         double rawRating = _ratingEngine.GetPlayerPositionRating(
@@ -138,6 +145,38 @@ public sealed class BestLineupEngine
         LastFormationName = formation;
         LastBehaviourProfile = new Dictionary<int, PlayerBehaviour>(bestBehaviours);
         return bestLineup;
+    }
+
+    private static bool IsNaturalCandidateForRole(PlayerData player, PlayerRole role)
+    {
+        if (role == PlayerRole.Goalkeeper)
+            return player.Keeper >= 5;
+
+        double defence = player.Defending;
+        double midfield = player.Playmaking;
+        double wing = player.Winger;
+        double attack = player.Scoring;
+
+        // Main skill for each line. We intentionally use a hard floor plus
+        // relative dominance so a player cannot enter a line just because of
+        // secondary skills. This is the important fix for cases like a winger
+        // with very low defending being selected as a central defender.
+        return role switch
+        {
+            PlayerRole.LeftDefender or PlayerRole.CentralDefender or PlayerRole.RightDefender
+                => defence >= 6 && defence >= Math.Max(midfield, Math.Max(wing, attack)) * 0.80,
+
+            PlayerRole.LeftMidfielder or PlayerRole.CentralMidfielder or PlayerRole.RightMidfielder
+                => midfield >= 6 && midfield >= Math.Max(defence, Math.Max(wing, attack)) * 0.80,
+
+            PlayerRole.LeftWinger or PlayerRole.RightWinger
+                => wing >= 6 && wing >= Math.Max(defence, Math.Max(midfield, attack)) * 0.75,
+
+            PlayerRole.LeftForward or PlayerRole.CentralForward or PlayerRole.RightForward
+                => attack >= 6 && attack >= Math.Max(defence, Math.Max(midfield, wing)) * 0.75,
+
+            _ => false
+        };
     }
 
     private static double PositionFit(PlayerData player, PlayerRole role)
