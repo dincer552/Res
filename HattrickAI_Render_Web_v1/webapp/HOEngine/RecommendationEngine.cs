@@ -20,98 +20,79 @@ public sealed class RecommendationEngine
         new("Yaratıcı oyun", 7, 6)
     };
 
-    public RecommendationResult? Recommend(
-        List<PlayerData> players,
-        TeamData opponent,
-        int simulationCount = 1000,
-        bool isHome = true)
+    public RecommendationResult? Recommend(List<PlayerData> players, TeamData opponent, int simulationCount = 1000, bool isHome = true)
     {
-        if (players == null || players.Count < 11)
-            return null;
-
+        if (players == null || players.Count < 11) return null;
         RecommendationResult? best = null;
-
         foreach (string formation in BestLineupEngine.SupportedFormations)
         {
-            var lineup = _lineupEngine.FindBestLineupForFormation(players, formation);
-            if (lineup.Count != 11)
-                continue;
-
-            var baseBehaviours = new Dictionary<int, PlayerBehaviour>(_lineupEngine.LastBehaviourProfile);
-
-            foreach (var tactic in Tactics)
-            {
-                var behaviours = BuildTacticBehaviours(lineup, formation, baseBehaviours, tactic.Type);
-                var context = new TeamMatchContext
-                {
-                    TacticType = tactic.Type,
-                    TacticLevel = tactic.Level,
-                    IsHome = isHome,
-                    Location = isHome ? TeamLocation.Home : TeamLocation.Away,
-                    SlotBehaviours = behaviours
-                };
-
-                TeamRatings ratings = _ratingEngine.Calculate(lineup, formation, context);
-                var ourTeam = new TeamData("Bizim Takım", ratings, tactic.Type, tactic.Level);
-                var simulation = isHome
-                    ? _simulator.Run(ourTeam, opponent, simulationCount)
-                    : _simulator.Run(opponent, ourTeam, simulationCount);
-                double score = SelectionScore(simulation, tactic.Type, isHome);
-                string explanation = BuildExplanation(formation, tactic, ratings, opponent.Ratings, simulation);
-
-                if (best == null || score > best.SelectionScore)
-                {
-                    best = new RecommendationResult
-                    {
-                        Formation = formation,
-                        TacticName = tactic.Name,
-                        TacticType = tactic.Type,
-                        TacticLevel = tactic.Level,
-                        Lineup = lineup.ToList(),
-                        Ratings = ratings,
-                        Simulation = simulation,
-                        SelectionScore = score,
-                        Explanation = explanation,
-                        BehaviourProfile = behaviours
-                    };
-                }
-            }
+            var result = RecommendForFormation(players, opponent, formation, simulationCount, isHome);
+            if (result != null && (best == null || result.SelectionScore > best.SelectionScore)) best = result;
         }
-
         return best;
     }
 
-    private static Dictionary<int, PlayerBehaviour> BuildTacticBehaviours(
-        List<PlayerData> lineup,
-        string formation,
-        Dictionary<int, PlayerBehaviour> baseBehaviours,
-        int tacticType)
+    public RecommendationResult? RecommendForFormation(List<PlayerData> players, TeamData opponent, string formation, int simulationCount = 10000, bool isHome = true)
+    {
+        if (players == null || players.Count < 11 || !BestLineupEngine.SupportedFormations.Contains(formation)) return null;
+        var lineup = _lineupEngine.FindBestLineupForFormation(players, formation);
+        if (lineup.Count != 11) return null;
+        var baseBehaviours = new Dictionary<int, PlayerBehaviour>(_lineupEngine.LastBehaviourProfile);
+        RecommendationResult? best = null;
+        foreach (var tactic in Tactics)
+        {
+            var behaviours = BuildTacticBehaviours(lineup, formation, baseBehaviours, tactic.Type);
+            var context = new TeamMatchContext
+            {
+                TacticType = tactic.Type,
+                TacticLevel = tactic.Level,
+                IsHome = isHome,
+                Location = isHome ? TeamLocation.Home : TeamLocation.Away,
+                SlotBehaviours = behaviours
+            };
+            var ratings = _ratingEngine.Calculate(lineup, formation, context);
+            var ourTeam = new TeamData("Bizim Takım", ratings, tactic.Type, tactic.Level);
+            var simulation = isHome ? _simulator.Run(ourTeam, opponent, simulationCount) : _simulator.Run(opponent, ourTeam, simulationCount);
+            var score = SelectionScore(simulation, tactic.Type, isHome);
+            var explanation = BuildExplanation(formation, tactic, ratings, opponent.Ratings, simulation);
+            if (best == null || score > best.SelectionScore)
+            {
+                best = new RecommendationResult
+                {
+                    Formation = formation,
+                    TacticName = tactic.Name,
+                    TacticType = tactic.Type,
+                    TacticLevel = tactic.Level,
+                    Lineup = lineup.ToList(),
+                    Ratings = ratings,
+                    Simulation = simulation,
+                    SelectionScore = score,
+                    Explanation = explanation,
+                    BehaviourProfile = behaviours
+                };
+            }
+        }
+        return best;
+    }
+
+    private static Dictionary<int, PlayerBehaviour> BuildTacticBehaviours(List<PlayerData> lineup, string formation, Dictionary<int, PlayerBehaviour> baseBehaviours, int tacticType)
     {
         var roles = LineupRatingEngine.GetRoles(formation);
         var result = new Dictionary<int, PlayerBehaviour>();
-
         for (int i = 0; i < roles.Length; i++)
         {
-            PlayerBehaviour baseBehaviour = baseBehaviours.TryGetValue(i, out var b) ? b : PlayerBehaviour.Normal;
-
-            PlayerBehaviour behaviour = tacticType switch
+            var baseBehaviour = baseBehaviours.TryGetValue(i, out var b) ? b : PlayerBehaviour.Normal;
+            var behaviour = tacticType switch
             {
-                5 when roles[i] is PlayerRole.LeftDefender or PlayerRole.CentralDefender or PlayerRole.RightDefender
-                    => PlayerBehaviour.Defensive,
-                5 when roles[i] is PlayerRole.CentralMidfielder or PlayerRole.LeftWinger or PlayerRole.RightWinger
-                    => PlayerBehaviour.Defensive,
-                3 when roles[i] is PlayerRole.LeftWinger or PlayerRole.RightWinger
-                    => PlayerBehaviour.TowardsMiddle,
-                4 when roles[i] is PlayerRole.LeftWinger or PlayerRole.RightWinger or PlayerRole.LeftForward or PlayerRole.RightForward
-                    => PlayerBehaviour.TowardsWing,
-                2 when roles[i] is PlayerRole.LeftDefender or PlayerRole.CentralDefender or PlayerRole.RightDefender
-                    => PlayerBehaviour.Defensive,
+                5 when roles[i] is PlayerRole.LeftDefender or PlayerRole.CentralDefender or PlayerRole.RightDefender => PlayerBehaviour.Defensive,
+                5 when roles[i] is PlayerRole.CentralMidfielder or PlayerRole.LeftWinger or PlayerRole.RightWinger => PlayerBehaviour.Defensive,
+                3 when roles[i] is PlayerRole.LeftWinger or PlayerRole.RightWinger => PlayerBehaviour.TowardsMiddle,
+                4 when roles[i] is PlayerRole.LeftWinger or PlayerRole.RightWinger or PlayerRole.LeftForward or PlayerRole.RightForward => PlayerBehaviour.TowardsWing,
+                2 when roles[i] is PlayerRole.LeftDefender or PlayerRole.CentralDefender or PlayerRole.RightDefender => PlayerBehaviour.Defensive,
                 _ => baseBehaviour
             };
-
             result[i] = behaviour;
         }
-
         return result;
     }
 
@@ -121,10 +102,8 @@ public sealed class RecommendationEngine
         double ourLoss = isHome ? simulation.AwayWinPercentage : simulation.HomeWinPercentage;
         double ourGoals = isHome ? simulation.AverageHomeGoals : simulation.AverageAwayGoals;
         double opponentGoals = isHome ? simulation.AverageAwayGoals : simulation.AverageHomeGoals;
-
         double score = ourWin * 1.20 + simulation.DrawPercentage * 0.30 - ourLoss * 0.75 + ourGoals * 7.0 - opponentGoals * 5.0;
-        if (tacticType == 1)
-            score += simulation.HomeWinPercentage * 0.01;
+        if (tacticType == 1) score += simulation.HomeWinPercentage * 0.01;
         return score;
     }
 
@@ -135,7 +114,6 @@ public sealed class RecommendationEngine
         double centralDefenceDelta = ours.CentralDefence - opponent.CentralAttack;
         double centralAttackDelta = ours.CentralAttack - opponent.CentralDefence;
         double wingAttackDelta = (ours.LeftAttack + ours.RightAttack) / 2.0 - (opponent.LeftDefence + opponent.RightDefence) / 2.0;
-
         if (midfieldDelta > .20) points.Add("Orta saha avantajımız var.");
         else if (midfieldDelta < -.20) points.Add("Rakibin orta saha üstünlüğü var; topa sahip olmayı artırmak önemli.");
         if (centralAttackDelta > .15) points.Add("Merkez hücumumuz rakibin merkez savunmasına karşı güçlü.");
