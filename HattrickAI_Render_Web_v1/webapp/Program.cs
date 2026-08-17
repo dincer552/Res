@@ -233,3 +233,4 @@ app.MapPost("/api/recommend", (RecommendationRequest request) =>
     return Results.Ok(new { result.Formation, result.TacticName, result.TacticType, result.TacticLevel, result.Ratings, result.Simulation, result.SelectionScore, result.Explanation, Lineup = result.Lineup.Select(p => new { p.PlayerId, p.Name, p.Age, p.Form, p.Stamina, p.Experience }) });
 });
 app.MapFallbackToFile("index.html");
+app.Run();
