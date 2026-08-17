@@ -32,10 +32,7 @@ public sealed class BestLineupEngine
             var ratings = _ratingEngine.Calculate(
                 lineup,
                 formation,
-                new TeamMatchContext
-                {
-                    SlotBehaviours = LastBehaviourProfile
-                });
+                new TeamMatchContext { SlotBehaviours = LastBehaviourProfile });
 
             double formationScore = OverallScore(ratings);
             if (formationScore > bestScore)
@@ -72,41 +69,34 @@ public sealed class BestLineupEngine
         {
             var remaining = available.ToList();
             var lineup = new PlayerData[11];
-            var behaviours = new Dictionary<int, PlayerBehaviour>();
             bool failed = false;
 
             foreach (int slot in order)
             {
                 PlayerRole role = roles[slot];
                 PlayerData? bestPlayer = null;
-                PlayerBehaviour bestBehaviour = PlayerBehaviour.Normal;
                 double bestPositionScore = double.MinValue;
 
                 foreach (var player in remaining)
                 {
-                    // HARD POSITION GATE:
-                    // A player who is clearly a midfielder/winger/forward must not
-                    // be sacrificed into defence merely because the global rating
-                    // calculation can squeeze a few points out of that placement.
+                    // First choose the player using his NORMAL contribution.
+                    // Individual behaviour is a separate match-order decision and
+                    // must not distort the underlying positional selection.
                     if (!IsNaturalCandidateForRole(player, role))
                         continue;
 
-                    foreach (var behaviour in BehavioursFor(role))
+                    double rawRating = _ratingEngine.GetPlayerPositionRating(
+                        player,
+                        role,
+                        PlayerBehaviour.Normal);
+
+                    double positionFit = PositionFit(player, role);
+                    double positionScore = rawRating * positionFit;
+
+                    if (positionScore > bestPositionScore)
                     {
-                        double rawRating = _ratingEngine.GetPlayerPositionRating(
-                            player,
-                            role,
-                            behaviour);
-
-                        double positionFit = PositionFit(player, role);
-                        double positionScore = rawRating * positionFit;
-
-                        if (positionScore > bestPositionScore)
-                        {
-                            bestPositionScore = positionScore;
-                            bestPlayer = player;
-                            bestBehaviour = behaviour;
-                        }
+                        bestPositionScore = positionScore;
+                        bestPlayer = player;
                     }
                 }
 
@@ -117,7 +107,6 @@ public sealed class BestLineupEngine
                 }
 
                 lineup[slot] = bestPlayer;
-                behaviours[slot] = bestBehaviour;
                 remaining.Remove(bestPlayer);
             }
 
@@ -125,6 +114,7 @@ public sealed class BestLineupEngine
                 continue;
 
             var result = lineup.ToList();
+            var behaviours = OptimizeBehaviours(result, formation);
             var ratings = _ratingEngine.Calculate(
                 result,
                 formation,
@@ -147,6 +137,86 @@ public sealed class BestLineupEngine
         return bestLineup;
     }
 
+    /// <summary>
+    /// Chooses individual orders from the complete team rating, not from an
+    /// isolated player score. This prevents the old greedy behaviour from
+    /// turning a small attacking gain into an unjustified offensive order.
+    ///
+    /// Hattrick's individual orders are real trade-offs: offensive IMs lose
+    /// defence and a little midfield while gaining attack; defensive IMs do
+    /// the opposite. Therefore the correct decision depends on the whole XI.
+    /// </summary>
+    private Dictionary<int, PlayerBehaviour> OptimizeBehaviours(
+        List<PlayerData> lineup,
+        string formation)
+    {
+        var roles = LineupRatingEngine.GetRoles(formation);
+        var behaviours = new Dictionary<int, PlayerBehaviour>();
+
+        for (int i = 0; i < roles.Length; i++)
+            behaviours[i] = PlayerBehaviour.Normal;
+
+        double currentScore = ScoreWithBehaviours(lineup, formation, behaviours);
+        bool improved;
+        int pass = 0;
+
+        // Coordinate ascent is deliberate here. Each candidate order is scored
+        // with every other selected order already applied. Repeat until no
+        // single-player order can improve the complete team score.
+        do
+        {
+            improved = false;
+            pass++;
+
+            for (int slot = 0; slot < roles.Length; slot++)
+            {
+                var currentBehaviour = behaviours[slot];
+                var bestBehaviour = currentBehaviour;
+                double bestScore = currentScore;
+
+                foreach (var candidate in BehavioursFor(roles[slot]))
+                {
+                    if (candidate == currentBehaviour)
+                        continue;
+
+                    behaviours[slot] = candidate;
+                    double candidateScore = ScoreWithBehaviours(lineup, formation, behaviours);
+
+                    // Keep the current order on exact/near ties. Normal is the
+                    // safest default because it preserves the standard position.
+                    if (candidateScore > bestScore + 0.000001)
+                    {
+                        bestScore = candidateScore;
+                        bestBehaviour = candidate;
+                    }
+                }
+
+                behaviours[slot] = bestBehaviour;
+                if (bestBehaviour != currentBehaviour)
+                {
+                    currentScore = bestScore;
+                    improved = true;
+                }
+            }
+        }
+        while (improved && pass < 4);
+
+        return behaviours;
+    }
+
+    private double ScoreWithBehaviours(
+        List<PlayerData> lineup,
+        string formation,
+        IReadOnlyDictionary<int, PlayerBehaviour> behaviours)
+    {
+        var ratings = _ratingEngine.Calculate(
+            lineup,
+            formation,
+            new TeamMatchContext { SlotBehaviours = behaviours });
+
+        return OverallScore(ratings);
+    }
+
     private static bool IsNaturalCandidateForRole(PlayerData player, PlayerRole role)
     {
         if (role == PlayerRole.Goalkeeper)
@@ -157,10 +227,6 @@ public sealed class BestLineupEngine
         double wing = player.Winger;
         double attack = player.Scoring;
 
-        // Main skill for each line. We intentionally use a hard floor plus
-        // relative dominance so a player cannot enter a line just because of
-        // secondary skills. This is the important fix for cases like a winger
-        // with very low defending being selected as a central defender.
         return role switch
         {
             PlayerRole.LeftDefender or PlayerRole.CentralDefender or PlayerRole.RightDefender
@@ -249,11 +315,41 @@ public sealed class BestLineupEngine
 
     private static IReadOnlyList<PlayerBehaviour> BehavioursFor(PlayerRole role) => role switch
     {
-        PlayerRole.CentralDefender => new[] { PlayerBehaviour.Normal, PlayerBehaviour.Defensive, PlayerBehaviour.Offensive, PlayerBehaviour.TowardsWing },
-        PlayerRole.LeftDefender or PlayerRole.RightDefender => new[] { PlayerBehaviour.Normal, PlayerBehaviour.Defensive, PlayerBehaviour.Offensive, PlayerBehaviour.TowardsMiddle },
-        PlayerRole.LeftMidfielder or PlayerRole.CentralMidfielder or PlayerRole.RightMidfielder => new[] { PlayerBehaviour.Normal, PlayerBehaviour.Defensive, PlayerBehaviour.Offensive, PlayerBehaviour.TowardsWing },
-        PlayerRole.LeftWinger or PlayerRole.RightWinger => new[] { PlayerBehaviour.Normal, PlayerBehaviour.Defensive, PlayerBehaviour.Offensive, PlayerBehaviour.TowardsMiddle },
-        PlayerRole.LeftForward or PlayerRole.RightForward or PlayerRole.CentralForward => new[] { PlayerBehaviour.Normal, PlayerBehaviour.Defensive, PlayerBehaviour.TowardsWing },
+        // Hattrick does not offer a defensive individual order to a central
+        // defender. The old engine incorrectly evaluated it as a possibility.
+        PlayerRole.CentralDefender => new[]
+        {
+            PlayerBehaviour.Normal,
+            PlayerBehaviour.Offensive,
+            PlayerBehaviour.TowardsWing
+        },
+        PlayerRole.LeftDefender or PlayerRole.RightDefender => new[]
+        {
+            PlayerBehaviour.Normal,
+            PlayerBehaviour.Defensive,
+            PlayerBehaviour.Offensive,
+            PlayerBehaviour.TowardsMiddle
+        },
+        PlayerRole.LeftMidfielder or PlayerRole.CentralMidfielder or PlayerRole.RightMidfielder => new[]
+        {
+            PlayerBehaviour.Normal,
+            PlayerBehaviour.Defensive,
+            PlayerBehaviour.Offensive,
+            PlayerBehaviour.TowardsWing
+        },
+        PlayerRole.LeftWinger or PlayerRole.RightWinger => new[]
+        {
+            PlayerBehaviour.Normal,
+            PlayerBehaviour.Defensive,
+            PlayerBehaviour.Offensive,
+            PlayerBehaviour.TowardsMiddle
+        },
+        PlayerRole.LeftForward or PlayerRole.RightForward or PlayerRole.CentralForward => new[]
+        {
+            PlayerBehaviour.Normal,
+            PlayerBehaviour.Defensive,
+            PlayerBehaviour.TowardsWing
+        },
         _ => new[] { PlayerBehaviour.Normal }
     };
 
@@ -277,7 +373,8 @@ public sealed class BestLineupEngine
         string text = $"EN İYİ 11 — {formation}\n\n";
 
         AppendRole(ref text, "🧤 KALECİ", lineup, roles, behaviours, PlayerRole.Goalkeeper);
-        AppendRole(ref text, "🛡️ DEFANS", lineup, roles, behaviours, PlayerRole.LeftDefender, PlayerRole.CentralDefender, PlayerRole.RightDefender);
+        AppendRole(ref text, "🛡️ DEFANS", lineup, roles, behaviours,
+            PlayerRole.LeftDefender, PlayerRole.CentralDefender, PlayerRole.RightDefender);
         AppendRole(ref text, "⚙️ ORTA SAHA", lineup, roles, behaviours,
             PlayerRole.LeftMidfielder, PlayerRole.CentralMidfielder, PlayerRole.RightMidfielder,
             PlayerRole.LeftWinger, PlayerRole.RightWinger);
