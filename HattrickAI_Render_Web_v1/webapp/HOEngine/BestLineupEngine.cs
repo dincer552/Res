@@ -7,6 +7,7 @@ namespace HattrickAI.HOEngine;
 public sealed class BestLineupEngine
 {
     private readonly LineupRatingEngine _ratingEngine = new();
+    private readonly IndividualOrderOptimizer _orderOptimizer = new();
 
     public string LastFormationName { get; private set; } = "4-4-2";
     public IReadOnlyDictionary<int, PlayerBehaviour> LastBehaviourProfile { get; private set; } =
@@ -15,7 +16,7 @@ public sealed class BestLineupEngine
     public static IReadOnlyList<string> SupportedFormations { get; } =
         new[] { "4-4-2", "4-3-3", "3-5-2", "4-5-1", "5-4-1", "5-3-2", "3-4-3" };
 
-    public List<PlayerData> FindBestLineup(List<PlayerData> players)
+    public List<PlayerData> FindBestLineup(List<PlayerData> players, TeamRatings? opponentRatings = null)
     {
         if (players == null || players.Count < 11)
             return new();
@@ -25,14 +26,18 @@ public sealed class BestLineupEngine
 
         foreach (string formation in SupportedFormations)
         {
-            var lineup = FindBestLineupForFormation(players, formation);
+            var lineup = FindBestLineupForFormation(players, formation, opponentRatings);
             if (lineup.Count != 11)
                 continue;
 
             var ratings = _ratingEngine.Calculate(
                 lineup,
                 formation,
-                new TeamMatchContext { SlotBehaviours = LastBehaviourProfile });
+                new TeamMatchContext
+                {
+                    OpponentRatings = opponentRatings,
+                    SlotBehaviours = LastBehaviourProfile
+                });
 
             double formationScore = OverallScore(ratings);
             if (formationScore > bestScore)
@@ -46,7 +51,10 @@ public sealed class BestLineupEngine
         return best ?? players.Where(p => !p.Injured && !p.Suspended).Take(11).ToList();
     }
 
-    public List<PlayerData> FindBestLineupForFormation(List<PlayerData> players, string formation)
+    public List<PlayerData> FindBestLineupForFormation(
+        List<PlayerData> players,
+        string formation,
+        TeamRatings? opponentRatings = null)
     {
         if (players == null || players.Count < 11 || !SupportedFormations.Contains(formation))
             return new();
@@ -79,9 +87,9 @@ public sealed class BestLineupEngine
 
                 foreach (var player in remaining)
                 {
-                    // First choose the player using his NORMAL contribution.
-                    // Individual behaviour is a separate match-order decision and
-                    // must not distort the underlying positional selection.
+                    // Player selection is based on the natural position using
+                    // NORMAL contribution. Individual orders are optimized only
+                    // after the XI is assembled.
                     if (!IsNaturalCandidateForRole(player, role))
                         continue;
 
@@ -114,11 +122,16 @@ public sealed class BestLineupEngine
                 continue;
 
             var result = lineup.ToList();
-            var behaviours = OptimizeBehaviours(result, formation);
+            var context = new TeamMatchContext { OpponentRatings = opponentRatings };
+            var behaviours = _orderOptimizer.Optimize(result, formation, context, opponentRatings);
             var ratings = _ratingEngine.Calculate(
                 result,
                 formation,
-                new TeamMatchContext { SlotBehaviours = behaviours });
+                new TeamMatchContext
+                {
+                    OpponentRatings = opponentRatings,
+                    SlotBehaviours = behaviours
+                });
 
             double lineupScore = OverallScore(ratings);
             if (lineupScore > bestScore)
@@ -135,86 +148,6 @@ public sealed class BestLineupEngine
         LastFormationName = formation;
         LastBehaviourProfile = new Dictionary<int, PlayerBehaviour>(bestBehaviours);
         return bestLineup;
-    }
-
-    /// <summary>
-    /// Chooses individual orders from the complete team rating, not from an
-    /// isolated player score. This prevents the old greedy behaviour from
-    /// turning a small attacking gain into an unjustified offensive order.
-    ///
-    /// Hattrick's individual orders are real trade-offs: offensive IMs lose
-    /// defence and a little midfield while gaining attack; defensive IMs do
-    /// the opposite. Therefore the correct decision depends on the whole XI.
-    /// </summary>
-    private Dictionary<int, PlayerBehaviour> OptimizeBehaviours(
-        List<PlayerData> lineup,
-        string formation)
-    {
-        var roles = LineupRatingEngine.GetRoles(formation);
-        var behaviours = new Dictionary<int, PlayerBehaviour>();
-
-        for (int i = 0; i < roles.Length; i++)
-            behaviours[i] = PlayerBehaviour.Normal;
-
-        double currentScore = ScoreWithBehaviours(lineup, formation, behaviours);
-        bool improved;
-        int pass = 0;
-
-        // Coordinate ascent is deliberate here. Each candidate order is scored
-        // with every other selected order already applied. Repeat until no
-        // single-player order can improve the complete team score.
-        do
-        {
-            improved = false;
-            pass++;
-
-            for (int slot = 0; slot < roles.Length; slot++)
-            {
-                var currentBehaviour = behaviours[slot];
-                var bestBehaviour = currentBehaviour;
-                double bestScore = currentScore;
-
-                foreach (var candidate in BehavioursFor(roles[slot]))
-                {
-                    if (candidate == currentBehaviour)
-                        continue;
-
-                    behaviours[slot] = candidate;
-                    double candidateScore = ScoreWithBehaviours(lineup, formation, behaviours);
-
-                    // Keep the current order on exact/near ties. Normal is the
-                    // safest default because it preserves the standard position.
-                    if (candidateScore > bestScore + 0.000001)
-                    {
-                        bestScore = candidateScore;
-                        bestBehaviour = candidate;
-                    }
-                }
-
-                behaviours[slot] = bestBehaviour;
-                if (bestBehaviour != currentBehaviour)
-                {
-                    currentScore = bestScore;
-                    improved = true;
-                }
-            }
-        }
-        while (improved && pass < 4);
-
-        return behaviours;
-    }
-
-    private double ScoreWithBehaviours(
-        List<PlayerData> lineup,
-        string formation,
-        IReadOnlyDictionary<int, PlayerBehaviour> behaviours)
-    {
-        var ratings = _ratingEngine.Calculate(
-            lineup,
-            formation,
-            new TeamMatchContext { SlotBehaviours = behaviours });
-
-        return OverallScore(ratings);
     }
 
     private static bool IsNaturalCandidateForRole(PlayerData player, PlayerRole role)
@@ -312,46 +245,6 @@ public sealed class BestLineupEngine
         yield return defence.Concat(midfield).Concat(attack).ToArray();
         yield return all;
     }
-
-    private static IReadOnlyList<PlayerBehaviour> BehavioursFor(PlayerRole role) => role switch
-    {
-        // Hattrick does not offer a defensive individual order to a central
-        // defender. The old engine incorrectly evaluated it as a possibility.
-        PlayerRole.CentralDefender => new[]
-        {
-            PlayerBehaviour.Normal,
-            PlayerBehaviour.Offensive,
-            PlayerBehaviour.TowardsWing
-        },
-        PlayerRole.LeftDefender or PlayerRole.RightDefender => new[]
-        {
-            PlayerBehaviour.Normal,
-            PlayerBehaviour.Defensive,
-            PlayerBehaviour.Offensive,
-            PlayerBehaviour.TowardsMiddle
-        },
-        PlayerRole.LeftMidfielder or PlayerRole.CentralMidfielder or PlayerRole.RightMidfielder => new[]
-        {
-            PlayerBehaviour.Normal,
-            PlayerBehaviour.Defensive,
-            PlayerBehaviour.Offensive,
-            PlayerBehaviour.TowardsWing
-        },
-        PlayerRole.LeftWinger or PlayerRole.RightWinger => new[]
-        {
-            PlayerBehaviour.Normal,
-            PlayerBehaviour.Defensive,
-            PlayerBehaviour.Offensive,
-            PlayerBehaviour.TowardsMiddle
-        },
-        PlayerRole.LeftForward or PlayerRole.RightForward or PlayerRole.CentralForward => new[]
-        {
-            PlayerBehaviour.Normal,
-            PlayerBehaviour.Defensive,
-            PlayerBehaviour.TowardsWing
-        },
-        _ => new[] { PlayerBehaviour.Normal }
-    };
 
     private static double OverallScore(TeamRatings r) =>
         r.Midfield * 1.30 +
