@@ -1,10 +1,8 @@
 (()=>{
-  const APP_VERSION='v23.01.20';
-  document.querySelectorAll('.app-version').forEach(el=>el.textContent=APP_VERSION);
-  const footer=document.querySelector('footer');
-  if(footer) footer.textContent=footer.textContent.replace(/v23\.01\.\d+/,'v23.01.20');
+  // Version is rendered only by the server from /VERSION.
+  // Do not overwrite .app-version on the client; this keeps one authoritative source.
 
-  // v23.01.20: per-match data state. A check means THIS match's detailed
+  // v23.01.23: per-match data state. A check means THIS match's detailed
   // data has actually been loaded in this browser session. Do not infer
   // "loaded" merely because historical ratings exist in the list payload.
   let recentLoadingIndex=null;
