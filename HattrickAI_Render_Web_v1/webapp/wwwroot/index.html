@@ -43,6 +43,7 @@
 <script src="/selection-fix.js"></script>
 <script src="/own-lineup-selector.js"></script>
 <script>
+// LIVE BUILD ID: this value is written by the Render container at startup from RENDER_GIT_COMMIT.
 (async function () {
   const el = document.getElementById('deployVersion');
   try {
@@ -50,7 +51,7 @@
     const commit = (await r.text()).trim();
     if (!r.ok || !/^[0-9a-f]{7,40}$/i.test(commit)) throw new Error('invalid build id');
     el.textContent = 'build ' + commit.substring(0, 7);
-    el.title = commit;
+    el.title = 'Render commit: ' + commit;
   } catch (_) { el.textContent = 'build ?'; }
 })();
 </script>
