@@ -154,9 +154,31 @@ public sealed class ChppMatchDataService
         var doc = XDocument.Parse(xml); var result = new List<ChppFixture>();
         foreach (var match in doc.Descendants("Match"))
         {
-            var matchId = ReadInt(match, "MatchID"); var date = ReadDate(match, "MatchDate"); var home = match.Element("HomeTeam"); var away = match.Element("AwayTeam");
+            var matchId = ReadInt(match, "MatchID");
+            var date = ReadDate(match, "MatchDate");
+            var home = match.Element("HomeTeam");
+            var away = match.Element("AwayTeam");
             if (matchId <= 0 || date == DateTime.MinValue || home == null || away == null) continue;
-            result.Add(new ChppFixture(matchId, date, ReadInt(match, "MatchType"), ReadText(match, "Status") ?? string.Empty, ReadInt(home, "HomeTeamID"), ReadText(home, "HomeTeamName") ?? "Ev sahibi", ReadInt(away, "AwayTeamID"), ReadText(away, "AwayTeamName") ?? "Deplasman", ReadNullableInt(home, "HomeGoals"), ReadNullableInt(away, "AwayGoals")));
+
+            // CHPP documents HomeGoals/AwayGoals as children of Match, not of
+            // HomeTeam/AwayTeam. The previous parser looked inside the team nodes,
+            // which made every completed cup match appear to have no result and thus
+            // caused SelectLatestStandardCupFixture() to return null.
+            // Keep a child-node fallback for compatibility with variant XML payloads.
+            var homeGoals = ReadNullableInt(match, "HomeGoals") ?? ReadNullableInt(home, "HomeGoals");
+            var awayGoals = ReadNullableInt(match, "AwayGoals") ?? ReadNullableInt(away, "AwayGoals");
+
+            result.Add(new ChppFixture(
+                matchId,
+                date,
+                ReadInt(match, "MatchType"),
+                ReadText(match, "Status") ?? string.Empty,
+                ReadInt(home, "HomeTeamID"),
+                ReadText(home, "HomeTeamName") ?? "Ev sahibi",
+                ReadInt(away, "AwayTeamID"),
+                ReadText(away, "AwayTeamName") ?? "Deplasman",
+                homeGoals,
+                awayGoals));
         }
         return result;
     }
