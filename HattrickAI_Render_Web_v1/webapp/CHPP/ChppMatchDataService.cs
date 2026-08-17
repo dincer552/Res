@@ -34,12 +34,34 @@ public sealed class ChppMatchDataService
 
     public async Task<ChppFixture?> LoadLatestStandardCupFixtureAsync(int ownTeamId, CancellationToken cancellationToken = default)
     {
+        // Prefer the normal matches feed, but do not depend on its Status text being
+        // populated exactly as expected. The goals/date are the authoritative signal
+        // that the match is completed. If the recent feed no longer contains the cup
+        // match, fall back to the archive so an older cup game can still be copied.
         var xml = await ChppTraceHttp.GetXmlAsync(_oauth, "matches", new Dictionary<string, string?> { ["version"] = "2.2", ["teamID"] = ownTeamId.ToString(CultureInfo.InvariantCulture) }, $"latest standard cup fixture ownTeamId={ownTeamId}", cancellationToken);
-        return ParseMatches(xml)
+        var latest = SelectLatestStandardCupFixture(ParseMatches(xml), ownTeamId);
+        if (latest is not null) return latest;
+
+        var firstDate = DateTime.Now.AddDays(-120).ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        var lastDate = DateTime.Now.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+        var archiveXml = await ChppTraceHttp.GetXmlAsync(_oauth, "matchesArchive", new Dictionary<string, string?>
+        {
+            ["version"] = "1.0",
+            ["actionType"] = "view",
+            ["teamID"] = ownTeamId.ToString(CultureInfo.InvariantCulture),
+            ["FirstMatchDate"] = firstDate,
+            ["LastMatchDate"] = lastDate
+        }, $"latest standard cup fixture archive fallback ownTeamId={ownTeamId}", cancellationToken);
+        return SelectLatestStandardCupFixture(ParseMatches(archiveXml), ownTeamId);
+    }
+
+    public static ChppFixture? SelectLatestStandardCupFixture(IEnumerable<ChppFixture> fixtures, int ownTeamId)
+    {
+        return fixtures
             .Where(m => m.IsStandardCup)
-            .Where(m => m.Status.Equals("FINISHED", StringComparison.OrdinalIgnoreCase))
             .Where(m => m.HomeTeamId == ownTeamId || m.AwayTeamId == ownTeamId)
             .Where(m => m.HomeGoals.HasValue && m.AwayGoals.HasValue)
+            .Where(m => m.MatchDate < DateTime.Now.AddMinutes(5))
             .OrderByDescending(m => m.MatchDate)
             .FirstOrDefault();
     }
