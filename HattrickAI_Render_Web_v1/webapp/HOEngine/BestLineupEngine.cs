@@ -37,10 +37,10 @@ public sealed class BestLineupEngine
                     SlotBehaviours = LastBehaviourProfile
                 });
 
-            double score = OverallScore(ratings);
-            if (score > bestScore)
+            double formationScore = OverallScore(ratings);
+            if (formationScore > bestScore)
             {
-                bestScore = score;
+                bestScore = formationScore;
                 best = lineup;
                 LastFormationName = formation;
             }
@@ -91,16 +91,12 @@ public sealed class BestLineupEngine
                             role,
                             behaviour);
 
-                        // Do not let the raw contribution score move a clearly
-                        // midfield/forward player into defence just because he
-                        // happens to produce a few extra points there. Hattrick's
-                        // main positional skills must remain the primary signal.
                         double positionFit = PositionFit(player, role);
-                        double score = rawRating * positionFit;
+                        double positionScore = rawRating * positionFit;
 
-                        if (score > bestPositionScore)
+                        if (positionScore > bestPositionScore)
                         {
-                            bestPositionScore = score;
+                            bestPositionScore = positionScore;
                             bestPlayer = player;
                             bestBehaviour = behaviour;
                         }
@@ -127,10 +123,10 @@ public sealed class BestLineupEngine
                 formation,
                 new TeamMatchContext { SlotBehaviours = behaviours });
 
-            double score = OverallScore(ratings);
-            if (score > bestScore)
+            double lineupScore = OverallScore(ratings);
+            if (lineupScore > bestScore)
             {
-                bestScore = score;
+                bestScore = lineupScore;
                 bestLineup = result;
                 bestBehaviours = behaviours;
             }
@@ -149,9 +145,6 @@ public sealed class BestLineupEngine
         if (role == PlayerRole.Goalkeeper)
             return player.Keeper > 0 ? 1.0 : 0.10;
 
-        // Main positional skill profiles. The engine remains flexible for
-        // multi-skilled players, but strongly discounts obvious cross-line
-        // assignments such as a playmaker being selected as a centre-back.
         double defence =
             player.Defending * 1.00 +
             player.Playmaking * 0.20 +
@@ -198,9 +191,6 @@ public sealed class BestLineupEngine
         if (target <= 0)
             return 0.25;
 
-        // A versatile player keeps a near-1.0 multiplier. A player whose
-        // strongest skill profile clearly belongs to another line is heavily
-        // discounted, preventing accidental cross-line placement.
         double ratio = bestAlternative <= 0 ? 1.0 : target / bestAlternative;
         return Math.Clamp(0.40 + ratio * 0.60, 0.40, 1.00);
     }
