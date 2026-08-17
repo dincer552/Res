@@ -230,7 +230,25 @@ app.MapPost("/api/recommend", (RecommendationRequest request) =>
     if (request.Players is null || request.Players.Count < 11) return Results.BadRequest(new { message = "En az 11 oyuncu gerekli." });
     var result = new RecommendationEngine().Recommend(request.Players, request.Opponent, 10000, request.IsHome);
     if (result is null) return Results.BadRequest(new { message = "Kadronun en iyi 11'i oluşturulamadı." });
-    return Results.Ok(new { result.Formation, result.TacticName, result.TacticType, result.TacticLevel, result.Ratings, result.Simulation, result.SelectionScore, result.Explanation, Lineup = result.Lineup.Select(p => new { p.PlayerId, p.Name, p.Age, p.Form, p.Stamina, p.Experience }) });
+    var roles = LineupRatingEngine.GetRoles(result.Formation);
+    var ratingEngine = new LineupRatingEngine();
+    var lineup = result.Lineup.Select((p, i) =>
+    {
+        var behaviour = result.BehaviourProfile.TryGetValue(i, out var b) ? b : PlayerBehaviour.Normal;
+        return new
+        {
+            p.PlayerId,
+            p.Name,
+            p.Age,
+            p.Form,
+            p.Stamina,
+            p.Experience,
+            roleKey = roles[i].ToString(),
+            rating = Math.Round(ratingEngine.GetPlayerPositionRating(p, roles[i], behaviour), 2),
+            behaviour = behaviour.ToString()
+        };
+    }).ToArray();
+    return Results.Ok(new { result.Formation, result.TacticName, result.TacticType, result.TacticLevel, result.Ratings, result.Simulation, result.SelectionScore, result.Explanation, Lineup = lineup });
 });
 app.MapFallbackToFile("index.html");
 app.Run();
