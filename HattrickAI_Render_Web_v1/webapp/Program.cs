@@ -1,6 +1,7 @@
 using HattrickAI.CHPP;
 using HattrickAI.HOEngine;
 using HattrickAI.Web;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Http.Json;
 using System.Security.Cryptography;
 using System.Text.Json;
@@ -20,6 +21,7 @@ builder.Services.AddSession(options =>
 });
 builder.Services.AddSingleton<ChppSessionTokenStore>();
 builder.Services.AddSingleton<PostgresHistoricalCache>();
+builder.Services.AddDataProtection();
 builder.Services.AddScoped<ChppOAuthClient>(sp =>
 {
     var credentials = ChppSettings.Load(builder.Configuration);
@@ -104,6 +106,94 @@ app.MapGet("/auth/chpp/callback", async (HttpContext http) =>
 app.MapPost("/auth/chpp/logout", async (ChppOAuthClient oauth) => { try { await oauth.InvalidateStoredAccessTokenAsync(); } catch { } return Results.Ok(new { ok = true }); });
 app.MapGet("/api/status", async (ChppOAuthClient oauth) => { try { return Results.Ok(new { connected = await oauth.ValidateStoredAccessTokenAsync() }); } catch { return Results.Ok(new { connected = false }); } });
 app.MapGet("/api/team", async (ChppOAuthClient oauth) => Results.Ok(await new ChppTeamDataService(oauth).LoadOwnTeamAsync()));
+
+app.MapGet("/api/team/export-token", async (HttpContext http, ChppOAuthClient oauth, IDataProtectionProvider protection) =>
+{
+    try
+    {
+        if (!await oauth.ValidateStoredAccessTokenAsync())
+            return Results.Unauthorized();
+
+        var protector = protection
+            .CreateProtector("HattrickAI.TeamPlayerExport.v1")
+            .ToTimeLimitedDataProtector();
+        var token = protector.Protect(Guid.NewGuid().ToString("N"), TimeSpan.FromMinutes(10));
+        var proto = http.Request.Headers["X-Forwarded-Proto"].FirstOrDefault() ?? http.Request.Scheme;
+        var url = $"{proto}://{http.Request.Host}/api/team/export?token={Uri.EscapeDataString(token)}";
+
+        return Results.Ok(new
+        {
+            schemaVersion = 1,
+            expiresInSeconds = 600,
+            url,
+            note = "Bu bağlantı yalnızca güvenli oyuncu alanlarını içerir ve 10 dakika sonra geçersiz olur. CHPP erişim bilgileri içermez."
+        });
+    }
+    catch (Exception ex)
+    {
+        return Results.Problem("Dışa aktarma bağlantısı oluşturulamadı.", statusCode: 500, extensions: new Dictionary<string, object?> { ["detail"] = ex.Message });
+    }
+});
+
+app.MapGet("/api/team/export", async (string? token, ChppOAuthClient oauth, IDataProtectionProvider protection) =>
+{
+    if (string.IsNullOrWhiteSpace(token)) return Results.BadRequest(new { message = "Export token gerekli." });
+
+    try
+    {
+        var protector = protection
+            .CreateProtector("HattrickAI.TeamPlayerExport.v1")
+            .ToTimeLimitedDataProtector();
+        protector.Unprotect(token);
+    }
+    catch (CryptographicException)
+    {
+        return Results.Unauthorized();
+    }
+    catch
+    {
+        return Results.Unauthorized();
+    }
+
+    try
+    {
+        var team = await new ChppTeamDataService(oauth).LoadOwnTeamAsync();
+        var players = team.Players.Select(p => new
+        {
+            p.PlayerId,
+            p.Name,
+            p.Age,
+            p.Form,
+            p.Stamina,
+            p.Experience,
+            p.Specialty,
+            p.Keeper,
+            p.Defending,
+            p.Playmaking,
+            p.Winger,
+            p.Passing,
+            p.Scoring,
+            p.SetPieces,
+            p.Injured,
+            p.Suspended
+        }).ToArray();
+
+        var response = new
+        {
+            schemaVersion = 1,
+            exportedAtUtc = DateTimeOffset.UtcNow,
+            teamName = team.TeamName,
+            players
+        };
+
+        return Results.Json(response, new JsonSerializerOptions(JsonSerializerDefaults.Web), "application/json");
+    }
+    catch (Exception ex)
+    {
+        return Results.Problem("Oyuncu verileri dışa aktarılamadı.", statusCode: 502, extensions: new Dictionary<string, object?> { ["detail"] = ex.Message });
+    }
+});
+
 app.MapGet("/api/training", async (ChppOAuthClient oauth) =>
 {
     try { return Results.Ok(await new ChppTrainingDataService(oauth).LoadOwnTrainingAsync()); }
