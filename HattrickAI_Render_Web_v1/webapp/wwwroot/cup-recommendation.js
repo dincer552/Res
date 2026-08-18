@@ -5,19 +5,29 @@ const roles={'4-4-2':[R.GK,R.LD,R.CD,R.CD,R.RD,R.LW,R.IM,R.IM,R.RW,R.LF,R.CF],'4
 const txt=r=>({Goalkeeper:'KL',LeftDefender:'SLB',CentralDefender:'STP',RightDefender:'SGB',LeftWinger:'K',RightWinger:'K',CentralMidfielder:'OM',LeftForward:'SF',CentralForward:'SF',RightForward:'SF'})[r]||'';
 const kind=r=>({Goalkeeper:'GK',LeftDefender:'WB',CentralDefender:'CD',RightDefender:'WB',LeftWinger:'WING',RightWinger:'WING',CentralMidfielder:'IM',LeftForward:'FWD',CentralForward:'FWD',RightForward:'FWD'})[r]||'OTHER';
 const T={7:{name:'Kısa Paslar',primary:['IM','WING','FWD'],skill:'passing'}};
-const tr=t=>T[Number(t)]||{name:'Antrenman',primary:[],skill:null};const n=(p,k)=>Number(p?.[k]||0);const healthy=p=>!p?.injured&&!p?.suspended;
-const eff=(t,r)=>tr(t).primary.includes(kind(r))?3:0;
-const pos=(p,r)=>{const k=kind(r),d=n(p,'defending'),pm=n(p,'playmaking'),w=n(p,'winger'),pa=n(p,'passing'),s=n(p,'scoring');if(k==='WING')return w+pm*.32+pa*.16+d*.08;if(k==='IM')return pm+pa*.22+d*.15+w*.08;if(k==='FWD')return s+pa*.25+w*.15+pm*.1;return d+pm*.18+pa*.1};
-const talent=(p,r)=>{const k=kind(r),pm=n(p,'playmaking'),w=n(p,'winger'),s=n(p,'scoring'),pa=n(p,'passing');if(k==='IM')return pm+pa*.25;if(k==='WING')return w+pm*.28+pa*.2;return s+w*.2+pm*.12+pa*.2};
-const ageFactor=a=>a<=18?1.30:a<=20?1.24:a<=22?1.16:a<=24?1.06:a<=26?.92:a<=28?.65:a<=30?.40:a<=32?.20:a<=34?.08:0;
-const agePenalty=a=>a<=21?(22-a)*2.2:a<=24?(24-a)*.8:a<=26?-(a-24)*3:a<=30?-(a-26)*6:a<=34?-(a-30)*8:-40;
-const score=(p,r)=>{const a=n(p,'age')||25,af=ageFactor(a);if(!['IM','WING','FWD'].includes(kind(r))||!af)return-1e12;return 100000000+talent(p,r)*1000000*af+n(p,'passing')*12000*af+agePenalty(a)*25000+pos(p,r)*6+n(p,'experience')*.2+n(p,'form')*.1};
-function rank(players,formation,type){const slots=roles[formation].filter(r=>['IM','WING','FWD'].includes(kind(r)));return players.filter(healthy).map(p=>{const b=slots.map(r=>({r,v:score(p,r)})).sort((a,b)=>b.v-a.v)[0];if(!b||b.v<0)return null;return{playerId:p.playerId,name:p.name||`#${p.playerId}`,age:n(p,'age'),role:txt(b.r),trainingRole:b.r,effect:3,primarySkill:n(p,'passing'),talentSkill:'passing',talentValue:Math.round(talent(p,b.r)*100)/100,score:Math.round(b.v/100)/100,positionRating:Math.round(pos(p,b.r)*100)/100}}).filter(Boolean).sort((a,b)=>b.score-a.score)}
-const normal=(p,r)=>pos(p,r)+n(p,'form')*.08+n(p,'experience')*.03;
+const tr=t=>T[Number(t)]||{name:'Antrenman',primary:[],skill:null};
+const n=(p,k)=>Number(p?.[k]||0);
+const healthy=p=>!p?.injured&&!p?.suspended;
+const ageFactor=a=>a<=18?1.30:a<=20?1.24:a<=22?1.16:a<=24?1.06:a<=26?.92:a<=27?.72:a<=28?.55:a<=30?.30:a<=32?.12:a<=34?.04:0;
+const agePenalty=a=>a<=21?(22-a)*2.2:a<=24?(24-a)*.8:a<=26?-(a-24)*3:a<=30?-(a-26)*7:a<=34?-(a-30)*10:-60;
+
+// Kısa Pas özel yatırım modeli: Pas > yaş/antrenman hızı > pozisyona uygun yan yetenek > pozisyon verimi.
+// Yan yetenek, pozisyona göre değerlenir; böylece iyi PM'li OM, iyi Scoring'li SF ve iyi Winger'lı kanat oyuncusu sırf Pası 1 düşük diye kaybolmaz.
+const roleTalent=(p,r)=>{const k=kind(r),pm=n(p,'playmaking'),w=n(p,'winger'),s=n(p,'scoring'),d=n(p,'defending');if(k==='IM')return pm*.95+w*.12+d*.08;if(k==='WING')return w*.90+pm*.22+d*.05;if(k==='FWD')return s*.95+w*.22+pm*.12;return d*.5+pm*.1};
+const positionFit=(p,r)=>{const k=kind(r),pm=n(p,'playmaking'),w=n(p,'winger'),s=n(p,'scoring'),pa=n(p,'passing');if(k==='IM')return pm+pa*.20+w*.08;if(k==='WING')return w+pm*.25+pa*.15;if(k==='FWD')return s+w*.18+pm*.10+pa*.18;return 0};
+const score=(p,r)=>{const k=kind(r),a=n(p,'age')||25,pa=n(p,'passing');if(!['IM','WING','FWD'].includes(k))return-1e12;const af=ageFactor(a);if(!af)return-1e12;
+  const passScore=Math.min(12,pa)/12*40;
+  const ageScore=af/1.30*30;
+  const talentScore=Math.min(18,roleTalent(p,r))/18*20;
+  const fitScore=Math.min(18,positionFit(p,r))/18*10;
+  return passScore+ageScore+talentScore+fitScore+agePenalty(a)*.08;
+};
+function rank(players,formation,type){const slots=roles[formation].filter(r=>['IM','WING','FWD'].includes(kind(r)));return players.filter(healthy).map(p=>{const b=slots.map(r=>({r,v:score(p,r)})).sort((a,b)=>b.v-a.v)[0];if(!b||b.v<0)return null;return{playerId:p.playerId,name:p.name||`#${p.playerId}`,age:n(p,'age'),role:txt(b.r),trainingRole:b.r,effect:3,primarySkill:n(p,'passing'),talentSkill:'role',talentValue:Math.round(roleTalent(p,b.r)*100)/100,score:Math.round(b.v*100)/100,positionRating:Math.round(positionFit(p,b.r)*100)/100}}).filter(Boolean).sort((a,b)=>b.score-a.score)}
+const normal=(p,r)=>positionFit(p,r)+n(p,'form')*.08+n(p,'experience')*.03;
 function leaguePick(ps,s,u){const k=kind(s);return ps.filter(p=>!u.has(Number(p.playerId))&&healthy(p)&&kind(p.roleKey||p.role)===k).sort((a,b)=>normal(b,s)-normal(a,s))[0]||null}
 function build(ps,f,lm){const rs=roles[f],u=new Set(),out=new Array(rs.length).fill(null),lp=[...lm.values()];rs.forEach((r,i)=>{if(kind(r)==='GK'||kind(r)==='CD'||kind(r)==='WB'){const p=leaguePick(lp,r,u);if(p){u.add(Number(p.playerId));out[i]={p,role:r}}}});const train=rs.map((r,i)=>({r,i})).filter(x=>['IM','WING','FWD'].includes(kind(x.r)));for(const s of train){const p=ps.filter(x=>healthy(x)&&!u.has(Number(x.playerId))&&!lm.has(Number(x.playerId))).sort((a,b)=>score(b,s.r)-score(a,s.r))[0];if(p&&score(p,s.r)>-1e11){u.add(Number(p.playerId));out[s.i]={p,role:s.r}}}for(let i=0;i<rs.length;i++)if(!out[i]){const p=ps.filter(x=>healthy(x)&&!u.has(Number(x.playerId))).sort((a,b)=>normal(b,rs[i])-normal(a,rs[i]))[0];if(p){u.add(Number(p.playerId));out[i]={p,role:rs[i]}}}return out.every(Boolean)?out:null}
 function formation(){return'4-3-3'}
-function behaviour(line){return line.map(({p,role})=>({...p,roleKey:role,role:txt(role),behaviour:'Normal',rating:Math.round(pos(p,role)*100)/100}))}
+function behaviour(line){return line.map(({p,role})=>({...p,roleKey:role,role:txt(role),behaviour:'Normal',rating:Math.round(positionFit(p,role)*100)/100}))}
 async function recommend(){const type=Number(currentView?.training?.trainingType??7),team=await fetch('/api/team',{cache:'no-store'}).then(jsonResponse),lm=new Map((currentView?.ownLineup?.players||[]).map(p=>[Number(p.playerId),p])),f=formation(),line=build(team.players.map(p=>({...p})),f,lm);if(!line)throw Error('Antrenmana uygun 11 oyuncu oluşturulamadı.');return{formation:f,lineup:behaviour(line),trainingName:currentView?.training?.trainingName||tr(type).name,trainingType:type,score:30000,trainingCandidates:rank(team.players,f,type)}}
 function renderList(a,name){const el=document.getElementById('ownRatingStrip');if(!el)return;el.innerHTML='<div style="width:100%;padding:4px 0 8px"><div style="font-weight:700;font-size:14px;margin-bottom:7px">Antrenman adayları — '+name+'</div>'+a.map((p,i)=>`<div style="display:flex;gap:7px;padding:4px 0;font-size:12px;border-bottom:1px solid rgba(255,255,255,.06)"><b style="width:20px">${i+1}.</b><span style="flex:1"><b>${p.name}</b> · ${p.role} · ${p.age}y</span><span>pas ${p.primarySkill} · değer ${p.talentValue}</span></div>`).join('')+'</div>'}
 async function renderCup(e){if(e){e.preventDefault();e.stopPropagation();e.stopImmediatePropagation()}try{const x=await recommend();const f=document.getElementById('ownFormation');if(f)f.textContent=x.formation;const title=document.getElementById('ownLineupTitle');if(title)title.textContent='Önerilen Kupa Kadrosu';if(typeof renderPitch==='function')renderPitch('#ownPitch',x.lineup,false);renderList(x.trainingCandidates,x.trainingName);window.__recommendedCup=x;window.__recommendedCupActive=true;window.dispatchEvent(new CustomEvent('hattrickai:lineup-updated',{detail:{reason:'recommended-cup',mode:'cup',formation:x.formation,trainingType:x.trainingType}}))}catch(err){window.__recommendedCupActive=false;console.error('Kupa kadrosu önerisi:',err)}return false}
