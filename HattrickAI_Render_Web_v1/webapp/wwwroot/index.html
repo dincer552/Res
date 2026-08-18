@@ -40,16 +40,16 @@
     <article class="panel lineup-panel"><div class="panel-head"><div><div class="eyebrow">RAKİP</div><h2 id="opponentLineupTitle">Rakip kadro</h2></div><span id="opponentFormation" class="pill">—</span></div><div id="selectedOpponentMatch" class="selected-opponent-match"></div><div class="rating-strip" id="opponentRatingStrip"></div><div class="pitch" id="opponentPitch"><div class="pitch-lines"></div></div></article>
     <article class="panel lineup-panel our-panel"><div class="panel-head"><div><div class="eyebrow">BİZİM TAKIM</div><h2 id="ownLineupTitle">Lig Kadrosu</h2></div><span id="ownFormation" class="pill">—</span></div><div class="rating-strip" id="ownRatingStrip"></div><div class="pitch" id="ownPitch"><div class="pitch-lines"></div></div></article>
   </section>
-  <section id="trainingPanel" class="panel training-panel hidden collapsed">
-    <div id="trainingHead" class="training-head" role="button" aria-expanded="false">
-      <div class="training-head-main"><button id="trainingToggle" class="training-toggle" type="button" tabindex="-1">+</button><div><div class="eyebrow">ANTRENMAN</div><h2>Kimler antrenman alıyor?</h2></div></div>
-      <div class="training-summary"><span id="trainingName" class="training-chip">—</span><span id="trainingFormation" class="training-chip">—</span><span id="trainingCount" class="training-chip">—</span></div>
-    </div>
-    <div id="trainingPanelBody" class="training-panel-body"></div>
-  </section>
   <section id="availabilityPanel" class="panel availability-panel hidden">
     <div class="availability-head"><div class="availability-icon">!</div><div><div class="eyebrow">KADRO KONTROLÜ</div><span id="availabilityCount" class="pill"></span></div></div>
     <div id="availabilityList" class="availability-list"></div>
+  </section>
+  <section id="trainingPanel" class="panel training-panel hidden collapsed">
+    <div id="trainingHead" class="training-head" role="button" aria-expanded="false">
+      <div class="training-head-main"><button id="trainingToggle" class="training-toggle" type="button" tabindex="-1">+</button><div><div class="eyebrow">KADRO KONTROLÜ</div><h2>Kimler antrenman alıyor?</h2></div></div>
+      <div class="training-summary"><span id="trainingName" class="training-chip">—</span><span id="trainingFormation" class="training-chip">—</span><span id="trainingCount" class="training-chip">—</span></div>
+    </div>
+    <div id="trainingPanelBody" class="training-panel-body"></div>
   </section>
   <section class="grid-2" id="simulation"><article class="panel"><div class="panel-head"><div><div class="eyebrow">RATINGLER</div><h2>Net maç değerleri</h2></div></div><div class="ratings-form"><div><h3>Ev sahibi</h3><div id="homeRatings"></div></div><div><h3>Deplasman</h3><div id="awayRatings"></div></div></article><article class="panel"><div class="panel-head"><div><div class="eyebrow">HO ENGINE</div><h2>Simülasyon</h2></div></div><div class="sim-actions"><button class="btn btn-primary" onclick="runSimulation()">Simüle et</button></div><div id="result" class="result hidden"></div></article></section>
 </main><footer>HattrickAI Web • CHPP + HO Engine</footer>
