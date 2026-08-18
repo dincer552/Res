@@ -1,18 +1,169 @@
 (()=>{
   const FORMATIONS=['4-4-2','4-3-3','3-5-2','4-5-1','5-4-1','5-3-2','3-4-3'];
   const ROLE={GK:'Goalkeeper',LD:'LeftDefender',CD:'CentralDefender',RD:'RightDefender',LW:'LeftWinger',IM:'CentralMidfielder',RW:'RightWinger',LF:'LeftForward',CF:'CentralForward',RF:'RightForward'};
-  const roles={'4-4-2':[ROLE.GK,ROLE.LD,ROLE.CD,ROLE.CD,ROLE.RD,ROLE.LW,ROLE.IM,ROLE.IM,ROLE.RW,ROLE.LF,ROLE.CF],'4-3-3':[ROLE.GK,ROLE.LD,ROLE.CD,ROLE.CD,ROLE.RD,ROLE.IM,ROLE.IM,ROLE.IM,ROLE.LF,ROLE.CF,ROLE.RF],'3-5-2':[ROLE.GK,ROLE.CD,ROLE.CD,ROLE.CD,ROLE.LW,ROLE.IM,ROLE.IM,ROLE.IM,ROLE.RW,ROLE.LF,ROLE.CF],'4-5-1':[ROLE.GK,ROLE.LD,ROLE.CD,ROLE.CD,ROLE.RD,ROLE.LW,ROLE.IM,ROLE.IM,ROLE.IM,ROLE.RW,ROLE.CF],'5-4-1':[ROLE.GK,ROLE.LD,ROLE.CD,ROLE.CD,ROLE.CD,ROLE.RD,ROLE.LW,ROLE.IM,ROLE.IM,ROLE.RW,ROLE.CF],'5-3-2':[ROLE.GK,ROLE.LD,ROLE.CD,ROLE.CD,ROLE.CD,ROLE.RD,ROLE.IM,ROLE.IM,ROLE.IM,ROLE.LF,ROLE.CF],'3-4-3':[ROLE.GK,ROLE.CD,ROLE.CD,ROLE.CD,ROLE.LW,ROLE.IM,ROLE.IM,ROLE.RW,ROLE.LF,ROLE.CF,ROLE.RF]};
-  const roleText=r=>({Goalkeeper:'KL',LeftDefender:'SLB',CentralDefender:'STP',RightDefender:'SGB',LeftWinger:'K',CentralMidfielder:'OM',RightWinger:'K',LeftForward:'SF',CentralForward:'SF',RightForward:'SF'})[r]||'';
-  const posKind=r=>({Goalkeeper:'GK',LeftDefender:'WB',CentralDefender:'CD',RightDefender:'WB',LeftWinger:'WING',RightWinger:'WING',CentralMidfielder:'IM',LeftForward:'FWD',CentralForward:'FWD',RightForward:'FWD'})[r]||'OTHER';
-  function effect(type,role){const k=posKind(role);switch(Number(type)){case 3:return ['CD','WB'].includes(k)?3:1;case 4:return k==='FWD'?3:1;case 5:return k==='WING'?3:(k==='WB'?2:1);case 6:return k==='GK'?0:3;case 7:return ['IM','WING','FWD'].includes(k)?3:1;case 8:return k==='IM'?3:(k==='WING'?2:1);case 9:return k==='GK'?3:0;case 10:return ['CD','WB','IM','WING'].includes(k)?3:1;case 11:return ['GK','CD','WB','IM','WING'].includes(k)?3:1;case 2:return 1;case 1:return 1;case 0:return 1;default:return 0;}}
-  function baseRating(p,role){if(role===ROLE.GK)return p.keeper*1.4+p.form*.05+p.experience*.02;if(['LeftDefender','CentralDefender','RightDefender'].includes(role))return p.defending+p.playmaking*.18+p.passing*.10+p.form*.05;if(role===ROLE.LeftWinger||role===ROLE.RightWinger)return p.winger+p.playmaking*.32+p.passing*.16+p.defending*.08+p.stamina*.03;if(role===ROLE.CentralMidfielder)return p.playmaking+p.passing*.22+p.defending*.15+p.winger*.08+p.stamina*.04;return p.scoring+p.passing*.25+p.winger*.15+p.playmaking*.10+p.form*.05;}
-  function natural(p,role){if(role===ROLE.GK)return p.keeper>=5;if(['LeftDefender','CentralDefender','RightDefender'].includes(role))return p.defending>=5&&p.defending>=Math.max(p.playmaking,p.winger,p.scoring)*.72;if(role===ROLE.LeftWinger||role===ROLE.RightWinger)return p.winger>=5&&p.winger>=Math.max(p.defending,p.playmaking,p.scoring)*.70;if(role===ROLE.CentralMidfielder)return p.playmaking>=5&&p.playmaking>=Math.max(p.defending,p.winger,p.scoring)*.72;return p.scoring>=5&&p.scoring>=Math.max(p.defending,p.playmaking,p.winger)*.70;}
-  function trainingPriority(p,role,leagueMap,type){const ce=effect(type,role),lp=leagueMap.get(p.playerId);if(lp){const le=effect(type,lp.roleKey||lp.role);if(le>=3)return ce>=3?-420:-600;if(ce>=3)return 170;if(ce===2)return 90;if(ce===1)return 25;return -40;}if(ce>=3)return 150;if(ce===2)return 75;if(ce===1)return 15;return -15;}
-  function pickForFormation(players,formation,leagueMap,type){const rs=roles[formation],remaining=players.filter(p=>!p.injured&&!p.suspended),chosen=[];const ordered=[...rs].sort((a,b)=>remaining.filter(p=>natural(p,b)).length-remaining.filter(p=>natural(p,a)).length);for(const role of ordered){let best=null,bestScore=-Infinity;for(const p of remaining){if(chosen.includes(p))continue;const n=natural(p,role);if(!n&&role!==ROLE.GK)continue;let score=baseRating(p,role)+trainingPriority(p,role,leagueMap,type);const lp=leagueMap.get(p.playerId);if(lp&&effect(type,lp.roleKey||lp.role)>=3)score-=250;if(p.form<5)score-=2;if(p.stamina<5)score-=1.5;if(score>bestScore){bestScore=score;best=p;}}if(!best){for(const p of remaining){if(chosen.includes(p))continue;let score=baseRating(p,role)+trainingPriority(p,role,leagueMap,type)-80;if(score>bestScore){bestScore=score;best=p;}}}if(!best)return null;chosen.push(best);}const map=new Map();for(const role of rs){const pool=chosen.filter(p=>!map.has(p.playerId));let p=pool.find(x=>natural(x,role));if(!p)p=pool[0];if(!p)return null;map.set(p.playerId,role);}chosen.forEach(p=>p.__used=false);return rs.map(role=>{const p=chosen.find(x=>map.get(x.playerId)===role&&!x.__used);if(p){p.__used=true;return p;}const q=chosen.find(x=>!x.__used);if(q){q.__used=true;return q;}return null;}).map((p,i)=>({p,role:rs[i]}));}
-  function formationScore(lineup,formation,leagueMap,type,leagueFormation){if(!lineup)return-Infinity;let full=0,secondary=0,quality=0,duplicatePenalty=0;lineup.forEach(({p,role})=>{const e=effect(type,role),lp=leagueMap.get(p.playerId),le=lp?effect(type,lp.roleKey||lp.role):0;if(e>=3&&le<3)full++;else if(e===2&&le<3)secondary++;quality+=baseRating(p,role);if(le>=3)duplicatePenalty++;});return full*1000+secondary*120+quality*8-duplicatePenalty*350+(formation===leagueFormation?18:0);}
-  function behaviourFor(lineup){const opp=currentView?.opponentRatings||{},ours=currentView?.ownRatings||{},centralDefGap=(opp.centralAttack??0)-(ours.centralDefence??0),midfieldGap=(opp.midfield??0)-(ours.midfield??0),wingDefGap=Math.max((opp.leftAttack??0)-(ours.leftDefence??0),(opp.rightAttack??0)-(ours.rightDefence??0)),centralAtkGap=(ours.centralAttack??0)-(opp.centralDefence??0);return lineup.map(({p,role})=>{let b='Normal';if(role===ROLE.CentralMidfielder)b=midfieldGap>.35?'Defensive':(centralAtkGap>.5?'Offensive':'Normal');else if(role===ROLE.LeftWinger||role===ROLE.RightWinger)b=wingDefGap>.35?'Defensive':(centralAtkGap>.5?'Offensive':'Normal');else if(role===ROLE.LeftDefender||role===ROLE.RightDefender)b=wingDefGap>.45?'Defensive':'Normal';else if(role===ROLE.CentralDefender)b=centralDefGap>.45?'Normal':'Offensive';else if([ROLE.LeftForward,ROLE.CentralForward,ROLE.RightForward].includes(role))b=centralAtkGap<-.45?'Defensive':'Normal';return{...p,roleKey:role,role:roleText(role),behaviour:b,rating:Math.round(baseRating(p,role)*100)/100};});}
-  async function recommend(){if(typeof currentView==='undefined'||!currentView)return;const team=await fetch('/api/team',{cache:'no-store'}).then(jsonResponse),type=Number(currentView.training?.trainingType??-1),league=currentView.ownLineup?.players||[],leagueMap=new Map(league.map(p=>[Number(p.playerId),p])),leagueFormation=currentView.formation||currentView.ownLineup?.formation||'3-4-3';let best=null;for(const f of FORMATIONS){const l=pickForFormation(team.players.map(p=>({...p})),f,leagueMap,type),s=formationScore(l,f,leagueMap,type,leagueFormation);if(!best||s>best.score)best={formation:f,lineup:l,score:s};}if(!best)throw new Error('Önerilen kupa kadrosu oluşturulamadı.');let lineup=behaviourFor(best.lineup);try{const opp={teamName:currentView.opponentTeam?.teamName||'Rakip',ratings:currentView.opponentRatings||{},tacticType:Number(currentView.tactic?.tacticType??0),tacticLevel:Number(currentView.tactic?.tacticLevel??0),preferredFormation:best.formation},rr=await fetch('/api/recommend',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({players:lineup.map(p=>({...p})),opponent:opp,simulations:10000,isHome:!!currentView.isHome})}),x=await jsonResponse(rr);if(rr.ok&&x.lineup?.length===11){const byId=new Map(x.lineup.map(p=>[Number(p.playerId),p]));lineup=lineup.map(p=>({...p,...(byId.get(Number(p.playerId))||{})}));}}catch(_){ }return{formation:best.formation,lineup,score:best.score,trainingName:currentView.training?.trainingName||'Antrenman'};}
-  async function renderRecommendedCup(e){if(e){e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();}const source=document.getElementById('ownModeSource');if(source)source.textContent='Önerilen Kupa Kadrosu • antrenman öncelikli hesaplanıyor…';try{const x=await recommend();const strip=document.getElementById('ownRatingStrip');if(strip&&typeof renderRatingSummary==='function')strip.innerHTML='';const pill=document.getElementById('ownFormation');if(pill)pill.textContent=x.formation;const title=document.getElementById('ownLineupTitle');if(title)title.textContent='Önerilen Kupa Kadrosu';if(typeof renderPitch==='function')renderPitch('#ownPitch',x.lineup,false);if(source)source.textContent=`Önerilen Kupa Kadrosu • ${x.formation} • antrenman alanları korunuyor • antrenman almayanlar öncelikli`;window.__recommendedCup=x;window.__recommendedCupActive=true;window.dispatchEvent(new CustomEvent('hattrickai:lineup-updated',{detail:{reason:'recommended-cup',mode:'cup',formation:x.formation}}));if(!window.__recommendedCupWarmupDone){setTimeout(()=>{if(window.__recommendedCupActive&&!document.hidden){window.__recommendedCupWarmupDone=true;renderRecommendedCup();}},800);}}catch(err){if(source)source.textContent=`Önerilen Kupa Kadrosu oluşturulamadı: ${err.message||err}`;}return false;}
-  function install(){const mode=document.getElementById('ownLineupMode');if(!mode||mode.dataset.recommendedCupBound)return;mode.dataset.recommendedCupBound='1';const cup=mode.querySelector('button[data-mode="cup"]'),league=mode.querySelector('button[data-mode="best"]');if(cup)cup.addEventListener('click',renderRecommendedCup,true);if(league)league.addEventListener('click',()=>{window.__recommendedCupActive=false;window.__recommendedCupWarmupDone=false;},true);window.__renderRecommendedCup=renderRecommendedCup;}
+  const roles={
+    '4-4-2':[ROLE.GK,ROLE.LD,ROLE.CD,ROLE.CD,ROLE.RD,ROLE.LW,ROLE.IM,ROLE.IM,ROLE.RW,ROLE.LF,ROLE.CF],
+    '4-3-3':[ROLE.GK,ROLE.LD,ROLE.CD,ROLE.CD,ROLE.RD,ROLE.IM,ROLE.IM,ROLE.IM,ROLE.LF,ROLE.CF,ROLE.RF],
+    '3-5-2':[ROLE.GK,ROLE.CD,ROLE.CD,ROLE.CD,ROLE.LW,ROLE.IM,ROLE.IM,ROLE.IM,ROLE.RW,ROLE.LF,ROLE.CF],
+    '4-5-1':[ROLE.GK,ROLE.LD,ROLE.CD,ROLE.CD,ROLE.RD,ROLE.LW,ROLE.IM,ROLE.IM,ROLE.IM,ROLE.RW,ROLE.CF],
+    '5-4-1':[ROLE.GK,ROLE.LD,ROLE.CD,ROLE.CD,ROLE.CD,ROLE.RD,ROLE.LW,ROLE.IM,ROLE.IM,ROLE.RW,ROLE.CF],
+    '5-3-2':[ROLE.GK,ROLE.LD,ROLE.CD,ROLE.CD,ROLE.CD,ROLE.RD,ROLE.IM,ROLE.IM,ROLE.IM,ROLE.LF,ROLE.CF],
+    '3-4-3':[ROLE.GK,ROLE.CD,ROLE.CD,ROLE.CD,ROLE.LW,ROLE.IM,ROLE.IM,ROLE.RW,ROLE.LF,ROLE.CF,ROLE.RF]
+  };
+  const roleText=r=>({Goalkeeper:'KL',LeftDefender:'SLB',CentralDefender:'STP',RightDefender:'SGB',LeftWinger:'K',RightWinger:'K',CentralMidfielder:'OM',LeftForward:'SF',CentralForward:'SF',RightForward:'SF'})[r]||'';
+  const kind=r=>({Goalkeeper:'GK',LeftDefender:'WB',CentralDefender:'CD',RightDefender:'WB',LeftWinger:'WING',RightWinger:'WING',CentralMidfielder:'IM',LeftForward:'FWD',CentralForward:'FWD',RightForward:'FWD'})[r]||'OTHER';
+
+  // CHPP training types. 3/4/5/6/7/8/9/10/11 are position based; 2 is set pieces.
+  const TRAIN={
+    0:{name:'Genel',primary:[],secondary:[],skill:'form'},
+    1:{name:'Dayanıklılık',primary:['ALL'],secondary:[],skill:'stamina'},
+    2:{name:'Duran Toplar',primary:['ALL'],secondary:[],skill:'setPieces'},
+    3:{name:'Defans',primary:['CD','WB'],secondary:[],skill:'defending'},
+    4:{name:'Golcülük',primary:['FWD'],secondary:[],skill:'scoring'},
+    5:{name:'Kanat Hücumu',primary:['WING'],secondary:['WB'],skill:'winger'},
+    6:{name:'Şut',primary:['OUTFIELD'],secondary:[],skill:'scoring'},
+    7:{name:'Kısa Paslar',primary:['IM','WING','FWD'],secondary:[],skill:'passing'},
+    8:{name:'Oyun Kurma',primary:['IM'],secondary:['WING'],skill:'playmaking'},
+    9:{name:'Kalecilik',primary:['GK'],secondary:[],skill:'keeper'},
+    10:{name:'Ara Paslar',primary:['CD','WB','IM','WING'],secondary:[],skill:'passing'},
+    11:{name:'Defansif Pozisyon',primary:['GK','CD','WB','IM','WING'],secondary:[],skill:'defending'}
+  };
+  const training=type=>TRAIN[Number(type)]||{name:'Antrenman',primary:[],secondary:[],skill:null};
+  const effect=(type,role)=>{const k=kind(role),t=training(type);if(t.primary.includes('ALL'))return 1;if(t.primary.includes('OUTFIELD'))return k==='GK'?0:3;if(t.primary.includes(k))return 3;if(t.secondary.includes(k))return 2;return 0;};
+  const natural=(p,role)=>{const k=kind(role);if(k==='GK')return Number(p.keeper||0)>=5;if(k==='CD')return Number(p.defending||0)>=5&&Number(p.defending||0)>=Math.max(Number(p.playmaking||0),Number(p.winger||0),Number(p.scoring||0))*.72;if(k==='WB')return Number(p.defending||0)>=5&&Math.max(Number(p.defending||0),Number(p.winger||0))>=Math.max(Number(p.playmaking||0),Number(p.scoring||0))*.70;if(k==='WING')return Number(p.winger||0)>=5&&Number(p.winger||0)>=Math.max(Number(p.defending||0),Number(p.playmaking||0),Number(p.scoring||0))*.70;if(k==='IM')return Number(p.playmaking||0)>=5&&Number(p.playmaking||0)>=Math.max(Number(p.defending||0),Number(p.winger||0),Number(p.scoring||0))*.72;if(k==='FWD')return Number(p.scoring||0)>=5&&Number(p.scoring||0)>=Math.max(Number(p.defending||0),Number(p.playmaking||0),Number(p.winger||0))*.70;return false;};
+
+  function positionRating(p,role){const k=kind(role),d=Number(p.defending||0),pm=Number(p.playmaking||0),w=Number(p.winger||0),pa=Number(p.passing||0),s=Number(p.scoring||0),g=Number(p.keeper||0);if(k==='GK')return g*1.5;if(k==='CD')return d+pm*.18+pa*.10;if(k==='WB')return d+w*.30+pm*.15+pa*.10;if(k==='WING')return w+pm*.32+pa*.16+d*.08;if(k==='IM')return pm+pa*.22+d*.15+w*.08;return s+pa*.25+w*.15+pm*.10;}
+  function leagueTrainingRole(leagueMap,id){const p=leagueMap.get(Number(id));return p?.roleKey||p?.role||null;}
+  function primarySkill(p,type){const t=training(type);if(t.skill==='form')return Number(p.form||0);if(t.skill==='stamina')return Number(p.stamina||0);if(t.skill==='setPieces')return Number(p.setPieces||0);return Number(p[t.skill]||0);}
+  function secondarySkill(p,type){const t=training(type),primary=t.skill;const vals=['keeper','defending','playmaking','winger','passing','scoring','setPieces'].filter(x=>x!==primary).map(x=>Number(p[x]||0));return vals.length?Math.max(...vals):0;}
+
+  // Training candidates are ranked primarily by the skill being trained.
+  // Age is a development multiplier, not the main criterion: a 19yo PM13 beats a 17yo PM6.
+  function traineeScore(p,role,type){
+    const ps=primarySkill(p,type), age=Math.max(17,Number(p.age||25)), agePotential=Math.max(0,28-age), sec=secondarySkill(p,type);
+    const roleFit=natural(p,role)?1:0;
+    const positional=positionRating(p,role);
+    return ps*100 + ps*agePotential*7 + sec*8 + positional*2 + roleFit*55 + Number(p.experience||0)*.4 + Number(p.form||0)*.15;
+  }
+  function normalScore(p,role){return positionRating(p,role)+Number(p.form||0)*.08+Number(p.experience||0)*.03;}
+  const healthy=p=>!p?.injured&&!p?.suspended;
+  const uniq=a=>a.filter((p,i)=>p&&a.findIndex(x=>Number(x.playerId)===Number(p.playerId))===i);
+
+  function trainingFormationScore(formation,type,leagueMap){
+    const rs=roles[formation];
+    let full=0,secondary=0,quality=0;
+    rs.forEach(r=>{const e=effect(type,r);if(e>=3)full++;else if(e===2)secondary++;});
+    // The first priority is number of full training slots, then secondary slots.
+    // This deliberately outranks match strength: the Cup lineup exists to train players.
+    const experience=Number(currentView?.training?.formationExperience?.[formation]||0);
+    return full*10000+secondary*1000+experience*10;
+  }
+
+  function chooseFormation(type,leagueMap){
+    return FORMATIONS.slice().sort((a,b)=>trainingFormationScore(b,type,leagueMap)-trainingFormationScore(a,type,leagueMap))[0]||'3-4-3';
+  }
+
+  function buildLineup(players,formation,type,leagueMap){
+    const rs=roles[formation],available=players.filter(healthy),used=new Set(),outOfTrainingLeague=available.filter(p=>{const lr=leagueTrainingRole(leagueMap,p.playerId);return lr&&effect(type,lr)<=0;});
+    const trainingRoles=rs.map((role,index)=>({role,index,effect:effect(type,role)})).filter(x=>x.effect>0).sort((a,b)=>b.effect-a.effect);
+    const normalRoles=rs.map((role,index)=>({role,index,effect:effect(type,role)})).filter(x=>x.effect<=0);
+    const result=new Array(rs.length).fill(null);
+
+    // PHASE 1: positions outside the training area are filled from the existing league XI.
+    // This preserves the best non-training league players and keeps the training pool free.
+    for(const slot of normalRoles){
+      let pool=outOfTrainingLeague.filter(p=>!used.has(Number(p.playerId)));
+      pool.sort((a,b)=>normalScore(b,slot.role)-normalScore(a,slot.role));
+      let pick=pool.find(p=>natural(p,slot.role))||pool[0];
+      // If the league starter for this area is injured/suspended, use the best healthy alternative.
+      if(!pick) {
+        pool=available.filter(p=>!used.has(Number(p.playerId))&&(!leagueMap.has(Number(p.playerId))||effect(type,leagueTrainingRole(leagueMap,p.playerId)||'')<=0));
+        pool.sort((a,b)=>normalScore(b,slot.role)-normalScore(a,slot.role));
+        pick=pool.find(p=>natural(p,slot.role))||pool[0];
+      }
+      if(pick){used.add(Number(pick.playerId));result[slot.index]={p:pick,role:slot.role};}
+    }
+
+    // PHASE 2: training positions are filled first with players who did NOT play in the league XI.
+    // Full-training slots are handled before secondary slots.
+    const nonLeague=available.filter(p=>!leagueMap.has(Number(p.playerId)));
+    for(const slot of trainingRoles){
+      let pool=nonLeague.filter(p=>!used.has(Number(p.playerId)));
+      pool.sort((a,b)=>traineeScore(b,slot.role,type)-traineeScore(a,slot.role,type));
+      let pick=pool.find(p=>natural(p,slot.role))||pool[0];
+      if(pick){used.add(Number(pick.playerId));result[slot.index]={p:pick,role:slot.role};}
+    }
+
+    // PHASE 3: if the squad is short, use league players only as a fallback.
+    // Losing a training slot is worse than a small rating loss, but we never do it when a
+    // healthy non-league trainee is available.
+    for(const slot of trainingRoles){
+      if(result[slot.index])continue;
+      let pool=available.filter(p=>!used.has(Number(p.playerId)));
+      pool.sort((a,b)=>{
+        const al=leagueMap.has(Number(a.playerId)),bl=leagueMap.has(Number(b.playerId));
+        const ap=traineeScore(a,slot.role,type)+(al?-5000:0),bp=traineeScore(b,slot.role,type)+(bl?-5000:0);
+        return bp-ap;
+      });
+      const pick=pool.find(p=>natural(p,slot.role))||pool[0];
+      if(pick){used.add(Number(pick.playerId));result[slot.index]={p:pick,role:slot.role};}
+    }
+
+    // PHASE 4: fill any remaining tactical slot with the best available positional player.
+    for(let i=0;i<result.length;i++){
+      if(result[i])continue;
+      const role=rs[i],pool=available.filter(p=>!used.has(Number(p.playerId))).sort((a,b)=>normalScore(b,role)-normalScore(a,role));
+      const pick=pool.find(p=>natural(p,role))||pool[0];
+      if(pick){used.add(Number(pick.playerId));result[i]={p:pick,role};}
+    }
+    return result.every(Boolean)?result:null;
+  }
+
+  function behaviourFor(lineup){
+    const opp=currentView?.opponentRatings||{},ours=currentView?.ownRatings||{};
+    const centralDefGap=(opp.centralAttack??0)-(ours.centralDefence??0),midfieldGap=(opp.midfield??0)-(ours.midfield??0),wingDefGap=Math.max((opp.leftAttack??0)-(ours.leftDefence??0),(opp.rightAttack??0)-(ours.rightDefence??0)),centralAtkGap=(ours.centralAttack??0)-(opp.centralDefence??0);
+    return lineup.map(({p,role})=>{let b='Normal';if(role===ROLE.IM)b=midfieldGap>.35?'Defensive':(centralAtkGap>.5?'Offensive':'Normal');else if(role===ROLE.LW||role===ROLE.RW)b=wingDefGap>.35?'Defensive':(centralAtkGap>.5?'Offensive':'Normal');else if(role===ROLE.LD||role===ROLE.RD)b=wingDefGap>.45?'Defensive':'Normal';else if(role===ROLE.CD)b=centralDefGap>.45?'Normal':'Offensive';else if([ROLE.LF,ROLE.CF,ROLE.RF].includes(role))b=centralAtkGap<-.45?'Defensive':'Normal';return{...p,roleKey:role,role:roleText(role),behaviour:b,rating:Math.round(positionRating(p,role)*100)/100};});
+  }
+
+  async function recommend(){
+    if(typeof currentView==='undefined'||!currentView)throw new Error('Maç verisi yok.');
+    const team=await fetch('/api/team',{cache:'no-store'}).then(jsonResponse);
+    const type=Number(currentView.training?.trainingType??-1);
+    const league=currentView.ownLineup?.players||[];
+    const leagueMap=new Map(league.map(p=>[Number(p.playerId),p]));
+    const formation=chooseFormation(type,leagueMap);
+    const lineup=buildLineup(team.players.map(p=>({...p})),formation,type,leagueMap);
+    if(!lineup)throw new Error('Antrenmana uygun 11 oyuncu oluşturulamadı.');
+    const final=behaviourFor(lineup);
+    const t=training(type);
+    return {formation,lineup:final,trainingName:currentView.training?.trainingName||t.name,trainingType:type,score:trainingFormationScore(formation,type,leagueMap)};
+  }
+
+  async function renderRecommendedCup(e){
+    if(e){e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();}
+    try{
+      const x=await recommend();
+      const strip=document.getElementById('ownRatingStrip');if(strip&&typeof renderRatingSummary==='function')strip.innerHTML='';
+      const pill=document.getElementById('ownFormation');if(pill)pill.textContent=x.formation;
+      const title=document.getElementById('ownLineupTitle');if(title)title.textContent='Önerilen Kupa Kadrosu';
+      if(typeof renderPitch==='function')renderPitch('#ownPitch',x.lineup,false);
+      window.__recommendedCup=x;window.__recommendedCupActive=true;
+      window.dispatchEvent(new CustomEvent('hattrickai:lineup-updated',{detail:{reason:'recommended-cup',mode:'cup',formation:x.formation,trainingType:x.trainingType}}));
+    }catch(err){
+      window.__recommendedCupActive=false;
+      console.error('Kupa kadrosu önerisi:',err);
+    }
+    return false;
+  }
+
+  function install(){
+    const mode=document.getElementById('ownLineupMode');
+    if(!mode||mode.dataset.recommendedCupBound)return;
+    mode.dataset.recommendedCupBound='1';
+    const cup=mode.querySelector('button[data-mode="cup"]'),league=mode.querySelector('button[data-mode="best"]');
+    if(cup)cup.addEventListener('click',renderRecommendedCup,true);
+    if(league)league.addEventListener('click',()=>{window.__recommendedCupActive=false;window.__recommendedCup=null;},true);
+    window.__renderRecommendedCup=renderRecommendedCup;
+  }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(install,300));else setTimeout(install,300);
 })();
