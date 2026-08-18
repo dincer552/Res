@@ -1,10 +1,11 @@
 .our-panel .panel-head{align-items:flex-start;gap:12px;flex-wrap:wrap}
-.own-lineup-mode{margin-left:auto;min-width:210px;text-align:right}
+.own-lineup-mode{margin-left:auto;min-width:230px;text-align:right}
 .own-mode-label{font-size:.66rem;letter-spacing:.12em;color:#8fa5b3;margin-bottom:5px}
-.own-mode-buttons{display:flex;gap:6px;justify-content:flex-end}
-.own-mode-buttons button{border:1px solid #28536a;background:#0b2531;color:#a8bdc9;border-radius:999px;padding:7px 11px;font-weight:700;cursor:pointer;font-size:.78rem}
-.own-mode-buttons button.active{background:#36df78;color:#062115;border-color:#36df78}
-.own-mode-source{margin-top:5px;color:#6f8997;font-size:.68rem;white-space:nowrap}
+.own-mode-buttons{display:flex;gap:7px;justify-content:flex-end}
+.own-mode-buttons button{border:1px solid #28536a;background:#0b2531;color:#a8bdc9;border-radius:999px;padding:8px 13px;font-weight:800;cursor:pointer;font-size:.8rem;transition:.15s ease}
+.own-mode-buttons button.active{background:#36df78;color:#062115;border-color:#36df78;box-shadow:0 0 0 2px rgba(54,223,120,.14)}
+.own-mode-buttons button:not(.active):hover{border-color:#36df78;color:#d5e7ee}
+.own-mode-source{display:none}
 .own-formation-wrap{position:relative;margin-left:auto;min-width:132px;text-align:right}
 .own-formation-button{border:1px solid #28536a;background:#0b2531;color:#b9cbd4;border-radius:999px;padding:8px 13px;font-weight:800;cursor:pointer;font-size:.86rem;min-width:88px}
 .own-formation-button.loading{opacity:.6;pointer-events:none}
@@ -14,5 +15,5 @@
 .own-formation-option:hover{background:#102f3d}
 .own-formation-option.selected{color:#36df78;background:#0c2a22}
 .own-formation-check{width:18px;text-align:center;font-weight:900}
-.own-formation-status{margin-top:5px;color:#6f8997;font-size:.66rem;white-space:nowrap}
-@media(max-width:600px){.own-lineup-mode{width:100%;margin-left:0;text-align:left}.own-mode-buttons{justify-content:flex-start;flex-wrap:wrap}.own-mode-buttons button{padding:6px 10px}.own-mode-source{white-space:normal}.own-formation-wrap{width:auto;margin-left:auto}.own-formation-menu{right:0}.own-formation-status{white-space:normal}}
+.own-formation-status{display:none}
+@media(max-width:600px){.own-lineup-mode{width:100%;margin-left:0;text-align:left}.own-mode-buttons{justify-content:flex-start;flex-wrap:wrap}.own-mode-buttons button{padding:7px 11px}.own-formation-wrap{width:auto;margin-left:auto}.own-formation-menu{right:0}}
