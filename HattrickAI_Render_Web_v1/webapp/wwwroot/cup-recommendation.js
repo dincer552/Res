@@ -10,7 +10,6 @@
     '5-3-2':[ROLE.GK,ROLE.LD,ROLE.CD,ROLE.CD,ROLE.CD,ROLE.RD,ROLE.IM,ROLE.IM,ROLE.IM,ROLE.LF,ROLE.CF],
     '3-4-3':[ROLE.GK,ROLE.CD,ROLE.CD,ROLE.CD,ROLE.LW,ROLE.IM,ROLE.IM,ROLE.RW,ROLE.LF,ROLE.CF,ROLE.RF]
   };
-  // Keep formation list aligned with the actual legal formations. 5-4-1 is intentionally present.
   FORMATIONS[4]='5-4-1';
   const roleText=r=>({Goalkeeper:'KL',LeftDefender:'SLB',CentralDefender:'STP',RightDefender:'SGB',LeftWinger:'K',RightWinger:'K',CentralMidfielder:'OM',LeftForward:'SF',CentralForward:'SF',RightForward:'SF'})[r]||'';
   const kind=r=>({Goalkeeper:'GK',LeftDefender:'WB',CentralDefender:'CD',RightDefender:'WB',LeftWinger:'WING',RightWinger:'WING',CentralMidfielder:'IM',LeftForward:'FWD',CentralForward:'FWD',RightForward:'FWD',GK:'GK',SLB:'WB',SGB:'WB',STP:'CD',K:'WING',OM:'IM',SF:'FWD'})[r]||'OTHER';
@@ -46,15 +45,40 @@
   function primarySkill(p,type){const t=training(type);if(t.skill==='form')return Number(p.form||0);if(t.skill==='stamina')return Number(p.stamina||0);if(t.skill==='setPieces')return Number(p.setPieces||0);return Number(p[t.skill]||0);}
   function secondarySkill(p,type){const t=training(type),primary=t.skill;const vals=['keeper','defending','playmaking','winger','passing','scoring','setPieces'].filter(x=>x!==primary).map(x=>Number(p[x]||0));return vals.length?Math.max(...vals):0;}
 
-  // Priority is deliberately lexicographic in spirit:
-  // 1) trained skill, 2) age/potential, 3) useful secondary skills, 4) positional quality.
-  // Therefore a materially stronger 19yo trainee beats a much weaker 17yo trainee.
+  // Ranking order: trained skill first, then age/potential, secondary skills, positional quality.
+  // Thus a 19yo PM13 correctly beats a 17yo PM6.
   function traineeScore(p,role,type){
     const ps=primarySkill(p,type),age=Math.max(17,Number(p.age||25)),agePotential=Math.max(0,28-age),sec=secondarySkill(p,type),positional=positionRating(p,role);
     return ps*100000 + agePotential*1000 + sec*20 + positional*2 + Number(p.experience||0)*.4 + Number(p.form||0)*.15;
   }
   function normalScore(p,role){return positionRating(p,role)+Number(p.form||0)*.08+Number(p.experience||0)*.03;}
   const healthy=p=>!p?.injured&&!p?.suspended;
+
+  // Produce a transparent test ranking of all healthy players who did not play in the league XI
+  // and can receive at least some of the current training in the selected formation.
+  function rankTrainingCandidates(players,formation,type,leagueMap){
+    const slots=roles[formation].map((role,index)=>({role,index,effect:effect(type,role)})).filter(x=>x.effect>0);
+    return players.filter(p=>healthy(p)&&!leagueMap.has(Number(p.playerId))).map(p=>{
+      const choices=slots.map(s=>({slot:s,score:traineeScore(p,s.role,type)})).sort((a,b)=>{
+        const ae=a.slot.effect===3?1:0,be=b.slot.effect===3?1:0;
+        return (be-ae)||(b.score-a.score);
+      });
+      const best=choices[0];
+      if(!best)return null;
+      return {
+        playerId:p.playerId,
+        name:p.name||`#${p.playerId}`,
+        age:Number(p.age||0),
+        role:roleText(best.slot.role),
+        trainingRole:best.slot.role,
+        effect:best.slot.effect,
+        primarySkill:primarySkill(p,type),
+        secondarySkill:secondarySkill(p,type),
+        score:Math.round(best.score*100)/100,
+        positionRating:Math.round(positionRating(p,best.slot.role)*100)/100
+      };
+    }).filter(Boolean).sort((a,b)=>b.score-a.score);
+  }
 
   function trainingFormationScore(formation,type){
     const rs=roles[formation];
@@ -144,11 +168,21 @@
     const league=currentView.ownLineup?.players||[];
     const leagueMap=new Map(league.map(p=>[Number(p.playerId),p]));
     const formation=chooseFormation(type);
-    const lineup=buildLineup(team.players.map(p=>({...p})),formation,type,leagueMap);
+    const players=team.players.map(p=>({...p}));
+    const lineup=buildLineup(players,formation,type,leagueMap);
     if(!lineup)throw new Error('Antrenmana uygun 11 oyuncu oluşturulamadı.');
     const final=behaviourFor(lineup);
     const t=training(type);
-    return {formation,lineup:final,trainingName:currentView.training?.trainingName||t.name,trainingType:type,score:trainingFormationScore(formation,type)};
+    const trainingCandidates=rankTrainingCandidates(players,formation,type,leagueMap);
+    return {formation,lineup:final,trainingName:currentView.training?.trainingName||t.name,trainingType:type,score:trainingFormationScore(formation,type),trainingCandidates};
+  }
+
+  function renderTrainingCandidateList(candidates,trainingName){
+    const strip=document.getElementById('ownRatingStrip');
+    if(!strip)return;
+    if(!candidates?.length){strip.innerHTML=`<div style="padding:8px 0;font-size:13px;opacity:.75">Antrenman için uygun lig dışı aday bulunamadı.</div>`;return;}
+    strip.innerHTML=`<div style="width:100%;padding:4px 0 8px"><div style="font-weight:700;font-size:14px;margin-bottom:7px">Antrenman adayları — ${trainingName}</div>`+
+      candidates.map((p,i)=>`<div style="display:flex;align-items:center;gap:7px;padding:4px 0;font-size:12px;border-bottom:1px solid rgba(255,255,255,.06)"><b style="width:20px">${i+1}.</b><span style="flex:1"><b>${p.name}</b> · ${p.role}${p.age?` · ${p.age}y`:''}</span><span>${p.primarySkill} ana skill · ${p.effect===3?'%100':'ikincil'} · ${Math.round(p.score)}</span></div>`).join('')+`</div>`;
   }
 
   async function renderRecommendedCup(e){
@@ -159,7 +193,9 @@
       const pill=document.getElementById('ownFormation');if(pill)pill.textContent=x.formation;
       const title=document.getElementById('ownLineupTitle');if(title)title.textContent='Önerilen Kupa Kadrosu';
       if(typeof renderPitch==='function')renderPitch('#ownPitch',x.lineup,false);
+      renderTrainingCandidateList(x.trainingCandidates,x.trainingName);
       window.__recommendedCup=x;window.__recommendedCupActive=true;
+      console.table(x.trainingCandidates);
       window.dispatchEvent(new CustomEvent('hattrickai:lineup-updated',{detail:{reason:'recommended-cup',mode:'cup',formation:x.formation,trainingType:x.trainingType}}));
     }catch(err){
       window.__recommendedCupActive=false;
