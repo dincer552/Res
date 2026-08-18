@@ -1,6 +1,6 @@
 (()=>{
 const F=['4-4-2','4-3-3','3-5-2','4-5-1','5-4-1','5-3-2','3-4-3'];
-const R={GK:'Goalkeeper',LD:'LeftDefender',CD:'CentralDefender',RD:'RightDefender',LW:'LeftWinger',IM:'CentralMidfielder',RW:'RightWinger',LF:'LeftForward',CF:'CentralForward',RF:'RightForward'};
+const R={GK:'Goalkeeper',LD:'LeftDefender',CD:'CentralDefender',RD:'RightDefender',LW:'LeftWinger',IM:'CentralMidfielder',RW:'RightMidfielder',LF:'LeftForward',CF:'CentralForward',RF:'RightForward'};
 const roles={'4-4-2':[R.GK,R.LD,R.CD,R.CD,R.RD,R.LW,R.IM,R.IM,R.RW,R.LF,R.CF],'4-3-3':[R.GK,R.LD,R.CD,R.CD,R.RD,R.IM,R.IM,R.IM,R.LF,R.CF,R.RF],'3-5-2':[R.GK,R.CD,R.CD,R.CD,R.LW,R.IM,R.IM,R.IM,R.RW,R.LF,R.CF],'4-5-1':[R.GK,R.LD,R.CD,R.CD,R.RD,R.LW,R.IM,R.IM,R.IM,R.RW,R.CF],'5-4-1':[R.GK,R.LD,R.CD,R.CD,R.CD,R.RD,R.LW,R.IM,R.IM,R.RW,R.CF],'5-3-2':[R.GK,R.LD,R.CD,R.CD,R.CD,R.RD,R.IM,R.IM,R.IM,R.LF,R.CF],'3-4-3':[R.GK,R.CD,R.CD,R.CD,R.LW,R.IM,R.IM,R.RW,R.LF,R.CF,R.RF]};
 const txt=r=>({Goalkeeper:'KL',LeftDefender:'SLB',CentralDefender:'STP',RightDefender:'SGB',LeftWinger:'K',RightWinger:'K',CentralMidfielder:'OM',LeftForward:'SF',CentralForward:'SF',RightForward:'SF'})[r]||'';
 const kind=r=>({Goalkeeper:'GK',LeftDefender:'WB',CentralDefender:'CD',RightDefender:'WB',LeftWinger:'WING',RightWinger:'WING',CentralMidfielder:'IM',LeftForward:'FWD',CentralForward:'FWD',RightForward:'FWD'})[r]||'OTHER';
@@ -9,25 +9,27 @@ const tr=t=>T[Number(t)]||{name:'Antrenman',primary:[],skill:null};
 const n=(p,k)=>Number(p?.[k]||0);
 const healthy=p=>!p?.injured&&!p?.suspended;
 
-// Kısa Pas yatırım mantığı:
-// 1) Pas seviyesi ana kriterlerden biri.
-// 2) Yaş önemli ama tek başına genç oyuncuyu öne geçirmez.
-// 3) Oyuncu üç ayrı eğitim rolünde (OM/K/SF) değerlendirilir.
-// 4) Her rol kendi ana yeteneğiyle değerlendirilir: OM=Oyun Kurma, K=Kanat, SF=Golcülük.
-// 5) Özellikle yüksek Kanat değerine sahip oyuncu, mevcut pozisyonu OM/SF olsa bile
-//    K rolünde ayrıca hesaplanır ve güçlü çıkarsa listede K olarak gösterilir.
-const ageScore=a=>a<=17?25:a<=18?24:a<=19?23:a<=20?22:a<=21?21:a<=22?19:a<=23?17:a<=24?15:a<=25?12:a<=26?9:a<=27?6:a<=28?4:a<=29?2:a<=30?1:0;
+// Kısa Pas aday mantığı:
+// 1) Önce oyuncunun ANA YETENEĞİNİ belirle: Oyun Kurma, Kanat veya Golcülükten hangisi en yüksekse rol odur.
+// 2) Mevcut pozisyon ana rolü belirlemez. Örn. SF ama Kanat 17 ise eğitim rolü K'dır.
+// 3) Sonra yaşa bakılır. 26 yaş altı ana aday havuzudur; 20 yaş altı oyunculara çok güçlü gençlik avantajı verilir.
+// 4) Pas seviyesi ana yetenek ve yaştan sonra ayrıştırıcıdır.
+const ageScore=a=>a<=17?50:a<=18?47:a<=19?44:a<=20?41:a<=21?40:a<=22?39:a<=23?38:a<=24?37:a<=25?35:a<=26?20:a<=27?10:a<=28?4:a<=29?1:0;
+const mainSkillForPlayer=p=>{const pm=n(p,'playmaking'),w=n(p,'winger'),s=n(p,'scoring');if(pm>=w&&pm>=s)return{kind:'IM',name:'Oyun Kurma',value:pm};if(w>=pm&&w>=s)return{kind:'WING',name:'Kanat',value:w};return{kind:'FWD',name:'Golcülük',value:s}};
+const roleForMainSkill=m=>m.kind==='IM'?R.IM:m.kind==='WING'?R.LW:R.CF;
 const roleTalent=(p,r)=>{const k=kind(r),pm=n(p,'playmaking'),w=n(p,'winger'),s=n(p,'scoring'),d=n(p,'defending');if(k==='IM')return pm*.95+w*.12+d*.08;if(k==='WING')return w*.90+pm*.22+d*.05;if(k==='FWD')return s*.95+w*.22+pm*.12;return 0};
 const positionFit=(p,r)=>{const k=kind(r),pm=n(p,'playmaking'),w=n(p,'winger'),s=n(p,'scoring'),pa=n(p,'passing');if(k==='IM')return pm+pa*.20+w*.08;if(k==='WING')return w+pm*.25+pa*.15;if(k==='FWD')return s+w*.18+pm*.10+pa*.18;return 0};
 const primaryForRole=(p,r)=>{const k=kind(r);if(k==='IM')return n(p,'playmaking');if(k==='WING')return n(p,'winger');if(k==='FWD')return n(p,'scoring');return 0};
 const auxiliaryForRole=(p,r)=>{const k=kind(r),pm=n(p,'playmaking'),w=n(p,'winger'),s=n(p,'scoring'),d=n(p,'defending');if(k==='IM')return Math.min(18,w*.35+d*.25+s*.10);if(k==='WING')return Math.min(18,pm*.35+d*.20+s*.15);if(k==='FWD')return Math.min(18,w*.30+pm*.25+d*.10);return 0};
-// Rol seçerken artık ana yetenek çok daha belirleyici. Böylece yüksek Kanatlı bir
-// oyuncu, mevcut rolü OM veya SF olsa bile Kanat rolüyle değerlendirilebilir.
-const score=(p,r)=>{const k=kind(r),a=n(p,'age')||99,pa=n(p,'passing');if(!['IM','WING','FWD'].includes(k))return-1e12;const passScore=Math.min(12,pa)/12*35;const age=ageScore(a)/25*20;const primary=Math.min(18,primaryForRole(p,r))/18*35;const slot=Math.min(18,positionFit(p,r))/18*5;const aux=auxiliaryForRole(p,r)/18*5;return passScore+age+primary+slot+aux};
-function rank(players,formation,type){const slots=roles[formation].filter(r=>['IM','WING','FWD'].includes(kind(r)));return players.filter(healthy).map(p=>{const b=slots.map(r=>({r,v:score(p,r)})).sort((a,b)=>b.v-a.v)[0];if(!b||b.v<0)return null;const k=kind(b.r);const mainSkill=k==='IM'?'Oyun Kurma':k==='WING'?'Kanat':k==='FWD'?'Golcülük':'-';const mainValue=Math.round(primaryForRole(p,b.r)*100)/100;return{playerId:p.playerId,name:p.name||`#${p.playerId}`,age:n(p,'age'),role:txt(b.r),trainingRole:b.r,effect:3,primarySkill:n(p,'passing'),talentSkill:mainSkill,talentValue:mainValue,wingerSkill:n(p,'winger'),score:Math.round(b.v*100)/100,positionRating:Math.round(positionFit(p,b.r)*100)/100}}).filter(Boolean).sort((a,b)=>b.score-a.score)}
+
+// Sıralama: ANA YETENEK -> YAŞ -> PAS.
+// Örn. 17 yaş, Oyun Kurma 8, Pas 6 yine güçlü adaydır.
+// 26+ oyuncular belirgin şekilde geriye düşer.
+const score=(p)=>{const main=mainSkillForPlayer(p),a=n(p,'age')||99,pa=n(p,'passing');if(main.value<=0)return-1e12;const age=ageScore(a);const primary=Math.min(18,main.value)/18*35;const pass=Math.min(12,pa)/12*15;return age+primary+pass};
+function rank(players,formation,type){return players.filter(healthy).map(p=>{const main=mainSkillForPlayer(p),r=roleForMainSkill(main),k=main.kind;if(!['IM','WING','FWD'].includes(k)||main.value<=0)return null;return{playerId:p.playerId,name:p.name||`#${p.playerId}`,age:n(p,'age'),role:txt(r),trainingRole:r,effect:3,primarySkill:n(p,'passing'),talentSkill:main.name,talentValue:main.value,wingerSkill:n(p,'winger'),playmakingSkill:n(p,'playmaking'),scoringSkill:n(p,'scoring'),score:Math.round(score(p)*100)/100,positionRating:Math.round(positionFit(p,r)*100)/100}}).filter(Boolean).sort((a,b)=>b.score-a.score)}
 const normal=(p,r)=>positionFit(p,r)+n(p,'form')*.08+n(p,'experience')*.03;
 function leaguePick(ps,s,u){const k=kind(s);return ps.filter(p=>!u.has(Number(p.playerId))&&healthy(p)&&kind(p.roleKey||p.role)===k).sort((a,b)=>normal(b,s)-normal(a,s))[0]||null}
-function build(ps,f,lm){const rs=roles[f],u=new Set(),out=new Array(rs.length).fill(null),lp=[...lm.values()];rs.forEach((r,i)=>{if(kind(r)==='GK'||kind(r)==='CD'||kind(r)==='WB'){const p=leaguePick(lp,r,u);if(p){u.add(Number(p.playerId));out[i]={p,role:r}}}});const train=rs.map((r,i)=>({r,i})).filter(x=>['IM','WING','FWD'].includes(kind(x.r)));for(const s of train){const p=ps.filter(x=>healthy(x)&&!u.has(Number(x.playerId))&&!lm.has(Number(x.playerId))).sort((a,b)=>score(b,s.r)-score(a,s.r))[0];if(p&&score(p,s.r)>-1e11){u.add(Number(p.playerId));out[s.i]={p,role:s.r}}}for(let i=0;i<rs.length;i++)if(!out[i]){const p=ps.filter(x=>healthy(x)&&!u.has(Number(x.playerId))).sort((a,b)=>normal(b,rs[i])-normal(a,rs[i]))[0];if(p){u.add(Number(p.playerId));out[i]={p,role:rs[i]}}}return out.every(Boolean)?out:null}
+function build(ps,f,lm){const rs=roles[f],u=new Set(),out=new Array(rs.length).fill(null),lp=[...lm.values()];rs.forEach((r,i)=>{if(kind(r)==='GK'||kind(r)==='CD'||kind(r)==='WB'){const p=leaguePick(lp,r,u);if(p){u.add(Number(p.playerId));out[i]={p,role:r}}}});const train=rs.map((r,i)=>({r,i})).filter(x=>['IM','WING','FWD'].includes(kind(x.r)));for(const s of train){const p=ps.filter(x=>healthy(x)&&!u.has(Number(x.playerId))&&!lm.has(Number(x.playerId))).sort((a,b)=>score(b)-score(a))[0];if(p&&score(p)>-1e11){u.add(Number(p.playerId));out[s.i]={p,role:s.r}}}for(let i=0;i<rs.length;i++)if(!out[i]){const p=ps.filter(x=>healthy(x)&&!u.has(Number(x.playerId))).sort((a,b)=>normal(b,rs[i])-normal(a,rs[i]))[0];if(p){u.add(Number(p.playerId));out[i]={p,role:rs[i]}}}return out.every(Boolean)?out:null}
 function formation(){return'4-3-3'}
 function behaviour(line){return line.map(({p,role})=>({...p,roleKey:role,role:txt(role),behaviour:'Normal',rating:Math.round(positionFit(p,role)*100)/100}))}
 async function recommend(){const type=Number(currentView?.training?.trainingType??7),team=await fetch('/api/team',{cache:'no-store'}).then(jsonResponse),lm=new Map((currentView?.ownLineup?.players||[]).map(p=>[Number(p.playerId),p])),f=formation(),line=build(team.players.map(p=>({...p})),f,lm);if(!line)throw Error('Antrenmana uygun 11 oyuncu oluşturulamadı.');return{formation:f,lineup:behaviour(line),trainingName:currentView?.training?.trainingName||tr(type).name,trainingType:type,score:30000,trainingCandidates:rank(team.players,f,type)}}
