@@ -10,18 +10,20 @@ const n=(p,k)=>Number(p?.[k]||0);
 const healthy=p=>!p?.injured&&!p?.suspended;
 
 // Kısa Pas yatırım mantığı:
-// 1) Pas seviyesi en güçlü ana kriter.
-// 2) Yaş ikinci kriter; 27+ oyuncular yatırımda belirgin şekilde geriye düşer.
-// 3) Antrenman slotunun verimi: IM=Oyun Kurma, WING=Kanat, FWD=Golcülük.
-// 4) Kanat artık ayrıca açık yatırım kriteridir. Kısa Pas oyuncusunda yüksek winger,
-//    oyuncunun gelecekteki çoklu yetenek değerini artırdığı için sıralamayı yukarı çeker.
-//    Böylece ör. pas 7 + kanat 15 oyuncusu, kanadı düşük benzer adayın altında kalmaz.
+// 1) Pas seviyesi ana kriterlerden biri.
+// 2) Yaş önemli ama tek başına genç oyuncuyu öne geçirmez.
+// 3) Oyuncu üç ayrı eğitim rolünde (OM/K/SF) değerlendirilir.
+// 4) Her rol kendi ana yeteneğiyle değerlendirilir: OM=Oyun Kurma, K=Kanat, SF=Golcülük.
+// 5) Özellikle yüksek Kanat değerine sahip oyuncu, mevcut pozisyonu OM/SF olsa bile
+//    K rolünde ayrıca hesaplanır ve güçlü çıkarsa listede K olarak gösterilir.
 const ageScore=a=>a<=17?25:a<=18?24:a<=19?23:a<=20?22:a<=21?21:a<=22?19:a<=23?17:a<=24?15:a<=25?12:a<=26?9:a<=27?6:a<=28?4:a<=29?2:a<=30?1:0;
 const roleTalent=(p,r)=>{const k=kind(r),pm=n(p,'playmaking'),w=n(p,'winger'),s=n(p,'scoring'),d=n(p,'defending');if(k==='IM')return pm*.95+w*.12+d*.08;if(k==='WING')return w*.90+pm*.22+d*.05;if(k==='FWD')return s*.95+w*.22+pm*.12;return 0};
 const positionFit=(p,r)=>{const k=kind(r),pm=n(p,'playmaking'),w=n(p,'winger'),s=n(p,'scoring'),pa=n(p,'passing');if(k==='IM')return pm+pa*.20+w*.08;if(k==='WING')return w+pm*.25+pa*.15;if(k==='FWD')return s+w*.18+pm*.10+pa*.18;return 0};
 const primaryForRole=(p,r)=>{const k=kind(r);if(k==='IM')return n(p,'playmaking');if(k==='WING')return n(p,'winger');if(k==='FWD')return n(p,'scoring');return 0};
 const auxiliaryForRole=(p,r)=>{const k=kind(r),pm=n(p,'playmaking'),w=n(p,'winger'),s=n(p,'scoring'),d=n(p,'defending');if(k==='IM')return Math.min(18,w*.35+d*.25+s*.10);if(k==='WING')return Math.min(18,pm*.35+d*.20+s*.15);if(k==='FWD')return Math.min(18,w*.30+pm*.25+d*.10);return 0};
-const score=(p,r)=>{const k=kind(r),a=n(p,'age')||99,pa=n(p,'passing'),w=n(p,'winger');if(!['IM','WING','FWD'].includes(k))return-1e12;const passScore=Math.min(12,pa)/12*40;const age=ageScore(a);const primary=Math.min(18,primaryForRole(p,r))/18*25;const slot=Math.min(18,positionFit(p,r))/18*10;const aux=auxiliaryForRole(p,r)/18*5;const wingInvestment=Math.min(18,w)/18*10;return passScore+age+primary+slot+aux+wingInvestment};
+// Rol seçerken artık ana yetenek çok daha belirleyici. Böylece yüksek Kanatlı bir
+// oyuncu, mevcut rolü OM veya SF olsa bile Kanat rolüyle değerlendirilebilir.
+const score=(p,r)=>{const k=kind(r),a=n(p,'age')||99,pa=n(p,'passing');if(!['IM','WING','FWD'].includes(k))return-1e12;const passScore=Math.min(12,pa)/12*35;const age=ageScore(a)/25*20;const primary=Math.min(18,primaryForRole(p,r))/18*35;const slot=Math.min(18,positionFit(p,r))/18*5;const aux=auxiliaryForRole(p,r)/18*5;return passScore+age+primary+slot+aux};
 function rank(players,formation,type){const slots=roles[formation].filter(r=>['IM','WING','FWD'].includes(kind(r)));return players.filter(healthy).map(p=>{const b=slots.map(r=>({r,v:score(p,r)})).sort((a,b)=>b.v-a.v)[0];if(!b||b.v<0)return null;const k=kind(b.r);const mainSkill=k==='IM'?'Oyun Kurma':k==='WING'?'Kanat':k==='FWD'?'Golcülük':'-';const mainValue=Math.round(primaryForRole(p,b.r)*100)/100;return{playerId:p.playerId,name:p.name||`#${p.playerId}`,age:n(p,'age'),role:txt(b.r),trainingRole:b.r,effect:3,primarySkill:n(p,'passing'),talentSkill:mainSkill,talentValue:mainValue,wingerSkill:n(p,'winger'),score:Math.round(b.v*100)/100,positionRating:Math.round(positionFit(p,b.r)*100)/100}}).filter(Boolean).sort((a,b)=>b.score-a.score)}
 const normal=(p,r)=>positionFit(p,r)+n(p,'form')*.08+n(p,'experience')*.03;
 function leaguePick(ps,s,u){const k=kind(s);return ps.filter(p=>!u.has(Number(p.playerId))&&healthy(p)&&kind(p.roleKey||p.role)===k).sort((a,b)=>normal(b,s)-normal(a,s))[0]||null}
