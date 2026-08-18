@@ -1,5 +1,5 @@
 (()=>{
-  const FORMATIONS=['4-4-2','4-3-3','3-5-2','4-5-1','5-4-1','5-3-2','3-4-3'];
+  const FORMATIONS=['4-4-2','4-3-3','3-5-2','4-5-1','5-4-0','5-3-2','3-4-3'];
   const ROLE={GK:'Goalkeeper',LD:'LeftDefender',CD:'CentralDefender',RD:'RightDefender',LW:'LeftWinger',IM:'CentralMidfielder',RW:'RightWinger',LF:'LeftForward',CF:'CentralForward',RF:'RightForward'};
   const roles={
     '4-4-2':[ROLE.GK,ROLE.LD,ROLE.CD,ROLE.CD,ROLE.RD,ROLE.LW,ROLE.IM,ROLE.IM,ROLE.RW,ROLE.LF,ROLE.CF],
@@ -10,10 +10,11 @@
     '5-3-2':[ROLE.GK,ROLE.LD,ROLE.CD,ROLE.CD,ROLE.CD,ROLE.RD,ROLE.IM,ROLE.IM,ROLE.IM,ROLE.LF,ROLE.CF],
     '3-4-3':[ROLE.GK,ROLE.CD,ROLE.CD,ROLE.CD,ROLE.LW,ROLE.IM,ROLE.IM,ROLE.RW,ROLE.LF,ROLE.CF,ROLE.RF]
   };
+  // Keep formation list aligned with the actual legal formations. 5-4-1 is intentionally present.
+  FORMATIONS[4]='5-4-1';
   const roleText=r=>({Goalkeeper:'KL',LeftDefender:'SLB',CentralDefender:'STP',RightDefender:'SGB',LeftWinger:'K',RightWinger:'K',CentralMidfielder:'OM',LeftForward:'SF',CentralForward:'SF',RightForward:'SF'})[r]||'';
   const kind=r=>({Goalkeeper:'GK',LeftDefender:'WB',CentralDefender:'CD',RightDefender:'WB',LeftWinger:'WING',RightWinger:'WING',CentralMidfielder:'IM',LeftForward:'FWD',CentralForward:'FWD',RightForward:'FWD',GK:'GK',SLB:'WB',SGB:'WB',STP:'CD',K:'WING',OM:'IM',SF:'FWD'})[r]||'OTHER';
 
-  // Hattrick training positions. Full effect is 100%; secondary entries are small/half-rate effects.
   const TRAIN={
     0:{name:'Genel',primary:[],secondary:[],skill:'form'},
     1:{name:'Dayanıklılık',primary:['ALL'],secondary:[],skill:'stamina'},
@@ -41,18 +42,16 @@
     return s+pa*.25+w*.15+pm*.10;
   }
 
-  function leagueTrainingRole(leagueMap,id){const p=leagueMap.get(Number(id));return p?.roleKey||p?.role||null;}
   function leagueKind(p){return kind(p?.roleKey||p?.role||'');}
   function primarySkill(p,type){const t=training(type);if(t.skill==='form')return Number(p.form||0);if(t.skill==='stamina')return Number(p.stamina||0);if(t.skill==='setPieces')return Number(p.setPieces||0);return Number(p[t.skill]||0);}
   function secondarySkill(p,type){const t=training(type),primary=t.skill;const vals=['keeper','defending','playmaking','winger','passing','scoring','setPieces'].filter(x=>x!==primary).map(x=>Number(p[x]||0));return vals.length?Math.max(...vals):0;}
 
-  // Training skill is the first criterion. Age is a development tiebreaker, not a reason to
-  // prefer a much weaker trainee. This implements e.g. 19yo PM13 > 17yo PM6.
+  // Priority is deliberately lexicographic in spirit:
+  // 1) trained skill, 2) age/potential, 3) useful secondary skills, 4) positional quality.
+  // Therefore a materially stronger 19yo trainee beats a much weaker 17yo trainee.
   function traineeScore(p,role,type){
-    const ps=primarySkill(p,type),age=Math.max(17,Number(p.age||25)),agePotential=Math.max(0,28-age),sec=secondarySkill(p,type);
-    const positional=positionRating(p,role);
-    const roleFit=kind(role)===kind(p.naturalRole||'')?1:0;
-    return ps*100000 + agePotential*1000 + sec*20 + positional*2 + roleFit*80 + Number(p.experience||0)*.4 + Number(p.form||0)*.15;
+    const ps=primarySkill(p,type),age=Math.max(17,Number(p.age||25)),agePotential=Math.max(0,28-age),sec=secondarySkill(p,type),positional=positionRating(p,role);
+    return ps*100000 + agePotential*1000 + sec*20 + positional*2 + Number(p.experience||0)*.4 + Number(p.form||0)*.15;
   }
   function normalScore(p,role){return positionRating(p,role)+Number(p.form||0)*.08+Number(p.experience||0)*.03;}
   const healthy=p=>!p?.injured&&!p?.suspended;
@@ -64,10 +63,7 @@
     const experience=Number(currentView?.training?.formationExperience?.[formation]||0);
     return full*10000+secondary*1000+experience*10;
   }
-
-  function chooseFormation(type){
-    return FORMATIONS.slice().sort((a,b)=>trainingFormationScore(b,type)-trainingFormationScore(a,type))[0]||'3-4-3';
-  }
+  function chooseFormation(type){return FORMATIONS.slice().sort((a,b)=>trainingFormationScore(b,type)-trainingFormationScore(a,type))[0]||'3-4-3';}
 
   function bestLeagueForRole(leaguePlayers,slot,used){
     const target=kind(slot.role);
@@ -76,14 +72,14 @@
     return exact[0]||null;
   }
 
-  function bestHealthyFallback(players,slot,used,leagueMap,type){
+  function bestHealthyFallback(players,slot,used,leagueMap){
     const target=kind(slot.role);
-    const exact=players.filter(p=>!used.has(Number(p.playerId))&&healthy(p)&&leagueKind(p)===target);
-    exact.sort((a,b)=>{
-      const al=leagueMap.has(Number(a.playerId)),bl=leagueMap.has(Number(b.playerId));
-      return (normalScore(b,slot.role)+(bl?0:0))-(normalScore(a,slot.role)+(al?0:0));
-    });
-    if(exact[0])return exact[0];
+    const exactNonLeague=players.filter(p=>!used.has(Number(p.playerId))&&healthy(p)&&!leagueMap.has(Number(p.playerId))&&leagueKind(p)===target);
+    exactNonLeague.sort((a,b)=>normalScore(b,slot.role)-normalScore(a,slot.role));
+    if(exactNonLeague[0])return exactNonLeague[0];
+    const exactAny=players.filter(p=>!used.has(Number(p.playerId))&&healthy(p)&&leagueKind(p)===target);
+    exactAny.sort((a,b)=>normalScore(b,slot.role)-normalScore(a,slot.role));
+    if(exactAny[0])return exactAny[0];
     const available=players.filter(p=>!used.has(Number(p.playerId))&&healthy(p));
     available.sort((a,b)=>normalScore(b,slot.role)-normalScore(a,slot.role));
     return available[0]||null;
@@ -95,19 +91,16 @@
     const normalRoles=rs.map((role,index)=>({role,index,effect:effect(type,role)})).filter(x=>x.effect<=0);
     const leaguePlayers=[...leagueMap.values()];
 
-    // PHASE 1: positions that do NOT train are filled by the same positions from the league XI.
-    // A CD stays a CD, a wingback stays a wingback and the goalkeeper stays the goalkeeper.
-    // This is critical: the cup lineup must not steal a league player from a non-training area
-    // and accidentally put him into a different role.
+    // 1. Non-training areas: keep the same positional role from the league XI.
+    // If that player is injured/suspended, use a healthy same-role alternative.
     for(const slot of normalRoles){
       let pick=bestLeagueForRole(leaguePlayers,slot,used);
-      if(!pick)pick=bestHealthyFallback(available,slot,used,leagueMap,type);
+      if(!pick)pick=bestHealthyFallback(available,slot,used,leagueMap);
       if(pick){used.add(Number(pick.playerId));result[slot.index]={p:pick,role:slot.role};}
     }
 
-    // PHASE 2: training positions are reserved for players who did NOT play in the league XI.
-    // The actual training skill dominates the ranking. We do not use a weak "natural position"
-    // gate that could push a high-value trainee behind a lower-skill player.
+    // 2. Training areas: first choose only players who did NOT play in the league XI.
+    // The trained skill is the dominant criterion; age is a controlled development bonus.
     const nonLeague=available.filter(p=>!leagueMap.has(Number(p.playerId)));
     for(const slot of trainingRoles){
       const pool=nonLeague.filter(p=>!used.has(Number(p.playerId)));
@@ -116,7 +109,7 @@
       if(pick){used.add(Number(pick.playerId));result[slot.index]={p:pick,role:slot.role};}
     }
 
-    // PHASE 3: only when there are not enough unused non-league trainees do we use a league player.
+    // 3. Only if the team has too few unused trainees, use league players as a last resort.
     for(const slot of trainingRoles){
       if(result[slot.index])continue;
       const pool=available.filter(p=>!used.has(Number(p.playerId)));
@@ -128,7 +121,7 @@
       if(pick){used.add(Number(pick.playerId));result[slot.index]={p:pick,role:slot.role};}
     }
 
-    // PHASE 4: fill any remaining tactical slot with the best available positional player.
+    // 4. Final tactical fill only if something is still empty.
     for(let i=0;i<result.length;i++){
       if(result[i])continue;
       const role=rs[i],pool=available.filter(p=>!used.has(Number(p.playerId))).sort((a,b)=>normalScore(b,role)-normalScore(a,role));
