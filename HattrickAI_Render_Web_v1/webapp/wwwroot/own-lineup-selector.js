@@ -13,6 +13,10 @@
   const ratingsOf=mode=>mode==='cup'?(latestCup?.record?.teamData?.ratings||{}):(currentView?.ownRatings||{});
   const playersOf=mode=>mode==='cup'?(latestCup?.record?.players||[]).map(p=>({name:p.name,role:p.role,roleKey:p.roleKey,rating:p.rating,behaviour:p.behaviour,form:'-',stamina:'-'})):(currentView?.ownLineup?.players||[]);
 
+  function notifyLineupChanged(reason='formation'){
+    window.dispatchEvent(new CustomEvent('hattrickai:lineup-updated',{detail:{reason,formation:selectedFormation,mode:selectedMode}}));
+  }
+
   function renderRecommendationLogic(){
     const t=currentView?.training;
     const r=currentView?.recommendation;
@@ -70,11 +74,11 @@
       const x=await jsonResponse(r);if(!r.ok)throw new Error(x.message||'Seçilen diziliş için kadro oluşturulamadı.');
       x.lineup=(x.lineup||[]).map(p=>({...p,role:roleText(p.roleKey)}));
       currentView.__selectedFormationResult=x;currentView.ownRatings=x.ratings||currentView.ownRatings;
-      currentView.ownLineup={formation:x.formation,ratings:x.ratings,playerCount:x.lineup.length,players:x.lineup.map(p=>({name:p.name,role:p.role,roleKey:p.roleKey,rating:p.rating,behaviour:p.behaviour,form:p.form,stamina:p.stamina}))};
+      currentView.ownLineup={formation:x.formation,ratings:x.ratings,playerCount:x.lineup.length,players:x.lineup.map(p=>({playerId:p.playerId,name:p.name,role:p.role,roleKey:p.roleKey,rating:p.rating,behaviour:p.behaviour,form:p.form,stamina:p.stamina}))};
       currentView.formation=x.formation;currentView.tactic={tacticName:x.tacticName,tacticType:x.tacticType,tacticLevel:x.tacticLevel};
       currentView.recommendation={...(currentView.recommendation||{}),explanation:x.explanation,selectionScore:x.selectionScore,trainingFit:x.trainingFit,formationExperience:x.formationExperience,trainingName:x.trainingName,trainingPriority:x.trainingPriority};
       selectedFormation=x.formation;
-      renderSelectedFormationResult(x);renderRecommendationLogic();if(status)status.textContent=`HO Engine • ${x.formation} • ${x.tacticName||'Normal'}`;
+      renderSelectedFormationResult(x);renderRecommendationLogic();notifyLineupChanged('formation');if(status)status.textContent=`HO Engine • ${x.formation} • ${x.tacticName||'Normal'}`;
     }catch(e){if(status)status.textContent=e.message||'Diziliş hesaplanamadı.';}
     finally{formationBusy=false;if(btn){btn.classList.remove('loading');btn.textContent=selectedFormation||'—';}updateFormationChecks();}
   }
@@ -95,13 +99,13 @@
       return;
     }
     document.querySelectorAll('#ownLineupMode button').forEach(b=>b.classList.toggle('active',b.dataset.mode===selectedMode));
-    if(selectedMode==='best'&&currentView?.__selectedFormationResult){const x=currentView.__selectedFormationResult;selectedFormation=x.formation||selectedFormation;updateFormationChecks();renderSelectedFormationResult(x);renderRecommendationLogic();return;}
+    if(selectedMode==='best'&&currentView?.__selectedFormationResult){const x=currentView.__selectedFormationResult;selectedFormation=x.formation||selectedFormation;updateFormationChecks();renderSelectedFormationResult(x);renderRecommendationLogic();notifyLineupChanged('mode');return;}
     const r=ratingsOf(selectedMode),players=playersOf(selectedMode),formation=selectedMode==='cup'?(latestCup?.record?.formation||'—'):(currentView?.ownLineup?.formation||'—');
     if(selectedMode==='cup'&&!selectedFormation)selectedFormation=formation;
     const strip=document.getElementById('ownRatingStrip');if(strip&&typeof renderRatingSummary==='function')strip.innerHTML=renderRatingSummary(r);const pill=document.getElementById('ownFormation');if(pill)pill.textContent=formation;const title=document.getElementById('ownLineupTitle');if(title)title.textContent=selectedMode==='cup'?'Kupa Kadrosu':'Lig Kadrosu';if(typeof renderPitch==='function')renderPitch('#ownPitch',players,false);
     const source=document.getElementById('ownModeSource');if(source){if(selectedMode==='cup'){const f=latestCup?.record?.fixture||{};source.textContent=`Kupa Kadrosu • ${fmtDay(f.matchDate)} • ${typeText(f.matchType)} • ${tacticText(latestCup?.record?.teamData?.tacticType)} Lv.${latestCup?.record?.teamData?.tacticLevel??'—'}`;}else source.textContent=`Lig Kadrosu • HO Engine • antrenman + maç kazanma öncelikli${formation&&formation!=='—'?` • ${formation}`:''}`;}
     if(currentView){if(!currentView.__bestTactic)currentView.__bestTactic=currentView.tactic||{};if(selectedMode==='cup')currentView.tactic={tacticType:latestCup.record.teamData.tacticType??0,tacticLevel:latestCup.record.teamData.tacticLevel??0,tacticName:tacticText(latestCup.record.teamData.tacticType)};else currentView.tactic=currentView.__bestTactic;const home=currentView.isHome?r:(currentView.opponentRatings||{}),away=currentView.isHome?(currentView.opponentRatings||{}):r;if(typeof ratingForm==='function'){ratingForm('#homeRatings','home',home);ratingForm('#awayRatings','away',away);}}
-    updateFormationChecks();renderRecommendationLogic();
+    updateFormationChecks();renderRecommendationLogic();notifyLineupChanged('mode');
   }
 
   function patchRender(){if(typeof window.renderMatch!=='function')return false;const old=window.renderMatch;if(old.__formationPatched)return true;const wrapped=function(x){old(x);ensureControls();selectedFormation=x?.ownLineup?.formation||selectedFormation;updateFormationChecks();applyOwnMode();renderRecommendationLogic();decorateOpponentSource();};wrapped.__formationPatched=true;window.renderMatch=wrapped;return true;}
