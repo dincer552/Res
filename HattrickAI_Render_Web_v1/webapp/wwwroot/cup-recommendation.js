@@ -1,6 +1,6 @@
 (()=>{
 const F=['4-4-2','4-3-3','3-5-2','4-5-1','5-4-1','5-3-2','3-4-3'];
-const R={GK:'Goalkeeper',LD:'LeftDefender',CD:'CentralDefender',RD:'RightDefender',LW:'LeftWinger',IM:'CentralMidfielder',RW:'RightMidfielder',LF:'LeftForward',CF:'CentralForward',RF:'RightForward'};
+const R={GK:'Goalkeeper',LD:'LeftDefender',CD:'CentralDefender',RD:'RightDefender',LW:'LeftWinger',IM:'CentralMidfielder',RW:'RightWinger',LF:'LeftForward',CF:'CentralForward',RF:'RightForward'};
 const roles={'4-4-2':[R.GK,R.LD,R.CD,R.CD,R.RD,R.LW,R.IM,R.IM,R.RW,R.LF,R.CF],'4-3-3':[R.GK,R.LD,R.CD,R.CD,R.RD,R.IM,R.IM,R.IM,R.LF,R.CF,R.RF],'3-5-2':[R.GK,R.CD,R.CD,R.CD,R.LW,R.IM,R.IM,R.IM,R.RW,R.LF,R.CF],'4-5-1':[R.GK,R.LD,R.CD,R.CD,R.RD,R.LW,R.IM,R.IM,R.IM,R.RW,R.CF],'5-4-1':[R.GK,R.LD,R.CD,R.CD,R.CD,R.RD,R.LW,R.IM,R.IM,R.RW,R.CF],'5-3-2':[R.GK,R.LD,R.CD,R.CD,R.CD,R.RD,R.IM,R.IM,R.IM,R.LF,R.CF],'3-4-3':[R.GK,R.CD,R.CD,R.CD,R.LW,R.IM,R.IM,R.RW,R.LF,R.CF,R.RF]};
 const txt=r=>({Goalkeeper:'KL',LeftDefender:'SLB',CentralDefender:'STP',RightDefender:'SGB',LeftWinger:'K',RightWinger:'K',CentralMidfielder:'OM',LeftForward:'SF',CentralForward:'SF',RightForward:'SF'})[r]||'';
 const kind=r=>({Goalkeeper:'GK',LeftDefender:'WB',CentralDefender:'CD',RightDefender:'WB',LeftWinger:'WING',RightWinger:'WING',CentralMidfielder:'IM',LeftForward:'FWD',CentralForward:'FWD',RightForward:'FWD'})[r]||'OTHER';
