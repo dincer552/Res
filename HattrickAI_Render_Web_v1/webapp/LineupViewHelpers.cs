@@ -14,11 +14,22 @@ public static class LineupViewHelpers
             {
                 p.PlayerId, p.Name, p.Form, p.Stamina, p.Experience,
                 role = RoleLabel(roles[i].ToString()), roleKey = roles[i].ToString(),
-                rating = Math.Round(ratingEngine.GetPlayerPositionRating(p, roles[i], behaviours != null && behaviours.TryGetValue(i, out var b) ? b : PlayerBehaviour.Normal), 2),
+                // GetPlayerPositionRating is the internal lineup-selection score.
+                // Normalize only the UI value to the same human-readable scale
+                // used by historical match ratings; selection logic is unchanged.
+                rating = Math.Round(ProjectedPlayerRating(ratingEngine, p, roles[i], behaviours != null && behaviours.TryGetValue(i, out var b) ? b : PlayerBehaviour.Normal), 2),
                 behaviour = behaviours != null && behaviours.TryGetValue(i, out var behaviour) ? behaviour.ToString() : "Normal"
             }).ToArray()
             : Array.Empty<object>();
         return new { formation, ratings, playerCount = lineup.Count, players };
+    }
+
+    private static double ProjectedPlayerRating(LineupRatingEngine ratingEngine, PlayerData player, PlayerRole role, PlayerBehaviour behaviour)
+    {
+        // The internal position score is on a larger scale than the player
+        // match/star display. Keep the original score for player selection and
+        // convert only the value rendered on the lineup card.
+        return Math.Clamp(ratingEngine.GetPlayerPositionRating(player, role, behaviour) / 2.5, 0.0, 10.0);
     }
 
     public static object BuildHistoricalLineupView(IReadOnlyList<ChppLineupPlayer> players, string formation, TeamRatings ratings)
