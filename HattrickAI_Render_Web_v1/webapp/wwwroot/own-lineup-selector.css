@@ -16,4 +16,6 @@
 .own-formation-option.selected{color:#36df78;background:#0c2a22}
 .own-formation-check{width:18px;text-align:center;font-weight:900}
 .own-formation-status{display:none}
-@media(max-width:600px){.own-lineup-mode{width:100%;margin-left:0;text-align:left}.own-mode-buttons{justify-content:flex-start;flex-wrap:wrap}.own-mode-buttons button{padding:7px 11px}.own-formation-wrap{width:auto;margin-left:auto}.own-formation-menu{right:0}}
+.own-copy-opponent{border:1px solid #28536a;background:#0b2531;color:#a8bdc9;border-radius:999px;padding:7px 11px;font-weight:800;cursor:pointer;font-size:.72rem;white-space:nowrap;margin-left:auto}
+.own-copy-opponent:hover{border-color:#36df78;color:#36df78}
+@media(max-width:600px){.own-lineup-mode{width:100%;margin-left:0;text-align:left}.own-mode-buttons{justify-content:flex-start;flex-wrap:wrap}.own-mode-buttons button{padding:7px 11px}.own-formation-wrap{width:auto;margin-left:auto}.own-formation-menu{right:0}.own-copy-opponent{font-size:.68rem;padding:7px 9px}}
