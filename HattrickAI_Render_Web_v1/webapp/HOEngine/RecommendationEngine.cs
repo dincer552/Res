@@ -45,10 +45,6 @@ public sealed class RecommendationEngine
             var result = RecommendForFormation(players, opponent, formation, simulationCount, isHome, trainingType, formationExperience);
             if (result == null) continue;
 
-            // The order is deliberate: training tier first, then match quality.
-            // This prevents a formation that wastes the week's training from
-            // winning the recommendation merely because it produces a slightly
-            // higher simulated win percentage.
             if (best == null || result.SelectionScore > best.SelectionScore)
                 best = result;
         }
@@ -122,11 +118,13 @@ public sealed class RecommendationEngine
             var baseBehaviour = baseBehaviours.TryGetValue(i, out var b) ? b : PlayerBehaviour.Normal;
             var behaviour = tacticType switch
             {
-                5 when roles[i] is PlayerRole.LeftDefender or PlayerRole.CentralDefender or PlayerRole.RightDefender => PlayerBehaviour.Defensive,
+                // Hattrick has no Defensive individual order for a central defender.
+                // Only true wing-backs may be forced Defensive by a defensive tactic.
+                5 when roles[i] is PlayerRole.LeftDefender or PlayerRole.RightDefender => PlayerBehaviour.Defensive,
                 5 when roles[i] is PlayerRole.CentralMidfielder or PlayerRole.LeftWinger or PlayerRole.RightWinger => PlayerBehaviour.Defensive,
                 3 when roles[i] is PlayerRole.LeftWinger or PlayerRole.RightWinger => PlayerBehaviour.TowardsMiddle,
                 4 when roles[i] is PlayerRole.LeftWinger or PlayerRole.RightWinger or PlayerRole.LeftForward or PlayerRole.RightForward => PlayerBehaviour.TowardsWing,
-                2 when roles[i] is PlayerRole.LeftDefender or PlayerRole.CentralDefender or PlayerRole.RightDefender => PlayerBehaviour.Defensive,
+                2 when roles[i] is PlayerRole.LeftDefender or PlayerRole.RightDefender => PlayerBehaviour.Defensive,
                 _ => baseBehaviour
             };
             result[i] = behaviour;
@@ -158,12 +156,6 @@ public sealed class RecommendationEngine
             ? Math.Clamp(exp, 1, 8) * 0.75
             : 0.0;
 
-        // HARD PRIORITY:
-        //   1) Full training fit beats partial fit.
-        //   2) Partial fit beats a poor fit.
-        //   3) Inside the same tier, match-winning quality decides.
-        //   4) Formation experience is only a small tie-breaker.
-        // This is intentionally not a 60/40 blend: training is a real priority.
         double score = trainingTier * 1000.0 + trainingFit * 10.0 + matchQuality + routineBonus;
         if (tacticType == 1) score += ourWin * 0.01;
         return score;
@@ -171,23 +163,14 @@ public sealed class RecommendationEngine
 
     public static double TrainingFormationFit(int trainingType, string formation) => trainingType switch
     {
-        // Defending: five defenders are the full-training target.
         3 => formation switch { "5-4-1" or "5-3-2" => 1.00, "4-4-2" or "4-5-1" => 0.70, _ => 0.35 },
-        // Scoring: three forwards are the full-training target.
         4 => formation switch { "3-4-3" or "4-3-3" => 1.00, "4-4-2" => 0.70, "3-5-2" or "4-5-1" => 0.45, _ => 0.30 },
-        // Crossing/Winger: prioritize standard shapes with two wingers and wing-backs.
         5 => formation switch { "4-4-2" or "4-3-3" => 1.00, "3-5-2" or "4-5-1" or "3-4-3" => 0.90, "5-3-2" or "5-4-1" => 0.75, _ => 0.40 },
-        // Shooting trains outfielders broadly; attacking shapes are the practical priority.
         6 => formation switch { "3-4-3" or "4-3-3" => 1.00, "3-5-2" or "4-4-2" => 0.90, "4-5-1" => 0.80, _ => 0.65 },
-        // Short passes: IMs, wingers and forwards. 2-5-3 is omitted from this app.
         7 => formation switch { "3-4-3" or "3-5-2" => 1.00, "4-4-2" or "4-3-3" => 0.90, "4-5-1" => 0.80, _ => 0.60 },
-        // Playmaking: 3-5-2 and 4-5-1 are the standard full-training choices.
         8 => formation switch { "3-5-2" or "4-5-1" => 1.00, "3-4-3" or "4-4-2" => 0.70, "4-3-3" => 0.60, _ => 0.40 },
-        // Through passes: 4-5-1 and 5-4-1 are the strongest supported choices.
         10 => formation switch { "5-4-1" or "4-5-1" => 1.00, "5-3-2" or "3-5-2" or "4-4-2" => 0.85, _ => 0.65 },
-        // Defensive positions: 5-5-0 would be the maximum, but is not supported here.
         11 => formation switch { "5-4-1" => 1.00, "5-3-2" or "4-5-1" => 0.90, "3-5-2" or "4-4-2" => 0.75, _ => 0.55 },
-        // Goalkeeping, set pieces, general and stamina are formation-flexible.
         0 or 1 or 2 or 9 => 0.80,
         _ => 0.55
     };
