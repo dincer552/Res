@@ -15,7 +15,7 @@ public sealed class ChppDatasetExportService
     public async Task<byte[]> BuildAsync(ChppOAuthClient oauth, IConfiguration configuration, CancellationToken ct = default)
     {
         var team = await new ChppTeamDataService(oauth).LoadOwnTeamAsync();
-        TrainingRecommendationProfile? training = null;
+        object? training = null;
         try { training = await new ChppTrainingDataService(oauth).LoadOwnTrainingAsync(ct); } catch { }
         IReadOnlyList<ChppFixture> fixtures = Array.Empty<ChppFixture>();
         try { fixtures = await new ChppMatchDataService(oauth).LoadUpcomingFixturesAsync(team.TeamId); } catch { }
