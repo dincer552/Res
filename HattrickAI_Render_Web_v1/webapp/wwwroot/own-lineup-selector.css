@@ -6,16 +6,10 @@
 .own-mode-buttons button.active{background:#36df78;color:#062115;border-color:#36df78;box-shadow:0 0 0 2px rgba(54,223,120,.14)}
 .own-mode-buttons button:not(.active):hover{border-color:#36df78;color:#d5e7ee}
 .own-mode-source{display:none}
-.own-formation-wrap{position:relative;margin-left:auto;min-width:132px;text-align:right}
-.own-formation-button{border:1px solid #28536a;background:#0b2531;color:#b9cbd4;border-radius:999px;padding:8px 13px;font-weight:800;cursor:pointer;font-size:.86rem;min-width:88px}
-.own-formation-button.loading{opacity:.6;pointer-events:none}
-.own-formation-menu{position:absolute;right:0;top:calc(100% + 7px);z-index:20;display:none;min-width:145px;padding:6px;background:#071b25;border:1px solid #28536a;border-radius:14px;box-shadow:0 12px 30px rgba(0,0,0,.35)}
-.own-formation-menu.open{display:block}
-.own-formation-option{width:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;border:0;background:transparent;color:#aec2cc;padding:8px 9px;border-radius:9px;cursor:pointer;font-weight:700;text-align:left}
-.own-formation-option:hover{background:#102f3d}
-.own-formation-option.selected{color:#36df78;background:#0c2a22}
-.own-formation-check{width:18px;text-align:center;font-weight:900}
+.own-formation-wrap{display:none!important}
+.own-formation-button{display:none!important}
+.own-formation-menu{display:none!important}
 .own-formation-status{display:none}
 .own-copy-opponent{border:1px solid #28536a;background:#0b2531;color:#a8bdc9;border-radius:999px;padding:7px 11px;font-weight:800;cursor:pointer;font-size:.72rem;white-space:nowrap;margin-left:auto}
 .own-copy-opponent:hover{border-color:#36df78;color:#36df78}
-@media(max-width:600px){.own-lineup-mode{width:100%;margin-left:0;text-align:left}.own-mode-buttons{justify-content:flex-start;flex-wrap:wrap}.own-mode-buttons button{padding:7px 11px}.own-formation-wrap{width:auto;margin-left:auto}.own-formation-menu{right:0}.own-copy-opponent{font-size:.68rem;padding:7px 9px}}
+@media(max-width:600px){.own-lineup-mode{width:100%;margin-left:0;text-align:left}.own-mode-buttons{justify-content:flex-start;flex-wrap:wrap}.own-mode-buttons button{padding:7px 11px}.own-copy-opponent{font-size:.68rem;padding:7px 9px}}
