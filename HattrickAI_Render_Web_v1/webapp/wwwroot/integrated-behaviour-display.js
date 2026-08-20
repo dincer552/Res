@@ -8,7 +8,6 @@
     const cup = plan?.cup;
     const lineup = cup?.result?.lineup;
     if (!Array.isArray(lineup) || lineup.length !== 11) return;
-    if (lineup.every(p => p?.behaviour && p.behaviour !== 'Normal')) return;
     if (cup.__behaviourLoading || cup.__behaviourLoaded) return;
 
     cup.__behaviourLoading = true;
@@ -38,12 +37,15 @@
       });
       if (!response.ok) return;
       const result = await response.json();
-      const behaviourProfile = result?.behaviourProfile || {};
-      const returnedLineup = result?.lineup || [];
+      const returnedLineup = Array.isArray(result?.lineup) ? result.lineup : [];
+      if (returnedLineup.length !== 11) return;
+
+      // /api/recommend returns the individual order directly on each lineup
+      // player. Do not expect a separate behaviourProfile field.
       const behaviourByPlayer = new Map();
-      returnedLineup.forEach((p, i) => {
+      returnedLineup.forEach(p => {
         const id = asId(p);
-        if (id) behaviourByPlayer.set(id, behaviourProfile[String(i)] || behaviourProfile[i] || 'Normal');
+        if (id) behaviourByPlayer.set(id, p.behaviour || 'Normal');
       });
 
       lineup.forEach(p => {
