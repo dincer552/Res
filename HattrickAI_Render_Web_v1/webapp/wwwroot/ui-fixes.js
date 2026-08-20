@@ -113,3 +113,64 @@ async function runSimulation(){
     result.textContent=e.message;
   }
 }
+
+// Export the CHPP data already read by the browser as a token/session-free JSON file.
+function installChppExportButton(){
+  if(document.getElementById('chppExportButton'))return;
+  const topbar=document.querySelector('.topbar');
+  const connect=document.getElementById('connect');
+  if(!topbar||!connect)return;
+  const button=document.createElement('button');
+  button.id='chppExportButton';
+  button.type='button';
+  button.className='btn btn-primary';
+  button.textContent='CHPP verisini dışa aktar';
+  button.title='Okunan CHPP verilerini JSON olarak indir';
+  button.style.cssText='white-space:nowrap;font-size:12px;padding:9px 12px;cursor:pointer;';
+  button.addEventListener('click',exportChppDataset);
+  connect.insertAdjacentElement('beforebegin',button);
+}
+
+async function exportChppDataset(){
+  const button=document.getElementById('chppExportButton');
+  if(!button)return;
+  const old=button.textContent;
+  button.disabled=true;
+  button.textContent='Veriler hazırlanıyor…';
+  try{
+    const results=await Promise.allSettled([
+      fetch('/api/team').then(jsonResponse),
+      fetch('/api/training').then(jsonResponse),
+      fetch('/api/fixtures').then(jsonResponse)
+    ]);
+    const [team,training,fixtures]=results.map(x=>x.status==='fulfilled'?x.value:{error:x.reason?.message||'Veri alınamadı'});
+    const dataset={
+      schemaVersion:1,
+      exportedAtUtc:new Date().toISOString(),
+      purpose:'HattrickAI offline CHPP testing dataset',
+      security:{containsOAuthToken:false,containsSessionToken:false,containsCookies:false},
+      chpp:{team,training,fixtures},
+      selectedMatch:currentView||null,
+      selectedRecentIndex:Number(selectedRecentIndex||0),
+      source:'HattrickAI browser API responses'
+    };
+    const blob=new Blob([JSON.stringify(dataset,null,2)],{type:'application/json;charset=utf-8'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');
+    a.href=url;
+    a.download='hattrickai-test-dataset.json';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+    button.textContent='JSON indirildi ✓';
+    setTimeout(()=>{button.textContent=old;button.disabled=false},1800);
+  }catch(e){
+    console.error('CHPP DATASET EXPORT FAILED',e);
+    button.textContent='Dışa aktarma hatası';
+    setTimeout(()=>{button.textContent=old;button.disabled=false},2200);
+  }
+}
+
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',installChppExportButton);
+else installChppExportButton();
