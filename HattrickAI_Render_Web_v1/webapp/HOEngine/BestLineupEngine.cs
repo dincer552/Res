@@ -85,11 +85,9 @@ public sealed class BestLineupEngine
                 PlayerData? bestPlayer = null;
                 double bestPositionScore = double.MinValue;
 
+                // First pass: natural-position candidates only.
                 foreach (var player in remaining)
                 {
-                    // Player selection is based on the natural position using
-                    // NORMAL contribution. Individual orders are optimized only
-                    // after the XI is assembled.
                     if (!IsNaturalCandidateForRole(player, role))
                         continue;
 
@@ -105,6 +103,28 @@ public sealed class BestLineupEngine
                     {
                         bestPositionScore = positionScore;
                         bestPlayer = player;
+                    }
+                }
+
+                // Robust fallback: a forced formation must still produce 11.
+                // If no natural player remains for this slot, pick the best
+                // available positional contribution rather than returning null.
+                if (bestPlayer == null)
+                {
+                    foreach (var player in remaining)
+                    {
+                        double rawRating = _ratingEngine.GetPlayerPositionRating(
+                            player,
+                            role,
+                            PlayerBehaviour.Normal);
+                        double positionFit = PositionFit(player, role);
+                        double positionScore = rawRating * positionFit * 0.82;
+
+                        if (positionScore > bestPositionScore)
+                        {
+                            bestPositionScore = positionScore;
+                            bestPlayer = player;
+                        }
                     }
                 }
 
