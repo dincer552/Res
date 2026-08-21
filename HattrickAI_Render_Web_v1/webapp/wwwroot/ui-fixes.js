@@ -97,7 +97,7 @@ async function runSimulation(){
     const opponentRecent=currentView?.recentMatches?.[selectedRecentIndex]?.opponent||{};
     const homeTactic=isHome?ownTactic:{tacticType:opponentRecent.tacticType??0,tacticLevel:opponentRecent.tacticLevel??0};
     const awayTactic=isHome?{tacticType:opponentRecent.tacticType??0,tacticLevel:opponentRecent.tacticLevel??0}:ownTactic;
-    const r=await fetch('/api/simulate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({home,away,simulations:FIXED_SIMULATIONS,homeTacticType:homeTactic.tacticType??0,homeTacticLevel:homeTactic.tacticLevel??0,awayTacticType:awayTactic.tacticType??0,awayTacticLevel:awayTactic.tacticLevel??0})});
+    const r=await fetch('/api/simulate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({home,away,simulations:FIXED_SIMULATIONS,homeTacticType:homeTactic.tacticType??0,homeTacticLevel:homeTactic.tacticLevel??0,awayTacticType:awayTactic.tacticType??0,awayTacticLevel:awayTactic.level??0})});
     const x=await jsonResponse(r);
     if(!r.ok)throw new Error(x.message||'Hata');
 
@@ -117,18 +117,17 @@ async function runSimulation(){
 // Export the CHPP data already read by the browser as a token/session-free JSON file.
 function installChppExportButton(){
   if(document.getElementById('chppExportButton'))return;
-  const topbar=document.querySelector('.topbar');
-  const connect=document.getElementById('connect');
-  if(!topbar||!connect)return;
+  const target=document.querySelector('#simulation') || document.querySelector('#recent') || document.querySelector('main');
+  if(!target)return;
   const button=document.createElement('button');
   button.id='chppExportButton';
   button.type='button';
   button.className='btn btn-primary';
   button.textContent='CHPP verisini dışa aktar';
   button.title='Okunan CHPP verilerini JSON olarak indir';
-  button.style.cssText='white-space:nowrap;font-size:12px;padding:9px 12px;cursor:pointer;';
+  button.style.cssText='display:block;white-space:nowrap;font-size:12px;padding:9px 12px;margin:0 0 14px;cursor:pointer;';
   button.addEventListener('click',exportChppDataset);
-  connect.insertAdjacentElement('beforebegin',button);
+  target.parentNode.insertBefore(button,target);
 }
 
 async function exportChppDataset(){
