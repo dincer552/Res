@@ -33,8 +33,14 @@
     if (k==='WING') return n(p,'winger') + n(p,'playmaking')*.35 + n(p,'passing')*.15 + n(p,'defending')*.10;
     return n(p,'scoring') + n(p,'passing')*.25 + n(p,'winger')*.15 + n(p,'playmaking')*.10;
   };
-  const trainingScore = (p,type,k) => (trainingSlots[type] || []).includes(k)
-    ? skillFor(p,k)*10 + n(p,'passing')*1.5 + (n(p,'age') <= 21 ? 5 : 0) : 0;
+  // Training selection is deliberately much more age-sensitive than match selection.
+  // A player older than 28 is not allowed to consume a cup training slot when a
+  // younger natural candidate exists; this prevents veterans such as Francisco
+  // Manuel and Utku Hakan Basak from occupying the training places.
+  const trainingAgeEligible = p => n(p,'age') <= 28;
+  const ageTrainingBonus = age => age<=17?40:age===18?35:age===19?30:age===20?25:age===21?21:age===22?18:age===23?15:age===24?12:age===25?9:age===26?6:age===27?3:age===28?1:0;
+  const trainingScore = (p,type,k) => (trainingSlots[type] || []).includes(k) && trainingAgeEligible(p)
+    ? skillFor(p,k)*10 + n(p,'passing')*1.5 + ageTrainingBonus(n(p,'age')) : -100000;
   const opponentBias = (p,k,r={}) => {
     const own = skillFor(p,k);
     if (k==='FWD') return (10-(n(r,'centralDefence')||n(r,'centralDefense')))*own*.25 + (10-(n(r,'leftDefence')+n(r,'rightDefence'))/2)*own*.10;
@@ -53,14 +59,23 @@
     const used = new Set();
     const out = new Array(rs.length).fill(null);
 
+    // Training slots are a hard priority: use a non-league, age-eligible,
+    // natural trainee first. Match-only positions can still use veterans.
     const candidates = eligible.flatMap(p => rs.map((k,i) => ({
       p,k,i,
-      value: trainingScore(p,trainingType,k) + pos(p,k) + opponentBias(p,k,opponentRatings),
+      isTraining: trainRoles.has(k),
+      ageEligible: trainingAgeEligible(p),
+      value: trainRoles.has(k)
+        ? trainingScore(p,trainingType,k) + pos(p,k) + opponentBias(p,k,opponentRatings)
+        : pos(p,k) + opponentBias(p,k,opponentRatings),
       isLeague: leagueIds.has(Number(p.playerId))
     })))
       .filter(x => x.value > 0)
-      .filter(x => !trainRoles.has(x.k) || !x.isLeague)
-      .sort((a,b) => b.value - a.value);
+      .filter(x => !x.isTraining || (x.ageEligible && !x.isLeague))
+      .sort((a,b) => {
+        if (a.isTraining !== b.isTraining) return a.isTraining ? -1 : 1;
+        return b.value-a.value;
+      });
 
     for (const c of candidates) {
       const id = Number(c.p.playerId);
@@ -73,15 +88,24 @@
     for (let i=0;i<rs.length;i++) {
       if (out[i]) continue;
       const k = rs[i];
+      const isTraining = trainRoles.has(k);
       let pool = eligible.filter(p => !used.has(Number(p.playerId)));
-      if (trainRoles.has(k)) {
-        const nonLeague = pool.filter(p => !leagueIds.has(Number(p.playerId)));
-        if (nonLeague.length) pool = nonLeague;
+      if (isTraining) {
+        // Never let a veteran or a league XI player consume a training slot
+        // while an age-eligible non-league candidate exists.
+        const preferred = pool.filter(p => trainingAgeEligible(p) && !leagueIds.has(Number(p.playerId)));
+        if (preferred.length) pool = preferred;
+        else {
+          const young = pool.filter(trainingAgeEligible);
+          if (young.length) pool = young;
+        }
       }
       pool.sort((a,b) => {
         const na = natural(a,k) ? 1 : 0;
         const nb = natural(b,k) ? 1 : 0;
-        return nb-na || (trainingScore(b,trainingType,k)+pos(b,k)+opponentBias(b,k,opponentRatings)) - (trainingScore(a,trainingType,k)+pos(a,k)+opponentBias(a,k,opponentRatings));
+        const va = isTraining ? trainingScore(a,trainingType,k)+pos(a,k)+opponentBias(a,k,opponentRatings) : pos(a,k)+opponentBias(a,k,opponentRatings);
+        const vb = isTraining ? trainingScore(b,trainingType,k)+pos(b,k)+opponentBias(b,k,opponentRatings) : pos(b,k)+opponentBias(b,k,opponentRatings);
+        return nb-na || vb-va;
       });
       if (pool[0]) { out[i]=pool[0]; used.add(Number(pool[0].playerId)); }
     }
@@ -126,13 +150,11 @@
       b.disabled=true; b.textContent='Plan hesaplanıyor…';
       const leagueMatchId=currentView?.fixture?.matchId;
       if(!leagueMatchId) throw new Error('Önce lig maçını seç.');
-
       const leagueIndex=pickRecent(currentView,'LİG RAKİBİNİN BAZ ALINACAK MAÇI');
       const leagueFormation=pickFormation('LİG FORMASYONU',currentView.formation||'3-5-2');
       const leagueView=await json(`/api/fixture-view/${leagueMatchId}?recentIndex=${leagueIndex}`);
       const training=currentView?.training||leagueView?.training;
       if(!training) throw new Error('Antrenman bilgisi alınamadı.');
-
       const fixtures=await json('/api/fixtures');
       const cups=(fixtures.fixtures||[]).filter(f=>[3,7].includes(Number(f.matchType)));
       if(!cups.length) throw new Error('Yaklaşan kupa maçı bulunamadı.');
@@ -145,39 +167,24 @@
       if(!confirm(`Antrenman: ${training.trainingName||'Antrenman'}\nAktif antrenman bilgisiyle kupa kadrosu oluşturulsun mu?`)) throw new Error('Antrenman onayı verilmedi.');
       const cupView=await json(`/api/fixture-view/${cupFixture.matchId}?recentIndex=${cupIndex}`);
       const team=await json('/api/team');
-
       const leagueOpp={teamName:leagueView.opponentTeam?.teamName||'Rakip',ratings:leagueView.opponentRatings||{},tacticType:Number(leagueView.tactic?.tacticType||0),tacticLevel:Number(leagueView.tactic?.tacticLevel||0),preferredFormation:leagueFormation};
       const lr=await json('/api/recommend',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({players:team.players,opponent:leagueOpp,simulations:10000,isHome:!!leagueView.isHome})});
       const leagueLine=lr.lineup||[];
-
       const cupPlayers=chooseCup(team.players,cupFormation,Number(training.trainingType),leagueLine,cupView.opponentRatings||{});
       if(!cupPlayers) throw new Error('Kupa için 11 oyuncu oluşturulamadı.');
-
-      // IMPORTANT: never calculate a second, client-side cup rating.
-      // Feed the already-selected cup XI through the exact same C# HO engine
-      // used by the league. This also produces the real individual orders.
       const cupOpp={teamName:cupView.opponentTeam?.teamName||'Kupa Rakibi',ratings:cupView.opponentRatings||{},tacticType:Number(cupView.tactic?.tacticType||0),tacticLevel:Number(cupView.tactic?.tacticLevel||0),preferredFormation:cupFormation};
       const cr=await json('/api/recommend',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({players:cupPlayers,opponent:cupOpp,simulations:10000,isHome:!!cupView.isHome})});
-
-      window.__integratedPlan={
-        league:{matchId:leagueMatchId,recentIndex:leagueIndex,formation:leagueFormation,result:lr},
-        cup:{matchId:cupFixture.matchId,recentIndex:cupIndex,formation:cupFormation,result:cr,selectedPlayerIds:cupPlayers.map(p=>Number(p.playerId))},
-        training
-      };
+      window.__integratedPlan={league:{matchId:leagueMatchId,recentIndex:leagueIndex,formation:leagueFormation,result:lr},cup:{matchId:cupFixture.matchId,recentIndex:cupIndex,formation:cupFormation,result:cr,selectedPlayerIds:cupPlayers.map(p=>Number(p.playerId))},training};
       render('league');
-      if(typeof window.installPlanStatus==='function') window.installPlanStatus();
       render('cup');
-      if(typeof window.installPlanStatus==='function') window.installPlanStatus();
       const copy=document.getElementById('copyIntegratedPlanButton'); if(copy) copy.disabled=false;
-      b.textContent='Tekrar Hesapla';
-      b.disabled=false;
+      b.textContent='Tekrar Hesapla'; b.disabled=false;
     } catch(e) {
       console.error('INTEGRATED FIX FAILED',e);
       b.disabled=false; b.textContent=window.__integratedPlan?'Tekrar Hesapla':'Kadro Planını Hesapla';
       alert(e.message||'Kadro hesabı başarısız.');
     }
   }
-
   function install() {
     const b=document.getElementById('integratedPlanButton');
     if(!b || b.dataset.fixedBound) return;
