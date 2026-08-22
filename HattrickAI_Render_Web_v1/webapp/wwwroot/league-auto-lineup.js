@@ -1,10 +1,18 @@
 (()=>{
-const V='20260822-league-auto-03';
+const V='20260822-league-auto-04';
 const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
 const num=(v,d=0)=>{const n=Number(v);return Number.isFinite(n)?n:d};
 function hideOldControls(){
   ['#fixtures','#recent','#integratedPlanButton','#integratedPlanningInlineHost','#ipwBackdrop','#ipwPreloadStatus','.match-head','.info-panel','#availabilityPanel','#trainingPanel','#simulation'].forEach(sel=>document.querySelectorAll(sel).forEach(el=>{el.style.display='none';el.setAttribute('aria-hidden','true')}));
   document.querySelectorAll('nav a[href="#recent"],nav a[href="#simulation"]').forEach(a=>{a.style.display='none'});
+}
+function ownTeamName(view){
+  const home=view?.fixture?.homeTeamName||'';
+  const away=view?.fixture?.awayTeamName||'';
+  const opponent=view?.opponentTeam?.teamName||'';
+  if(home&&home!==opponent)return home;
+  if(away&&away!==opponent)return away;
+  return view?.ownTeam?.teamName||view?.team?.teamName||'Lig Kadrosu';
 }
 function ensurePanel(){
   let panel=document.getElementById('leagueAutoPanel');
@@ -14,7 +22,7 @@ function ensurePanel(){
   panel=document.createElement('section');
   panel.id='leagueAutoPanel';
   panel.className='panel league-auto-panel';
-  panel.innerHTML=`<div class="league-auto-head"><div><div class="league-auto-kicker">BİZİM TAKIM</div><div class="league-auto-title">Lig Kadrosu</div></div><span class="league-auto-badge">OTOMATİK</span></div><div class="league-auto-grid"><div class="league-auto-source" id="leagueAutoSource"><small>RAKİBİN SON LİG MAÇI</small><strong>Veriler yükleniyor…</strong><span>Son tamamlanan lig maçı otomatik olarak baz alınacak.</span></div><div class="league-auto-summary"><small>KADRO MANTIĞI</small><strong>Mevcut oyunculardan en iyi 11</strong><div class="league-auto-note">Formasyon, rakip maçı veya hesaplama butonu yok. Sistem rakibin son lig maçını alır ve HO Engine ile en iyi yerleşimi seçer.</div></div></div><div class="league-auto-stats"><div class="league-auto-stat"><span>FORMASYON</span><b id="leagueAutoFormation">—</b></div><div class="league-auto-stat"><span>MF</span><b id="leagueAutoMF">—</b></div><div class="league-auto-stat"><span>DEF / ATT</span><b id="leagueAutoDefAtt">—</b></div></div><div class="league-auto-progress"><i></i></div><div class="league-auto-status" id="leagueAutoStatus">Rakip ve kadro verileri hazırlanıyor…</div>`;
+  panel.innerHTML=`<div class="league-auto-head"><div><div class="league-auto-title" id="leagueAutoTeamName">Lig Kadrosu</div></div></div><div class="league-auto-grid"><div class="league-auto-source" id="leagueAutoSource"><small>RAKİBİN SON LİG MAÇI</small><strong>Veriler yükleniyor…</strong><span>Son tamamlanan lig maçı otomatik olarak baz alınacak.</span></div></div><div class="league-auto-stats"><div class="league-auto-stat"><span>FORMASYON</span><b id="leagueAutoFormation">—</b></div><div class="league-auto-stat"><span>MF</span><b id="leagueAutoMF">—</b></div><div class="league-auto-stat"><span>DEF / ATT</span><b id="leagueAutoDefAtt">—</b></div></div><div class="league-auto-progress"><i></i></div><div class="league-auto-status" id="leagueAutoStatus">Rakip ve kadro verileri hazırlanıyor…</div>`;
   grid.parentNode.insertBefore(panel,grid);
   return panel;
 }
@@ -41,6 +49,8 @@ function renderView(view,index){
   if(typeof selectedRecentIndex!=='undefined')selectedRecentIndex=index;
   const home=document.getElementById('homeName'),away=document.getElementById('awayName');
   if(home)home.textContent=view.fixture?.homeTeamName||'—';if(away)away.textContent=view.fixture?.awayTeamName||'—';
+  const ownName=ownTeamName(view);
+  const teamTitle=document.getElementById('leagueAutoTeamName');if(teamTitle)teamTitle.textContent=ownName;
   const title=document.getElementById('opponentLineupTitle');if(title)title.textContent=view.opponentTeam?.teamName||'Rakip kadro';
   const of=document.getElementById('opponentFormation');if(of)of.textContent=view.opponentLineup?.formation||'—';
   const or=document.getElementById('opponentRatingStrip');if(or&&typeof renderRatingSummary==='function')or.innerHTML=renderRatingSummary(view.opponentRatings||{});
@@ -49,7 +59,7 @@ function renderView(view,index){
   const f=document.getElementById('ownFormation');if(f)f.textContent=view.formation||own[0]?.formation||'—';
   const strip=document.getElementById('ownRatingStrip');if(strip&&typeof renderRatingSummary==='function')strip.innerHTML=renderRatingSummary(view.ownRatings||{});
   if(typeof renderPitch==='function')renderPitch('#ownPitch',own,false);
-  const ownTitle=document.getElementById('ownLineupTitle');if(ownTitle)ownTitle.textContent='Lig Kadrosu';
+  const ownTitle=document.getElementById('ownLineupTitle');if(ownTitle)ownTitle.textContent=ownName;
 }
 function renderResult(view,index){
   const panel=ensurePanel();if(!panel)return;
