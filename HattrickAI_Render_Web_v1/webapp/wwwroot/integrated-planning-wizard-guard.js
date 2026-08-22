@@ -24,18 +24,47 @@ function removeDuplicateTrainingErrors(){
     if(el.children.length===0 && el.textContent?.trim()==='Antrenmanı onayla.')el.remove();
   });
 }
+function makeTrainingReady(){
+  const body=document.getElementById('ipwBody');
+  if(!body)return;
+  const toggle=body.querySelector('.ipw-check');
+  // Preserve the wizard's internal state machine, but remove the user-facing confirmation.
+  if(toggle && !toggle.classList.contains('on'))toggle.click();
+  if(toggle){toggle.style.display='none';toggle.setAttribute('aria-hidden','true');}
+  [...body.querySelectorAll('*')].forEach(el=>{
+    if(el.children.length===0){
+      const t=el.textContent?.trim()||'';
+      if(t==='Antrenmanı onayla.'||t==='Antrenmanı onayla')el.remove();
+    }
+  });
+  let info=body.querySelector('.ipw-passing-training-info');
+  if(!info){
+    info=document.createElement('div');
+    info.className='ipw-passing-training-info';
+    info.style.cssText='margin:12px 0;padding:14px 16px;border:1px solid rgba(53,231,121,.28);border-radius:14px;background:rgba(53,231,121,.07);color:#eafff3;font:600 14px/1.45 system-ui';
+    info.textContent='Hesaplama Kısa Paslar antrenmanına göre yapılacaktır. Ayrı bir antrenman onayı gerekmiyor.';
+    body.prepend(info);
+  }
+}
 function syncTrainingButton(){
   const body=document.getElementById('ipwBody');
   const name=document.getElementById('ipwStepName');
   const next=document.getElementById('ipwNext');
   if(!body||!name||!next)return;
   removeDuplicateTrainingErrors();
-  const isTrainingStep=name.textContent?.trim()==='Antrenmanı onayla';
+  const rawName=name.textContent?.trim()||'';
+  const isTrainingStep=rawName==='Antrenmanı onayla'||rawName.startsWith('Antrenmanı onayla');
   if(isTrainingStep){
-    const toggle=body.querySelector('.ipw-check');
-    const confirmed=!!toggle?.classList.contains('on');
-    next.disabled=!confirmed;
-    next.title=confirmed?'Antrenman onaylandı.':'Önce antrenmanı onayla.';
+    makeTrainingReady();
+    name.textContent='Antrenman: Kısa Paslar';
+    next.disabled=false;
+    next.textContent='Devam et';
+    next.title='Kısa Paslar antrenmanına göre hesapla.';
+  }else if(rawName!=='Hesaplama'&&rawName!=='Tamamlandı'){
+    // Prevent a stale async render from leaving the final-step label on selection screens.
+    next.textContent='Devam et';
+    next.disabled=false;
+    next.removeAttribute('title');
   }
 }
 function fixScroll(){
