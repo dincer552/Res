@@ -1,6 +1,6 @@
 (()=>{
 const ROOT='/';
-const V='20260822-preload-02';
+const V='20260822-preload-03';
 function loadCss(){if(document.getElementById('integratedPlanningWizardCss'))return;const l=document.createElement('link');l.id='integratedPlanningWizardCss';l.rel='stylesheet';l.href=`${ROOT}integrated-planning-wizard.css?v=${V}`;document.head.appendChild(l)}
 function loadScript(id,src){return new Promise((resolve,reject)=>{if(document.getElementById(id)){resolve();return}const s=document.createElement('script');s.id=id;s.src=src;s.onload=resolve;s.onerror=()=>reject(new Error(`${id} yüklenemedi.`));document.body.appendChild(s)})}
 async function loadJs(){
@@ -24,16 +24,10 @@ async function openWizard(){
   try{
     await loadJs();
     if(typeof window.openIntegratedPlanningWizard!=='function')throw new Error('Kadro planı arayüzü hazır değil.');
-
-    // Wizard hemen açılır. Ağır geçmiş verileri artık butonun üzerinde bekletmiyoruz.
     window.openIntegratedPlanningWizard();
     setTimeout(()=>window.activateInlinePlanningWizard?.(),20);
     hideLoading();
-
-    // Fikstür cache'i arka planda doldurulur; fixture-view çağrıları seçilen adımda yapılır.
-    if(typeof window.__ipwPreload==='function'){
-      window.__ipwPreload().catch(e=>console.warn('Kadro planı arka plan ön yükleme:',e));
-    }
+    if(typeof window.__ipwPreload==='function')window.__ipwPreload().catch(e=>console.warn('Kadro planı arka plan ön yükleme:',e));
   }catch(e){
     console.error(e);
     loading.textContent=`Kadro planı açılamadı: ${e.message||'Bilinmeyen hata'}`;
