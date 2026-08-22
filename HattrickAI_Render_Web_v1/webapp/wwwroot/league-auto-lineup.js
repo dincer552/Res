@@ -1,108 +1,16 @@
 (()=>{
-const V='20260822-league-auto-04';
+const V='20260822-league-auto-05';
 const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
 const num=(v,d=0)=>{const n=Number(v);return Number.isFinite(n)?n:d};
-function hideOldControls(){
-  ['#fixtures','#recent','#integratedPlanButton','#integratedPlanningInlineHost','#ipwBackdrop','#ipwPreloadStatus','.match-head','.info-panel','#availabilityPanel','#trainingPanel','#simulation'].forEach(sel=>document.querySelectorAll(sel).forEach(el=>{el.style.display='none';el.setAttribute('aria-hidden','true')}));
-  document.querySelectorAll('nav a[href="#recent"],nav a[href="#simulation"]').forEach(a=>{a.style.display='none'});
-}
-function ownTeamName(view){
-  const home=view?.fixture?.homeTeamName||'';
-  const away=view?.fixture?.awayTeamName||'';
-  const opponent=view?.opponentTeam?.teamName||'';
-  if(home&&home!==opponent)return home;
-  if(away&&away!==opponent)return away;
-  return view?.ownTeam?.teamName||view?.team?.teamName||'Lig Kadrosu';
-}
-function ensurePanel(){
-  let panel=document.getElementById('leagueAutoPanel');
-  if(panel)return panel;
-  const grid=document.querySelector('.lineup-grid');
-  if(!grid)return null;
-  panel=document.createElement('section');
-  panel.id='leagueAutoPanel';
-  panel.className='panel league-auto-panel';
-  panel.innerHTML=`<div class="league-auto-head"><div><div class="league-auto-title" id="leagueAutoTeamName">Lig Kadrosu</div></div></div><div class="league-auto-grid"><div class="league-auto-source" id="leagueAutoSource"><small>RAKİBİN SON LİG MAÇI</small><strong>Veriler yükleniyor…</strong><span>Son tamamlanan lig maçı otomatik olarak baz alınacak.</span></div></div><div class="league-auto-stats"><div class="league-auto-stat"><span>FORMASYON</span><b id="leagueAutoFormation">—</b></div><div class="league-auto-stat"><span>MF</span><b id="leagueAutoMF">—</b></div><div class="league-auto-stat"><span>DEF / ATT</span><b id="leagueAutoDefAtt">—</b></div></div><div class="league-auto-progress"><i></i></div><div class="league-auto-status" id="leagueAutoStatus">Rakip ve kadro verileri hazırlanıyor…</div>`;
-  grid.parentNode.insertBefore(panel,grid);
-  return panel;
-}
+function hideOldControls(){['#fixtures','#recent','#integratedPlanButton','#integratedPlanningInlineHost','#ipwBackdrop','#ipwPreloadStatus','.match-head','.info-panel','#availabilityPanel','#trainingPanel','#simulation'].forEach(sel=>document.querySelectorAll(sel).forEach(el=>{el.style.display='none';el.setAttribute('aria-hidden','true')}));document.querySelectorAll('nav a[href="#recent"],nav a[href="#simulation"]').forEach(a=>{a.style.display='none'});}
+function ownTeamName(view){const home=view?.fixture?.homeTeamName||'',away=view?.fixture?.awayTeamName||'',opponent=view?.opponentTeam?.teamName||'';if(home&&home!==opponent)return home;if(away&&away!==opponent)return away;return view?.ownTeam?.teamName||view?.team?.teamName||'Lig Kadrosu';}
+function ensurePanel(){let panel=document.getElementById('leagueAutoPanel');if(panel)return panel;const grid=document.querySelector('.lineup-grid');if(!grid)return null;panel=document.createElement('section');panel.id='leagueAutoPanel';panel.className='panel league-auto-panel';panel.innerHTML=`<div class="league-auto-head"><div><div class="league-auto-title" id="leagueAutoTeamName">Lig Kadrosu</div></div></div><div class="league-auto-grid"><div class="league-auto-source" id="leagueAutoSource"><small>RAKİBİN SON LİG MAÇI</small><strong>Veriler yükleniyor…</strong></div></div><div class="league-auto-stats"><div class="league-auto-stat"><span>FORMASYON</span><b id="leagueAutoFormation">—</b></div><div class="league-auto-stat"><span>MF</span><b id="leagueAutoMF">—</b></div><div class="league-auto-stat"><span>DEF / ATT</span><b id="leagueAutoDefAtt">—</b></div></div><div class="league-auto-progress"><i></i></div><div class="league-auto-status" id="leagueAutoStatus">Rakip ve kadro verileri hazırlanıyor…</div>`;grid.parentNode.insertBefore(panel,grid);return panel;}
 function isLeague(m){const t=m?.fixture?.matchType;return Number(t)===1||String(t??'').toLowerCase()==='league'}
-function latestLeagueIndex(view){
-  const ms=[...(view?.recentMatches||[])].filter(isLeague);
-  if(!ms.length)return -1;
-  ms.sort((a,b)=>new Date(b.fixture?.matchDate||0)-new Date(a.fixture?.matchDate||0));
-  const original=(view.recentMatches||[]);
-  const chosen=ms[0];
-  return original.indexOf(chosen);
-}
+function latestLeagueIndex(view){const ms=[...(view?.recentMatches||[])].filter(isLeague);if(!ms.length)return -1;ms.sort((a,b)=>new Date(b.fixture?.matchDate||0)-new Date(a.fixture?.matchDate||0));return (view.recentMatches||[]).indexOf(ms[0]);}
 async function safeJson(url,opts={}){const r=await fetch(url,{cache:'no-store',...opts});const text=await r.text();let x={};try{x=JSON.parse(text)}catch{throw new Error(`Sunucu geçersiz yanıt verdi (HTTP ${r.status}).`)}if(!r.ok)throw new Error(x.message||`İstek başarısız (HTTP ${r.status}).`);return x}
-function renderSource(view,index){
-  const panel=ensurePanel();if(!panel)return;
-  const m=view?.recentMatches?.[index];const f=m?.fixture||{};const r=m?.opponent?.actualMatchRatings||m?.opponent?.ratings||{};
-  const box=document.getElementById('leagueAutoSource');if(!box)return;
-  if(!m){box.innerHTML='<small>RAKİBİN SON LİG MAÇI</small><strong>Bulunamadı</strong><span>Rakibin son tamamlanan lig maçı alınamadı.</span>';return}
-  box.innerHTML=`<small>RAKİBİN SON LİG MAÇI</small><strong>${esc(f.homeTeamName)} ${f.homeGoals??'—'} - ${f.awayGoals??'—'} ${esc(f.awayTeamName)}</strong><span>${new Date(f.matchDate).toLocaleString('tr-TR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})} • MF ${num(r.midfield??r.Midfield).toFixed(2)} • DEF ${((num(r.leftDefence??r.LeftDefence)+num(r.centralDefence??r.CentralDefence)+num(r.rightDefence??r.RightDefence))/3).toFixed(2)} • ATT ${((num(r.leftAttack??r.LeftAttack)+num(r.centralAttack??r.CentralAttack)+num(r.rightAttack??r.RightAttack))/3).toFixed(2)}</span>`;
-}
-function renderView(view,index){
-  const own=view?.ownLineup?.players||[];const opp=view?.opponentLineup?.players||[];
-  if(typeof currentView!=='undefined')currentView=view;
-  if(typeof selectedRecentIndex!=='undefined')selectedRecentIndex=index;
-  const home=document.getElementById('homeName'),away=document.getElementById('awayName');
-  if(home)home.textContent=view.fixture?.homeTeamName||'—';if(away)away.textContent=view.fixture?.awayTeamName||'—';
-  const ownName=ownTeamName(view);
-  const teamTitle=document.getElementById('leagueAutoTeamName');if(teamTitle)teamTitle.textContent=ownName;
-  const title=document.getElementById('opponentLineupTitle');if(title)title.textContent=view.opponentTeam?.teamName||'Rakip kadro';
-  const of=document.getElementById('opponentFormation');if(of)of.textContent=view.opponentLineup?.formation||'—';
-  const or=document.getElementById('opponentRatingStrip');if(or&&typeof renderRatingSummary==='function')or.innerHTML=renderRatingSummary(view.opponentRatings||{});
-  if(typeof renderPitch==='function')renderPitch('#opponentPitch',opp,true);
-  if(own.length!==11)throw new Error('Kendi kadronun en iyi 11’i oluşturulamadı.');
-  const f=document.getElementById('ownFormation');if(f)f.textContent=view.formation||own[0]?.formation||'—';
-  const strip=document.getElementById('ownRatingStrip');if(strip&&typeof renderRatingSummary==='function')strip.innerHTML=renderRatingSummary(view.ownRatings||{});
-  if(typeof renderPitch==='function')renderPitch('#ownPitch',own,false);
-  const ownTitle=document.getElementById('ownLineupTitle');if(ownTitle)ownTitle.textContent=ownName;
-}
-function renderResult(view,index){
-  const panel=ensurePanel();if(!panel)return;
-  const result=view?.ownLineup?.players||[];const ratings=view?.ownRatings||view?.recommendation?.ratings||{};
-  if(result.length!==11){panel.classList.add('error');document.getElementById('leagueAutoStatus').textContent='11 oyunculuk kadro oluşturulamadı.';return}
-  panel.classList.remove('error');panel.classList.add('ready');
-  document.getElementById('leagueAutoFormation').textContent=view?.formation||'—';
-  document.getElementById('leagueAutoMF').textContent=num(ratings.midfield??ratings.Midfield).toFixed(2);
-  const def=(num(ratings.leftDefence??ratings.LeftDefence)+num(ratings.centralDefence??ratings.CentralDefence)+num(ratings.rightDefence??ratings.RightDefence))/3;
-  const att=(num(ratings.leftAttack??ratings.LeftAttack)+num(ratings.centralAttack??ratings.CentralAttack)+num(ratings.rightAttack??ratings.RightAttack))/3;
-  document.getElementById('leagueAutoDefAtt').textContent=`${def.toFixed(2)} / ${att.toFixed(2)}`;
-  document.getElementById('leagueAutoStatus').textContent=`Hazır • 11 oyuncu • ${view?.tactic?.tacticName||'Normal'}${view?.tactic?.tacticLevel?` Lv.${view.tactic.tacticLevel}`:''}`;
-  renderSource(view,index);renderView(view,index);
-}
-async function autoPlan(){
-  const panel=ensurePanel();if(!panel)return;
-  hideOldControls();
-  const status=document.getElementById('leagueAutoStatus');
-  try{
-    status.textContent='Lig maçı bulunuyor…';
-    const fixtures=(await safeJson('/api/fixtures')).fixtures||[];
-    const leagueFixtures=fixtures.filter(f=>Number(f.matchType)===1||String(f.matchType??'').toLowerCase()==='league');
-    const fixture=leagueFixtures[0]||fixtures[0];
-    if(!fixture)throw new Error('Yaklaşan lig maçı bulunamadı.');
-    status.textContent='Rakibin son maçları alınıyor…';
-    let view=await safeJson(`/api/fixture-view/${fixture.matchId}?recentIndex=0&refresh=true`);
-    let index=latestLeagueIndex(view);
-    if(index<0)throw new Error('Rakibin son lig maçı bulunamadı.');
-    if(index!==Number(view.selectedRecentIndex??0)){
-      status.textContent='Son lig maçı baz alınarak kadro hazırlanıyor…';
-      view=await safeJson(`/api/fixture-view/${fixture.matchId}?recentIndex=${index}`);
-    }
-    renderResult(view,index);
-  }catch(e){
-    panel.classList.add('error');
-    status.textContent=`Lig kadrosu hesaplanamadı: ${e.message||'Bilinmeyen hata'}`;
-    console.error('league-auto-lineup',e);
-  }finally{hideOldControls()}
-}
-function boot(){
-  const link=document.createElement('link');link.rel='stylesheet';link.href=`/league-auto-lineup.css?v=${V}`;document.head.appendChild(link);
-  ensurePanel();hideOldControls();autoPlan();
-  setInterval(hideOldControls,1000);
-}
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
+function renderSource(view,index){const panel=ensurePanel();if(!panel)return;const m=view?.recentMatches?.[index],f=m?.fixture||{},r=m?.opponent?.actualMatchRatings||m?.opponent?.ratings||{},box=document.getElementById('leagueAutoSource');if(!box)return;if(!m){box.innerHTML='<small>RAKİBİN SON LİG MAÇI</small><strong>Bulunamadı</strong>';return}box.innerHTML=`<small>RAKİBİN SON LİG MAÇI</small><strong>${esc(f.homeTeamName)} ${f.homeGoals??'—'} - ${f.awayGoals??'—'} ${esc(f.awayTeamName)}</strong><span>${new Date(f.matchDate).toLocaleString('tr-TR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})} • MF ${num(r.midfield??r.Midfield).toFixed(2)} • DEF ${((num(r.leftDefence??r.LeftDefence)+num(r.centralDefence??r.CentralDefence)+num(r.rightDefence??r.RightDefence))/3).toFixed(2)} • ATT ${((num(r.leftAttack??r.LeftAttack)+num(r.centralAttack??r.CentralAttack)+num(r.rightAttack??r.RightAttack))/3).toFixed(2)}</span>`;}
+function renderView(view,index){const own=view?.ownLineup?.players||[],opp=view?.opponentLineup?.players||[];if(typeof currentView!=='undefined')currentView=view;if(typeof selectedRecentIndex!=='undefined')selectedRecentIndex=index;const home=document.getElementById('homeName'),away=document.getElementById('awayName');if(home)home.textContent=view.fixture?.homeTeamName||'—';if(away)away.textContent=view.fixture?.awayTeamName||'—';const ownName=ownTeamName(view),teamTitle=document.getElementById('leagueAutoTeamName');if(teamTitle)teamTitle.textContent=ownName;const title=document.getElementById('opponentLineupTitle');if(title)title.textContent=view.opponentTeam?.teamName||'Rakip kadro';const of=document.getElementById('opponentFormation');if(of)of.textContent=view.opponentLineup?.formation||'—';const or=document.getElementById('opponentRatingStrip');if(or&&typeof renderRatingSummary==='function')or.innerHTML=renderRatingSummary(view.opponentRatings||{});if(typeof renderPitch==='function')renderPitch('#opponentPitch',opp,true);if(own.length!==11)throw new Error('Kendi kadronun en iyi 11’i oluşturulamadı.');const f=document.getElementById('ownFormation');if(f)f.textContent=view.formation||own[0]?.formation||'—';const strip=document.getElementById('ownRatingStrip');if(strip&&typeof renderRatingSummary==='function')strip.innerHTML=renderRatingSummary(view.ownRatings||{});if(typeof renderPitch==='function')renderPitch('#ownPitch',own,false);const ownTitle=document.getElementById('ownLineupTitle');if(ownTitle)ownTitle.textContent=ownName;}
+function renderResult(view,index){const panel=ensurePanel();if(!panel)return;const result=view?.ownLineup?.players||[],ratings=view?.ownRatings||view?.recommendation?.ratings||{};if(result.length!==11){panel.classList.add('error');document.getElementById('leagueAutoStatus').textContent='11 oyunculuk kadro oluşturulamadı.';return}panel.classList.remove('error');panel.classList.add('ready');document.getElementById('leagueAutoFormation').textContent=view?.formation||'—';document.getElementById('leagueAutoMF').textContent=num(ratings.midfield??ratings.Midfield).toFixed(2);const def=(num(ratings.leftDefence??ratings.LeftDefence)+num(ratings.centralDefence??ratings.CentralDefence)+num(ratings.rightDefence??ratings.RightDefence))/3,att=(num(ratings.leftAttack??ratings.LeftAttack)+num(ratings.centralAttack??ratings.CentralAttack)+num(ratings.rightAttack??ratings.RightAttack))/3;document.getElementById('leagueAutoDefAtt').textContent=`${def.toFixed(2)} / ${att.toFixed(2)}`;document.getElementById('leagueAutoStatus').textContent=`Hazır • 11 oyuncu • ${view?.tactic?.tacticName||'Normal'}${view?.tactic?.tacticLevel?` Lv.${view.tactic.tacticLevel}`:''}`;renderSource(view,index);renderView(view,index);}
+async function autoPlan(){const panel=ensurePanel();if(!panel)return;hideOldControls();const status=document.getElementById('leagueAutoStatus');try{status.textContent='Lig maçı bulunuyor…';const fixtures=(await safeJson('/api/fixtures')).fixtures||[],leagueFixtures=fixtures.filter(f=>Number(f.matchType)===1||String(f.matchType??'').toLowerCase()==='league'),fixture=leagueFixtures[0]||fixtures[0];if(!fixture)throw new Error('Yaklaşan lig maçı bulunamadı.');status.textContent='Rakibin son maçları alınıyor…';let view=await safeJson(`/api/fixture-view/${fixture.matchId}?recentIndex=0&refresh=true`),index=latestLeagueIndex(view);if(index<0)throw new Error('Rakibin son lig maçı bulunamadı.');if(index!==Number(view.selectedRecentIndex??0)){status.textContent='Son lig maçı baz alınarak kadro hazırlanıyor…';view=await safeJson(`/api/fixture-view/${fixture.matchId}?recentIndex=${index}`);}renderResult(view,index);}catch(e){panel.classList.add('error');status.textContent=`Lig kadrosu hesaplanamadı: ${e.message||'Bilinmeyen hata'}`;console.error('league-auto-lineup',e);}finally{hideOldControls()}}
+function boot(){const link=document.createElement('link');link.rel='stylesheet';link.href=`/league-auto-lineup.css?v=${V}`;document.head.appendChild(link);ensurePanel();hideOldControls();autoPlan();setInterval(hideOldControls,1000);}if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',boot);else boot();
 })();
