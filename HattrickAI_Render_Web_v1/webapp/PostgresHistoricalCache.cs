@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -10,7 +11,8 @@ namespace HattrickAI.Web;
 
 /// <summary>
 /// Central persistent cache for opponent historical match data and completed HO analysis.
-/// PostgreSQL is the source of truth; CHPP is only used on a cache miss or explicit refresh.
+/// PostgreSQL is the source of truth when DATABASE_URL is configured; CHPP is only used on a cache miss or explicit refresh.
+/// When Postgres is not configured, a bounded-by-deploy in-memory fallback keeps the app functional and avoids repeated CHPP calls during one runtime.
 /// </summary>
 public sealed class PostgresHistoricalCache
 {
@@ -22,12 +24,27 @@ public sealed class PostgresHistoricalCache
         PropertyNameCaseInsensitive = true,
         DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
     };
+    private readonly ConcurrentDictionary<string, ChppSelectedMatch> _memoryMatches = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, IReadOnlyList<ChppLineupPlayer>> _memoryLineups = new(StringComparer.Ordinal);
+    private readonly ConcurrentDictionary<string, string> _memoryAnalyses = new(StringComparer.Ordinal);
 
     public bool IsConfigured => !string.IsNullOrWhiteSpace(_connectionString);
+    public string CacheMode => IsConfigured ? "POSTGRES" : "MEMORY";
 
     public PostgresHistoricalCache(IConfiguration configuration)
     {
-        _connectionString = NormalizeConnectionString(configuration["DATABASE_URL"] ?? Environment.GetEnvironmentVariable("DATABASE_URL"));
+        var raw = configuration["DATABASE_URL"]
+                  ?? Environment.GetEnvironmentVariable("DATABASE_URL")
+                  ?? configuration["POSTGRES_URL"]
+                  ?? Environment.GetEnvironmentVariable("POSTGRES_URL")
+                  ?? configuration["POSTGRES_CONNECTION_STRING"]
+                  ?? Environment.GetEnvironmentVariable("POSTGRES_CONNECTION_STRING")
+                  ?? configuration["DATABASE_INTERNAL_URL"]
+                  ?? Environment.GetEnvironmentVariable("DATABASE_INTERNAL_URL")
+                  ?? configuration["RENDER_DATABASE_URL"]
+                  ?? Environment.GetEnvironmentVariable("RENDER_DATABASE_URL");
+        _connectionString = NormalizeConnectionString(raw);
+        if (!IsConfigured) Console.WriteLine("CHPP CACHE: DATABASE_URL not configured; using MEMORY runtime cache fallback.");
     }
 
     public static string AnalysisKey(int currentMatchId, int historicalMatchId, int ownTeamId, bool isHome, IEnumerable<PlayerData> players)
@@ -39,10 +56,8 @@ public sealed class PostgresHistoricalCache
 
     public async Task<ChppSelectedMatch?> GetSelectedMatchAsync(string key, CancellationToken cancellationToken = default)
     {
-        // The latest-cup pointer must never become stale. The CHPP matches feed is
-        // authoritative for which cup match is the latest; only its lineup/data are cached.
         if (key.StartsWith("cup-latest:", StringComparison.Ordinal)) return null;
-        if (!IsConfigured) return null;
+        if (!IsConfigured) return _memoryMatches.TryGetValue(key, out var cached) ? cached : null;
         try
         {
             await EnsureSchemaAsync(cancellationToken);
@@ -55,12 +70,13 @@ public sealed class PostgresHistoricalCache
         catch (Exception ex)
         {
             Console.Error.WriteLine($"POSTGRES CACHE READ MATCH ERROR: {ex.Message}");
-            return null;
+            return _memoryMatches.TryGetValue(key, out var fallback) ? fallback : null;
         }
     }
 
     public async Task SetSelectedMatchAsync(string key, ChppSelectedMatch value, int teamId, int opponentTeamId, CancellationToken cancellationToken = default)
     {
+        _memoryMatches[key] = value;
         if (!IsConfigured) return;
         try
         {
@@ -85,7 +101,7 @@ ON CONFLICT(cache_key) DO UPDATE SET payload=EXCLUDED.payload, cached_at=EXCLUDE
 
     public async Task<IReadOnlyList<ChppLineupPlayer>?> GetLineupAsync(string key, CancellationToken cancellationToken = default)
     {
-        if (!IsConfigured) return null;
+        if (!IsConfigured) return _memoryLineups.TryGetValue(key, out var cached) ? cached : null;
         try
         {
             await EnsureSchemaAsync(cancellationToken);
@@ -98,12 +114,13 @@ ON CONFLICT(cache_key) DO UPDATE SET payload=EXCLUDED.payload, cached_at=EXCLUDE
         catch (Exception ex)
         {
             Console.Error.WriteLine($"POSTGRES CACHE READ LINEUP ERROR: {ex.Message}");
-            return null;
+            return _memoryLineups.TryGetValue(key, out var fallback) ? fallback : null;
         }
     }
 
     public async Task SetLineupAsync(string key, int matchId, int teamId, IReadOnlyList<ChppLineupPlayer> value, CancellationToken cancellationToken = default)
     {
+        _memoryLineups[key] = value;
         if (!IsConfigured) return;
         try
         {
@@ -127,7 +144,7 @@ ON CONFLICT(cache_key) DO UPDATE SET payload=EXCLUDED.payload, cached_at=EXCLUDE
 
     public async Task<string?> GetAnalysisAsync(string key, CancellationToken cancellationToken = default)
     {
-        if (!IsConfigured) return null;
+        if (!IsConfigured) return _memoryAnalyses.TryGetValue(key, out var cached) ? cached : null;
         try
         {
             await EnsureSchemaAsync(cancellationToken);
@@ -140,12 +157,13 @@ ON CONFLICT(cache_key) DO UPDATE SET payload=EXCLUDED.payload, cached_at=EXCLUDE
         catch (Exception ex)
         {
             Console.Error.WriteLine($"POSTGRES CACHE READ ANALYSIS ERROR: {ex.Message}");
-            return null;
+            return _memoryAnalyses.TryGetValue(key, out var fallback) ? fallback : null;
         }
     }
 
     public async Task SetAnalysisAsync(string key, int currentMatchId, int historicalMatchId, int ownTeamId, string json, CancellationToken cancellationToken = default)
     {
+        _memoryAnalyses[key] = json;
         if (!IsConfigured) return;
         try
         {
