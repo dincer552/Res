@@ -1,13 +1,51 @@
 (()=>{
-const V='20260823-league-auto-patch-02';
+const V='20260823-league-auto-patch-03';
 let fixtureDiag=null;
+let chppReady=false;
+let chppWaiters=[];
 const fmt=ms=>ms<1000?`${Math.round(ms)} ms`:`${(ms/1000).toFixed(1)} sn`;
 const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
 const originalFetch=window.fetch.bind(window);
+function setConnectionUi(connected){
+  chppReady=!!connected;
+  const panel=document.getElementById('leagueAutoPanel');
+  const log=document.getElementById('leagueAutoLog');
+  const status=document.getElementById('leagueAutoStatus');
+  const progress=panel?.querySelector('.league-auto-progress');
+  if(!chppReady){
+    if(log)log.style.display='none';
+    if(status)status.style.display='none';
+    if(progress)progress.style.display='none';
+    if(panel)panel.classList.remove('error','ready');
+  }else{
+    if(log)log.style.display='';
+    if(status)status.style.display='';
+    if(progress)progress.style.display='';
+  }
+}
+function waitForChpp(){
+  if(chppReady)return Promise.resolve();
+  return new Promise(resolve=>chppWaiters.push(resolve));
+}
+async function pollConnection(){
+  try{
+    const r=await originalFetch(`/api/status?trace=${Date.now()}`,{cache:'no-store'});
+    const x=await r.json();
+    const connected=!!x?.connected;
+    if(connected&&!chppReady){
+      chppReady=true;
+      const waiters=chppWaiters;chppWaiters=[];waiters.forEach(resolve=>resolve());
+    }
+    setConnectionUi(connected);
+  }catch{setConnectionUi(false)}
+}
 window.fetch=async function(...args){
+  const url=String(args[0]?.url||args[0]||'');
+  if(!chppReady&&(url.includes('/api/fixtures')||url.includes('/api/fixture-view/')||url.includes('/api/simulate'))){
+    await waitForChpp();
+  }
   const response=await originalFetch(...args);
   try{
-    const url=String(args[0]?.url||args[0]||'');
     if(url.includes('/api/fixture-view/')){
       const clone=response.clone();
       clone.json().then(x=>{
@@ -57,6 +95,7 @@ function paintTrace(){
 }
 function paint(){
   const box=document.querySelector('#leagueAutoLog');
+  setConnectionUi(chppReady);
   if(!box)return;
   box.querySelectorAll('.league-auto-log-row').forEach(row=>{
     const title=row.querySelector('.league-auto-log-title')?.textContent?.trim()||'';
@@ -77,7 +116,14 @@ function paint(){
   paintTrace();
 }
 const observer=new MutationObserver(paint);
-function boot(){const box=document.querySelector('#leagueAutoLog');if(box)observer.observe(box,{childList:true,subtree:true,characterData:true});paint();}
+function boot(){
+  setConnectionUi(false);
+  const box=document.querySelector('#leagueAutoLog');
+  if(box)observer.observe(box,{childList:true,subtree:true,characterData:true});
+  paint();
+  pollConnection();
+  setInterval(pollConnection,1000);
+}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,50));else setTimeout(boot,50);
 setInterval(paint,1000);
 })();
