@@ -14,9 +14,10 @@ public static class LineupViewHelpers
             {
                 p.PlayerId, p.Name, p.Form, p.Stamina, p.Experience,
                 role = RoleLabel(roles[i].ToString()), roleKey = roles[i].ToString(),
-                // GetPlayerPositionRating is the internal lineup-selection score.
-                // Normalize only the UI value to the same human-readable scale
-                // used by historical match ratings; selection logic is unchanged.
+                // This is the projected player contribution score from the same
+                // HO contribution model used to build the team ratings. Do not
+                // divide it by an arbitrary UI factor: historical CHPP lineup
+                // cards expose player star values on their native human scale.
                 rating = Math.Round(ProjectedPlayerRating(ratingEngine, p, roles[i], behaviours != null && behaviours.TryGetValue(i, out var b) ? b : PlayerBehaviour.Normal), 2),
                 behaviour = behaviours != null && behaviours.TryGetValue(i, out var behaviour) ? behaviour.ToString() : "Normal"
             }).ToArray()
@@ -26,10 +27,12 @@ public static class LineupViewHelpers
 
     private static double ProjectedPlayerRating(LineupRatingEngine ratingEngine, PlayerData player, PlayerRole role, PlayerBehaviour behaviour)
     {
-        // The internal position score is on a larger scale than the player
-        // match/star display. Keep the original score for player selection and
-        // convert only the value rendered on the lineup card.
-        return Math.Clamp(ratingEngine.GetPlayerPositionRating(player, role, behaviour) / 2.5, 0.0, 10.0);
+        // GetPlayerPositionRating is the same skill/loyalty/form/position
+        // contribution calculation used by the lineup selector. The previous
+        // /2.5 projection artificially compressed the value and made our
+        // players look much weaker than historical CHPP player stars.
+        // Keep the native score, with a defensive upper clamp for display.
+        return Math.Clamp(ratingEngine.GetPlayerPositionRating(player, role, behaviour), 0.0, 10.0);
     }
 
     public static object BuildHistoricalLineupView(IReadOnlyList<ChppLineupPlayer> players, string formation, TeamRatings ratings)
