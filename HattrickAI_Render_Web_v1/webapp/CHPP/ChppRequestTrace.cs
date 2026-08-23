@@ -38,7 +38,7 @@ public sealed class ChppRequestTrace
         if (trace == null) return;
         var safeQuery = query == null ? string.Empty : string.Join("&", query
             .Where(x => !string.IsNullOrWhiteSpace(x.Value))
-            .Select(x => $"{x.Key}={IsSensitiveKey(x.Key) ? "***" : x.Value}"));
+            .Select(x => $"{x.Key}={(IsSensitiveKey(x.Key) ? "***" : x.Value)}"));
         var entry = new ChppCallTraceEntry(++trace._sequence, file,
             string.IsNullOrWhiteSpace(context) ? "fixture-view" : context, safeQuery, method,
             response == null ? null : (int)response.StatusCode, response?.ReasonPhrase, durationMs,
