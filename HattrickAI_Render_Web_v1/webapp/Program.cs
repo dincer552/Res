@@ -81,6 +81,7 @@ app.Use(async (context, next) =>
 
 app.UseDefaultFiles();
 app.UseStaticFiles();
+app.MapClimatixWebhook();
 app.MapGet("/health", (PostgresHistoricalCache cache) => Results.Ok(new { ok = true, service = "HattrickAI Web", version = AppVersion.Display, historicalCache = cache.IsConfigured ? "POSTGRES" : "UNCONFIGURED" }));
 app.MapGet("/api/version", () => Results.Ok(new { version = AppVersion.Display, source = AppVersion.SourceFileName }));
 
