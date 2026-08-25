@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <TargetFramework>net9.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>HattrickAI.V3</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../HattrickAI_Render_Web_v1/webapp/CHPP/ChppOAuthClient.cs" Link="CHPP/ChppOAuthClient.cs" />
+    <Compile Include="../HattrickAI_Render_Web_v1/webapp/CHPP/ChppOAuthDiagnostics.cs" Link="CHPP/ChppOAuthDiagnostics.cs" />
+    <Compile Include="../HattrickAI_Render_Web_v1/webapp/CHPP/ChppSettings.cs" Link="CHPP/ChppSettings.cs" />
+  </ItemGroup>
+</Project>
