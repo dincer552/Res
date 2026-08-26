@@ -35,6 +35,7 @@ var build = Environment.GetEnvironmentVariable("RENDER_GIT_COMMIT")
     ?? "dev";
 
 app.MapGet("/health", () => Results.Ok(new { ok = true, service = "HattrickAI V3", build }));
+app.MapGet("/api/v3/build", () => Results.Ok(new { build }));
 
 app.MapGet("/api/v3/status", async (ChppOAuthClient oauth, CancellationToken ct) =>
 {
