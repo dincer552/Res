@@ -1,0 +1,40 @@
+/* V3 lineup visual: fixed 14-slot Hattrick field grid. */
+.lineup-grid.v3-lineup-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;align-items:start}
+.v3-lineup-card{overflow:hidden;padding:0!important;background:#fff!important;border:1px solid #dce5df!important;border-radius:14px!important;box-shadow:0 3px 14px rgba(20,55,35,.08)}
+.v3-lineup-card .panel-head{padding:18px 20px 14px!important;border-bottom:1px solid #e5ebe7!important;min-height:76px;align-items:center}
+.v3-lineup-card .panel-head .eyebrow{display:none!important}
+.v3-lineup-card .panel-head h2{margin:0;font-size:1.02rem;color:#183c2a;letter-spacing:.01em}
+.v3-lineup-card .panel-head h2:before{content:'◈';display:inline-block;margin-right:9px;color:#6d7c73;font-size:.9rem}
+.v3-lineup-card .panel-head .pill{display:none!important}
+.v3-lineup-card .selected-opponent-match{display:none!important}
+.v3-lineup-card .rating-strip{display:none!important}
+.v3-lineup-card .pitch{position:relative;height:560px!important;margin:0!important;border:0!important;border-radius:0!important;overflow:hidden;background:#2f8b3d!important}
+.v3-lineup-card .pitch-lines{position:absolute;inset:18px;border:2px solid rgba(255,255,255,.34);border-radius:2px;pointer-events:none}
+.v3-lineup-card .pitch-lines:before{content:'';position:absolute;left:0;right:0;top:50%;border-top:2px solid rgba(255,255,255,.30)}
+.v3-lineup-card .pitch-lines:after{content:'';position:absolute;width:150px;height:150px;left:50%;top:50%;transform:translate(-50%,-50%);border:2px solid rgba(255,255,255,.28);border-radius:50%}
+.v3-slot{position:absolute;z-index:3;width:112px;height:72px;transform:translate(-50%,-50%);border:1.5px solid rgba(255,255,255,.34);border-radius:4px;background:rgba(39,126,55,.28);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:6px;box-sizing:border-box;color:#fff;transition:.15s ease}
+.v3-slot.is-empty{background:rgba(34,120,51,.18);border-color:rgba(255,255,255,.32)}
+.v3-slot.is-filled{background:rgba(31,126,49,.84);border-color:rgba(255,255,255,.55);box-shadow:0 2px 7px rgba(0,0,0,.12)}
+.v3-slot .slot-code{font-size:.72rem;font-weight:900;letter-spacing:.02em;line-height:1.05}
+.v3-slot .slot-name{font-size:.78rem;font-weight:800;line-height:1.12;margin-top:3px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.v3-slot .slot-desc{font-size:.64rem;opacity:.86;line-height:1.1;margin-top:3px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.v3-slot .slot-rating{font-size:.63rem;font-weight:700;margin-top:3px;line-height:1.05}
+.v3-slot.is-empty .slot-code{font-size:.68rem;opacity:.78}
+.v3-slot.is-empty .slot-name{font-size:.64rem;opacity:.64;font-weight:600}
+.v3-lineup-footer{display:flex;justify-content:space-between;align-items:center;padding:14px 20px 16px;background:#fff}
+.v3-lineup-footer span{font-size:.83rem;color:#6f776f}
+.v3-lineup-footer strong{font-size:1.25rem;color:#23804a}
+.v3-lineup-note{padding:0 20px 14px;color:#7b817c;font-size:.7rem}
+.v3-control-panel{margin-top:0!important;border-top:1px solid #e8ece9!important}
+.v3-control-row{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid #edf0ee;font-size:.92rem;color:#2e332f}
+.v3-control-row:last-child{border-bottom:0}
+.v3-control-row strong{font-weight:600}
+.v3-control-row .v3-normal{display:flex;align-items:center;gap:8px;color:#4b514d}
+.v3-control-row .v3-chevron{font-size:.9rem;color:#6f7770}
+.v3-timeline{display:flex;align-items:center;gap:12px;padding:13px 18px 15px;color:#444}
+.v3-timeline .arrow{font-size:1.6rem;color:#2d7e49;line-height:1}
+.v3-timeline .track{height:3px;background:#555;flex:1;position:relative}
+.v3-timeline .dot{width:13px;height:13px;border-radius:50%;background:#27824b;position:absolute;left:0;top:50%;transform:translate(-50%,-50%)}
+.v3-timeline .minute{font-size:.86rem;min-width:25px;text-align:right}
+@media(max-width:850px){.lineup-grid.v3-lineup-grid{grid-template-columns:1fr;gap:14px}.v3-lineup-card .pitch{height:620px!important}.v3-slot{width:112px;height:72px}}
+@media(max-width:480px){.v3-lineup-card .pitch{height:590px!important}.v3-slot{width:88px;height:66px;padding:4px}.v3-slot .slot-code{font-size:.62rem}.v3-slot .slot-name{font-size:.66rem}.v3-slot .slot-desc,.v3-slot .slot-rating{font-size:.54rem}.v3-lineup-card .panel-head{padding:15px 16px 12px!important}.v3-lineup-footer{padding:12px 16px}.v3-control-row{padding:14px 16px}}
