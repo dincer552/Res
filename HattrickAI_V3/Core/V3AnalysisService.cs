@@ -25,7 +25,7 @@ public sealed class V3AnalysisService
         }, ct);
         var matches = ParseMatches(matchesXml, ownTeam.TeamId);
         var next = matches.Where(x => x.Date > DateTimeOffset.UtcNow).OrderBy(x => x.Date).FirstOrDefault();
-        if (next is null)
+        if (!matches.Any(x => x.Date > DateTimeOffset.UtcNow))
             throw new InvalidOperationException("Yaklaşan maç bulunamadı.");
 
         var opponentId = next.HomeTeamId == ownTeam.TeamId ? next.AwayTeamId : next.HomeTeamId;
@@ -40,7 +40,7 @@ public sealed class V3AnalysisService
         }, ct);
         var opponentMatches = ParseMatches(opponentMatchesXml, opponentId);
         var last = opponentMatches.Where(x => x.Date < DateTimeOffset.UtcNow).OrderByDescending(x => x.Date).FirstOrDefault();
-        if (last is null)
+        if (!opponentMatches.Any(x => x.Date < DateTimeOffset.UtcNow))
             throw new InvalidOperationException("Rakibin son maçı bulunamadı.");
 
         var opponentLineupXml = await _oauth.GetXmlAsync("matchlineup", new Dictionary<string, string?>
