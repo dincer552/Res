@@ -5,7 +5,7 @@ using System.Xml.Linq;
 namespace HattrickAI.V3.Core;
 
 public sealed record V3Player(int Id, string Name, int Keeper, int Defending, int Playmaking, int Passing, int Winger, int Scoring, int Stamina, int Form, int Experience);
-public sealed record V3Slot(string Code, string Position, string Name, int PlayerId, double X, double Y, string Reason);
+public sealed record V3Slot(string Code, string Position, string Name, int PlayerId, double X, double Y, string Reason, double Rating);
 public sealed record V3Pitch(string TeamName, string Formation, IReadOnlyList<V3Slot> Players, bool Opponent);
 public sealed record V3AnalysisResult(V3Pitch OpponentPitch, V3Pitch OwnPitch, string MatchTitle, DateTimeOffset GeneratedAt);
 
@@ -120,19 +120,23 @@ public sealed class V3AnalysisService
             var id = ReadInt(p, "PlayerID");
             var name = ReadText(p, "PlayerName") ?? "Oyuncu";
             var pos = ReadInt(p, "PositionCode");
+            var stars = ReadDoubleCandidates(p, "RatingStars", "RatingStarsEndOfMatch");
             var role = pos switch
             {
                 1 => ("GK", "Kaleci", 50d, opponent ? 12d : 88d),
                 2 => ("DEF-R", "Sağ stoper", 76d, opponent ? 34d : 66d),
-                3 or 4 => ("DEF-C", "Merkez stoper", 50d, opponent ? 30d : 70d),
+                3 => ("DEF-CR", "Sağ stoper", 70d, opponent ? 30d : 70d),
+                4 => ("DEF-CL", "Sol stoper", 30d, opponent ? 30d : 70d),
                 5 => ("DEF-L", "Sol stoper", 24d, opponent ? 34d : 66d),
                 6 => ("W-R", "Sağ kanat", 83d, opponent ? 50d : 50d),
-                7 or 8 => ("IM", "Merkez orta saha", 50d, opponent ? 50d : 50d),
+                7 => ("IM-R", "Sağ iç", 66d, opponent ? 50d : 50d),
+                8 => ("IM-L", "Sol iç", 34d, opponent ? 50d : 50d),
                 9 => ("W-L", "Sol kanat", 17d, opponent ? 50d : 50d),
-                10 or 11 => ("FW", "Forvet", pos == 10 ? 40d : 60d, opponent ? 70d : 30d),
-                _ => ("IM", "Merkez orta saha", 50d, opponent ? 50d : 50d)
+                10 => ("FW-L", "Sol forvet", 35d, opponent ? 70d : 30d),
+                11 => ("FW-R", "Sağ forvet", 65d, opponent ? 70d : 30d),
+                _ => ("IM-C", "Merkez orta saha", 50d, opponent ? 50d : 50d)
             };
-            result.Add(new V3Slot(role.Item1, role.Item2, name, id, role.Item3, role.Item4, "Rakibin son maçındaki gerçek yerleşim"));
+            result.Add(new V3Slot(role.Item1, role.Item2, name, id, role.Item3, role.Item4, "Rakibin son maçındaki gerçek yerleşim", Math.Round(stars * 2.0, 2)));
         }
         return result;
     }
@@ -164,28 +168,45 @@ public sealed class V3AnalysisService
 
         var slots = new List<V3Slot>();
         var gk = Pick(p => p.Keeper * 2 + p.Defending * .2 + p.Form * .1);
-        slots.Add(new V3Slot("GK", "Kaleci", gk.Name, gk.Id, 50, 88, "En yüksek kalecilik"));
+        slots.Add(Slot("GK", "Kaleci", gk, 50, 88, "En yüksek kalecilik"));
         var defs = new[] { Pick(p => p.Defending + p.Passing * .2), Pick(p => p.Defending + p.Passing * .15 + p.Experience * .05), Pick(p => p.Defending + p.Passing * .2) };
-        slots.Add(new V3Slot("DEF-L", "Sol savunma", defs[0].Name, defs[0].Id, 24, 68, "Savunma dengesi"));
-        slots.Add(new V3Slot("DEF-C", "Merkez savunma", defs[1].Name, defs[1].Id, 50, 72, "Merkez güvenliği"));
-        slots.Add(new V3Slot("DEF-R", "Sağ savunma", defs[2].Name, defs[2].Id, 76, 68, "Savunma dengesi"));
+        slots.Add(Slot("DEF-L", "Sol savunma", defs[0], 24, 68, "Savunma dengesi"));
+        slots.Add(Slot("DEF-C", "Merkez savunma", defs[1], 50, 72, "Merkez güvenliği"));
+        slots.Add(Slot("DEF-R", "Sağ savunma", defs[2], 76, 68, "Savunma dengesi"));
 
         var ims = new[] { Pick(p => p.Playmaking + p.Passing * .25 + p.Stamina * .15), Pick(p => p.Playmaking + p.Passing * .2), Pick(p => p.Playmaking + p.Passing * .2 + p.Experience * .05) };
-        slots.Add(new V3Slot("IM-L", "Sol iç", ims[0].Name, ims[0].Id, 34, 50, "Orta saha hakimiyeti"));
-        slots.Add(new V3Slot("IM-C", "Merkez iç", ims[1].Name, ims[1].Id, 50, 46, "Merkez hakimiyeti"));
-        slots.Add(new V3Slot("IM-R", "Sağ iç", ims[2].Name, ims[2].Id, 66, 50, "Orta saha hakimiyeti"));
+        slots.Add(Slot("IM-L", "Sol iç", ims[0], 34, 50, "Orta saha hakimiyeti"));
+        slots.Add(Slot("IM-C", "Merkez iç", ims[1], 50, 46, "Merkez hakimiyeti"));
+        slots.Add(Slot("IM-R", "Sağ iç", ims[2], 66, 50, "Orta saha hakimiyeti"));
 
         var rightWing = weakness.Target == "SOL";
         var wl = Pick(p => p.Winger + p.Passing * .25 + (rightWing ? p.Playmaking * .05 : 0));
         var wr = Pick(p => p.Winger + p.Passing * .25 + (rightWing ? p.Winger * .05 : 0));
-        slots.Add(new V3Slot("W-L", "Sol kanat", wl.Name, wl.Id, 14, 49, rightWing ? "Sol savunma hedeflendi" : "Kanat dengesi"));
-        slots.Add(new V3Slot("W-R", "Sağ kanat", wr.Name, wr.Id, 86, 49, rightWing ? "Zayıf sol savunmaya yüklen" : "Kanat dengesi"));
+        slots.Add(Slot("W-L", "Sol kanat", wl, 14, 49, rightWing ? "Sol savunma hedeflendi" : "Kanat dengesi"));
+        slots.Add(Slot("W-R", "Sağ kanat", wr, 86, 49, rightWing ? "Zayıf sol savunmaya yüklen" : "Kanat dengesi"));
 
         var f1 = Pick(p => p.Scoring + p.Passing * .2 + (rightWing ? p.Winger * .08 : 0));
         var f2 = Pick(p => p.Scoring + p.Passing * .15 + p.Experience * .05);
-        slots.Add(new V3Slot("FW-L", "Sol forvet", f1.Name, f1.Id, 40, 28, rightWing ? "Rakibin sol savunmasına yönel" : "Golcülük"));
-        slots.Add(new V3Slot("FW-R", "Sağ forvet", f2.Name, f2.Id, 60, 28, "Golcülük ve bağlantı"));
+        slots.Add(Slot("FW-L", "Sol forvet", f1, 40, 28, rightWing ? "Rakibin sol savunmasına yönel" : "Golcülük"));
+        slots.Add(Slot("FW-R", "Sağ forvet", f2, 60, 28, "Golcülük ve bağlantı"));
         return new V3Pitch(teamName, "3-5-2", slots, false);
+    }
+
+    private static V3Slot Slot(string code, string position, V3Player p, double x, double y, string reason)
+        => new(code, position, p.Name, p.Id, x, y, reason, Math.Round(PositionRating(p, code), 2));
+
+    private static double PositionRating(V3Player p, string code)
+    {
+        var raw = code switch
+        {
+            "GK" => p.Keeper * .70 + p.Defending * .20 + p.Form * .10,
+            "DEF-L" or "DEF-C" or "DEF-R" => p.Defending * .70 + p.Playmaking * .15 + p.Passing * .15,
+            "IM-L" or "IM-C" or "IM-R" => p.Playmaking * .55 + p.Passing * .20 + p.Defending * .15 + p.Stamina * .10,
+            "W-L" or "W-R" => p.Winger * .45 + p.Playmaking * .25 + p.Passing * .20 + p.Defending * .10,
+            "FW-L" or "FW-R" => p.Scoring * .55 + p.Passing * .20 + p.Winger * .15 + p.Playmaking * .10,
+            _ => p.Playmaking
+        };
+        return Math.Clamp(raw, 0, 20);
     }
 
     private static V3Pitch BuildOpponentPitch(string teamName, IReadOnlyList<V3Slot> slots) => new(teamName, "Son maç", slots, true);
