@@ -1,0 +1,99 @@
+/* HattrickAI V3 lineup visual overrides */
+.pitch{position:relative;overflow:hidden}
+
+/* Occupied position cards: clearly separated from empty slots. */
+.pitch .player-node,
+.pitch .lineup-player,
+.pitch .position-card,
+.pitch .lineup-slot.occupied,
+.pitch .position-slot.occupied,
+.pitch .slot.occupied{
+  box-sizing:border-box;
+  width:clamp(72px,17vw,126px);
+  min-height:74px;
+  max-height:104px;
+  padding:8px 5px;
+  border:2px solid rgba(255,255,255,.85)!important;
+  border-radius:10px;
+  background:#bfefff!important;
+  color:#123b49!important;
+  box-shadow:0 2px 7px rgba(0,0,0,.18);
+  transform:translate(-50%,-50%);
+  z-index:3;
+}
+
+.pitch .player-node b,
+.pitch .lineup-player b,
+.pitch .position-card b,
+.pitch .lineup-slot.occupied b,
+.pitch .position-slot.occupied b,
+.pitch .slot.occupied b{
+  color:#123b49!important;
+}
+
+/* Empty slots stay visible but contain no explanatory text. */
+.pitch .lineup-empty-slot,
+.pitch .lineup-slot.empty,
+.pitch .position-slot.empty,
+.pitch .slot.empty,
+.pitch .empty-slot{
+  box-sizing:border-box;
+  width:clamp(72px,17vw,126px);
+  height:74px;
+  border:2px dashed rgba(255,255,255,.82)!important;
+  border-radius:10px;
+  background:rgba(14,74,47,.14)!important;
+  color:transparent!important;
+  text-indent:-9999px;
+  overflow:hidden;
+  z-index:2;
+}
+
+@media (max-width:700px){
+  .pitch .player-node,
+  .pitch .lineup-player,
+  .pitch .position-card,
+  .pitch .lineup-slot.occupied,
+  .pitch .position-slot.occupied,
+  .pitch .slot.occupied,
+  .pitch .lineup-empty-slot,
+  .pitch .lineup-slot.empty,
+  .pitch .position-slot.empty,
+  .pitch .slot.empty,
+  .pitch .empty-slot{
+    width:clamp(64px,16vw,96px);
+    min-height:64px;
+    max-height:86px;
+    padding:6px 4px;
+    border-radius:8px;
+  }
+
+  .pitch .player-node b,
+  .pitch .lineup-player b,
+  .pitch .position-card b,
+  .pitch .lineup-slot.occupied b,
+  .pitch .position-slot.occupied b,
+  .pitch .slot.occupied b{
+    font-size:12px!important;
+    line-height:1.12;
+  }
+
+  .pitch .player-node strong,
+  .pitch .lineup-player strong,
+  .pitch .position-card strong,
+  .pitch .lineup-slot.occupied strong,
+  .pitch .position-slot.occupied strong,
+  .pitch .slot.occupied strong{
+    font-size:11px!important;
+  }
+
+  .pitch .player-node small,
+  .pitch .lineup-player small,
+  .pitch .position-card small,
+  .pitch .lineup-slot.occupied small,
+  .pitch .position-slot.occupied small,
+  .pitch .slot.occupied small{
+    font-size:9px!important;
+    line-height:1.1;
+  }
+}
