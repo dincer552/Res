@@ -1,4 +1,4 @@
-/* MOBILE PITCH FIX v5 — layout only */
+/* MOBILE PITCH FIX v6 — legacy layer hard-stop + strict responsive grid */
 @media screen and (max-width:700px){
   .pitch.responsive-pitch-v4{
     position:relative!important;
@@ -10,17 +10,22 @@
     box-sizing:border-box!important;
   }
 
-  /* Replace the old percentage/absolute card sizing with a strict 5-column matrix. */
+  /* CRITICAL: the old renderer creates .player-node elements directly under .pitch.
+     The new renderer puts .responsive-player-node INSIDE .responsive-pitch-slots.
+     Hide only the direct legacy layer so the new cards remain visible. */
+  .pitch.responsive-pitch-v4 > .player-node:not(.responsive-player-node),
+  .pitch.responsive-pitch-v4 > .lineup-empty{
+    display:none!important;
+    visibility:hidden!important;
+    pointer-events:none!important;
+  }
+
   .pitch.responsive-pitch-v4 > .responsive-pitch-slots{
     position:absolute!important;
-    left:12px!important;
-    right:12px!important;
-    top:7%!important;
-    bottom:7%!important;
-    inset-block-start:7%!important;
-    inset-block-end:7%!important;
-    inset-inline-start:12px!important;
-    inset-inline-end:12px!important;
+    left:10px!important;
+    right:10px!important;
+    top:6%!important;
+    bottom:6%!important;
     width:auto!important;
     height:auto!important;
     margin:0!important;
@@ -28,11 +33,12 @@
     display:grid!important;
     grid-template-columns:repeat(5,minmax(0,1fr))!important;
     grid-template-rows:repeat(4,minmax(0,1fr))!important;
-    column-gap:6px!important;
-    row-gap:10px!important;
+    column-gap:5px!important;
+    row-gap:8px!important;
     align-items:center!important;
     justify-items:stretch!important;
     box-sizing:border-box!important;
+    overflow:visible!important;
   }
 
   .pitch.responsive-pitch-v4 > .responsive-pitch-slots > .lineup-slot{
@@ -50,8 +56,8 @@
     width:100%!important;
     max-width:none!important;
     min-width:0!important;
-    height:70px!important;
-    max-height:70px!important;
+    height:68px!important;
+    max-height:68px!important;
     min-height:0!important;
     margin:0!important;
     padding:0!important;
@@ -84,10 +90,11 @@
     height:100%!important;
     max-height:100%!important;
     margin:0!important;
-    padding:3px 2px!important;
+    padding:2px 1px!important;
     box-sizing:border-box!important;
     overflow:hidden!important;
     transform:none!important;
+    min-height:0!important;
   }
 
   .pitch.responsive-pitch-v4 .responsive-player-node b,
@@ -106,8 +113,15 @@
 }
 
 @media screen and (max-width:380px){
-  .pitch.responsive-pitch-v4 > .responsive-pitch-slots{left:8px!important;right:8px!important;column-gap:4px!important}
-  .pitch.responsive-pitch-v4 > .responsive-pitch-slots > .lineup-slot{height:64px!important;max-height:64px!important}
+  .pitch.responsive-pitch-v4 > .responsive-pitch-slots{
+    left:7px!important;
+    right:7px!important;
+    column-gap:3px!important;
+  }
+  .pitch.responsive-pitch-v4 > .responsive-pitch-slots > .lineup-slot{
+    height:62px!important;
+    max-height:62px!important;
+  }
   .pitch.responsive-pitch-v4 .responsive-player-node b{font-size:8px!important}
   .pitch.responsive-pitch-v4 .responsive-player-node strong{font-size:9px!important}
   .pitch.responsive-pitch-v4 .responsive-player-node small{font-size:6px!important}
