@@ -1,8 +1,7 @@
 (()=>{
-  const V='20260827-opponent-match-footer-09';
+  const V='20260827-opponent-match-footer-10';
   const esc=s=>String(s??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
   function getView(){try{return typeof currentView!=='undefined'?currentView:null}catch{return null}}
-  function getSelectedIndex(){try{return typeof selectedRecentIndex!=='undefined'?Number(selectedRecentIndex):0}catch{return 0}}
   function matchType(m){
     const raw=m?.fixture?.matchType??m?.fixture?.matchTypeId??m?.matchType??m?.matchTypeId??'';
     const text=String(raw).toLowerCase();
@@ -27,18 +26,27 @@
     const icon=type.icon?`<img src="${type.icon}" alt="${type.label}" title="${type.label}">`:'';
     return `<span class="opponent-match-value">${icon}<span><small>${type.label} • ${date}</small><b>${home} ${score} ${away}</b></span></span>`;
   }
+
+  // The old UI literally rendered a leaf text node saying "Son maç" below the pitch.
+  // Search the whole opponent lineup panel, not just a guessed DOM level, and replace
+  // that exact text with the CHPP-derived opponent's most recent match.
   function findOldSonMac(){
     const pitch=document.querySelector('#opponentPitch');
     if(!pitch)return null;
     const panel=pitch.closest('.lineup-panel')||pitch.parentElement;
     if(!panel)return null;
-    const candidates=[...panel.querySelectorAll('*')].filter(el=>el.id!=='selectedOpponentMatch'&&el.children.length===0&&el.textContent.trim()==='Son maç');
-    return candidates.find(el=>{
-      const r=el.getBoundingClientRect();
-      const p=pitch.getBoundingClientRect();
-      return r.top>=p.bottom-8;
-    })||null;
+    const p=pitch.getBoundingClientRect();
+    const candidates=[...panel.querySelectorAll('*')].filter(el=>{
+      if(el.id==='selectedOpponentMatch'||el.id==='opponentLastMatchFooter')return false;
+      if(el.children.length!==0)return false;
+      return el.textContent.trim()==='Son maç';
+    });
+    // Prefer the exact "Son maç" element physically below this opponent pitch.
+    return candidates
+      .filter(el=>el.getBoundingClientRect().top>=p.bottom-8)
+      .sort((a,b)=>a.getBoundingClientRect().top-b.getBoundingClientRect().top)[0]||null;
   }
+
   function render(){
     const m=latestMatch();
     if(!m)return false;
@@ -47,9 +55,10 @@
     const panel=pitch.closest('.lineup-panel')||pitch.parentElement;
     if(!panel)return false;
 
-    let old=findOldSonMac();
+    const markup=matchMarkup(m);
+    const old=findOldSonMac();
     if(old){
-      old.outerHTML=matchMarkup(m);
+      old.outerHTML=markup;
       return true;
     }
 
@@ -57,13 +66,13 @@
     if(!footer){
       footer=document.createElement('div');
       footer.id='opponentLastMatchFooter';
-      footer.innerHTML=`<span class="opponent-match-label">Rakip dizilişi</span>${matchMarkup(m)}`;
       pitch.insertAdjacentElement('afterend',footer);
-    }else{
-      footer.innerHTML=`<span class="opponent-match-label">Rakip dizilişi</span>${matchMarkup(m)}`;
     }
+    footer.innerHTML=`<span class="opponent-match-label">Rakip dizilişi</span>${markup}`;
+    footer.dataset.matchId=String(m?.fixture?.matchId??m?.fixture?.id??'');
     return true;
   }
+
   function installStyle(){
     if(document.getElementById('opponentLastMatchFooterStyle'))return;
     const style=document.createElement('style');
@@ -85,13 +94,28 @@
     `;
     document.head.appendChild(style);
   }
+
   function boot(){
     installStyle();
     render();
-    const observer=new MutationObserver(()=>{if(!document.querySelector('#opponentLastMatchFooter .opponent-match-value'))render()});
+
+    // Re-run whenever CHPP/currentView redraws the lineup. The previous observer
+    // only reacted when our footer disappeared, so a freshly rendered "Son maç"
+    // could remain untouched after CHPP data arrived.
+    const observer=new MutationObserver(()=>render());
     observer.observe(document.body,{childList:true,subtree:true,characterData:true});
-    let tries=0;
-    const timer=setInterval(()=>{render();if(++tries>=120)clearInterval(timer)},500);
+
+    // Also cover async CHPP updates that mutate currentView without replacing the DOM.
+    let lastSignature='';
+    setInterval(()=>{
+      const m=latestMatch();
+      const sig=m?`${m?.fixture?.matchId??m?.fixture?.id??''}|${m?.fixture?.matchDate??''}|${m?.fixture?.homeGoals??''}|${m?.fixture?.awayGoals??''}`:'';
+      const pitch=document.querySelector('#opponentPitch');
+      const hasOld=!!findOldSonMac();
+      if(sig!==lastSignature||hasOld){lastSignature=sig;render();}
+    },500);
   }
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,100));else setTimeout(boot,100);
+
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(boot,100));
+  else setTimeout(boot,100);
 })();
