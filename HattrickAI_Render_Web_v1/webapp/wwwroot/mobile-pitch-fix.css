@@ -1,0 +1,114 @@
+/* MOBILE PITCH FIX v5 — layout only */
+@media screen and (max-width:700px){
+  .pitch.responsive-pitch-v4{
+    position:relative!important;
+    width:100%!important;
+    max-width:100%!important;
+    min-width:0!important;
+    height:390px!important;
+    overflow:hidden!important;
+    box-sizing:border-box!important;
+  }
+
+  /* Replace the old percentage/absolute card sizing with a strict 5-column matrix. */
+  .pitch.responsive-pitch-v4 > .responsive-pitch-slots{
+    position:absolute!important;
+    left:12px!important;
+    right:12px!important;
+    top:7%!important;
+    bottom:7%!important;
+    inset-block-start:7%!important;
+    inset-block-end:7%!important;
+    inset-inline-start:12px!important;
+    inset-inline-end:12px!important;
+    width:auto!important;
+    height:auto!important;
+    margin:0!important;
+    padding:0!important;
+    display:grid!important;
+    grid-template-columns:repeat(5,minmax(0,1fr))!important;
+    grid-template-rows:repeat(4,minmax(0,1fr))!important;
+    column-gap:6px!important;
+    row-gap:10px!important;
+    align-items:center!important;
+    justify-items:stretch!important;
+    box-sizing:border-box!important;
+  }
+
+  .pitch.responsive-pitch-v4 > .responsive-pitch-slots > .lineup-slot{
+    position:static!important;
+    left:auto!important;
+    right:auto!important;
+    top:auto!important;
+    bottom:auto!important;
+    inset:auto!important;
+    transform:none!important;
+    translate:none!important;
+    float:none!important;
+    clear:none!important;
+    display:flex!important;
+    width:100%!important;
+    max-width:none!important;
+    min-width:0!important;
+    height:70px!important;
+    max-height:70px!important;
+    min-height:0!important;
+    margin:0!important;
+    padding:0!important;
+    box-sizing:border-box!important;
+    overflow:hidden!important;
+    align-self:center!important;
+    justify-self:stretch!important;
+  }
+
+  .pitch.responsive-pitch-v4 > .responsive-pitch-slots > .lineup-slot-GK{grid-column:3!important;grid-row:1!important}
+  .pitch.responsive-pitch-v4 > .responsive-pitch-slots > .lineup-slot-DEF-L{grid-column:1!important;grid-row:2!important}
+  .pitch.responsive-pitch-v4 > .responsive-pitch-slots > .lineup-slot-DEF-CL{grid-column:2!important;grid-row:2!important}
+  .pitch.responsive-pitch-v4 > .responsive-pitch-slots > .lineup-slot-DEF-C{grid-column:3!important;grid-row:2!important}
+  .pitch.responsive-pitch-v4 > .responsive-pitch-slots > .lineup-slot-DEF-CR{grid-column:4!important;grid-row:2!important}
+  .pitch.responsive-pitch-v4 > .responsive-pitch-slots > .lineup-slot-DEF-R{grid-column:5!important;grid-row:2!important}
+  .pitch.responsive-pitch-v4 > .responsive-pitch-slots > .lineup-slot-W-L{grid-column:1!important;grid-row:3!important}
+  .pitch.responsive-pitch-v4 > .responsive-pitch-slots > .lineup-slot-IM-L{grid-column:2!important;grid-row:3!important}
+  .pitch.responsive-pitch-v4 > .responsive-pitch-slots > .lineup-slot-IM-C{grid-column:3!important;grid-row:3!important}
+  .pitch.responsive-pitch-v4 > .responsive-pitch-slots > .lineup-slot-IM-R{grid-column:4!important;grid-row:3!important}
+  .pitch.responsive-pitch-v4 > .responsive-pitch-slots > .lineup-slot-W-R{grid-column:5!important;grid-row:3!important}
+  .pitch.responsive-pitch-v4 > .responsive-pitch-slots > .lineup-slot-FW-L{grid-column:2!important;grid-row:4!important}
+  .pitch.responsive-pitch-v4 > .responsive-pitch-slots > .lineup-slot-FW-C{grid-column:3!important;grid-row:4!important}
+  .pitch.responsive-pitch-v4 > .responsive-pitch-slots > .lineup-slot-FW-R{grid-column:4!important;grid-row:4!important}
+
+  .pitch.responsive-pitch-v4 .responsive-player-node{
+    position:static!important;
+    width:100%!important;
+    max-width:100%!important;
+    min-width:0!important;
+    height:100%!important;
+    max-height:100%!important;
+    margin:0!important;
+    padding:3px 2px!important;
+    box-sizing:border-box!important;
+    overflow:hidden!important;
+    transform:none!important;
+  }
+
+  .pitch.responsive-pitch-v4 .responsive-player-node b,
+  .pitch.responsive-pitch-v4 .responsive-player-node small,
+  .pitch.responsive-pitch-v4 .responsive-player-node strong,
+  .pitch.responsive-pitch-v4 .responsive-player-node .shirt{
+    display:block!important;
+    width:100%!important;
+    max-width:100%!important;
+    min-width:0!important;
+    overflow:hidden!important;
+    text-overflow:ellipsis!important;
+    white-space:nowrap!important;
+    text-align:center!important;
+  }
+}
+
+@media screen and (max-width:380px){
+  .pitch.responsive-pitch-v4 > .responsive-pitch-slots{left:8px!important;right:8px!important;column-gap:4px!important}
+  .pitch.responsive-pitch-v4 > .responsive-pitch-slots > .lineup-slot{height:64px!important;max-height:64px!important}
+  .pitch.responsive-pitch-v4 .responsive-player-node b{font-size:8px!important}
+  .pitch.responsive-pitch-v4 .responsive-player-node strong{font-size:9px!important}
+  .pitch.responsive-pitch-v4 .responsive-player-node small{font-size:6px!important}
+}
