@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate, max-age=0">
   <meta http-equiv="Pragma" content="no-cache">
   <meta http-equiv="Expires" content="0">
@@ -15,7 +15,7 @@
   <link rel="stylesheet" href="/player-behaviour.css?v=20260817-behaviour-01">
   <link rel="stylesheet" href="/recommendation-panel.css?v=20260817-recommendation-01">
   <link rel="stylesheet" href="/training-panel.css?v=20260818-training-03">
-  <link rel="stylesheet" href="/ui-fixes.css?v=20260827-slot-fix-01">
+  <link rel="stylesheet" href="/ui-fixes.css?v=20260827-responsive-v4-01">
 </head>
 <body>
 <header class="topbar">
@@ -46,6 +46,7 @@
 <script src="/training-panel.js?v=20260818-training-03"></script>
 <script src="/ui-fixes.js?v=20260821-export-bottom-01"></script>
 <script src="/league-auto-lineup.js?v=20260823-league-auto-13"></script>
-<script src="/league-auto-lineup-patch.js?v=20260823-league-auto-patch-02"></script>
+<script src="/league-auto-lineup-patch.js?v=20260823-league-auto-patch-03"></script>
+<script src="/responsive-pitch-v4.js?v=20260827-responsive-v4-01"></script>
 <script>(async function(){const el=document.getElementById('deployVersion');try{const r=await fetch('/render-commit.txt?t='+Date.now(),{cache:'no-store'});const commit=(await r.text()).trim();if(!r.ok||!/^[0-9a-f]{7,40}$/i.test(commit))throw new Error('invalid build id');el.textContent='build '+commit.substring(0,7);el.title='Render commit: '+commit}catch(_){el.textContent='build ?'}})();</script>
 </body></html>
