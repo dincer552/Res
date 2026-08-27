@@ -88,8 +88,7 @@ public sealed class AnalysisService
     private static Slot? HistoricalSlot(XElement node, Dictionary<int,Player> players)
     {
         var id = XmlV5.Int(node,"PlayerID");
-        if (!players.ContainsKey(id)) return null;
-        var player = players[id];
+        if (!players.TryGetValue(id, out var player)) return null;
         var position = XmlV5.Int(node,"PositionCode");
         var map = position switch
         {
@@ -111,15 +110,16 @@ public sealed class AnalysisService
 
     private static Lineup BuildOwnLineup(string teamName, List<Player> players)
     {
-        var used = new HashSet<int>();
+        var unused = new HashSet<int>(players.Select(p => p.Id));
         Player Pick(Func<Player,double> score)
         {
-            var p = players.Where(p => used.Add(p.Id)).OrderByDescending(score).FirstOrDefault();
+            var p = players.Where(p => unused.Contains(p.Id)).OrderByDescending(score).FirstOrDefault();
             if (p is null) throw new InvalidOperationException("Önerilen 11 oluşturulamadı.");
+            unused.Remove(p.Id);
             return p;
         }
 
-        var gk = Pick(p => p.Keeper*1.0 + p.Form*.15);
+        var gk = Pick(p => p.Keeper + p.Form*.15);
         var dl = Pick(p => p.Defending + p.Passing*.10 + p.Winger*.05);
         var dc = Pick(p => p.Defending*1.05 + p.Passing*.15 + p.Experience*.04);
         var dr = Pick(p => p.Defending + p.Passing*.10 + p.Winger*.05);
