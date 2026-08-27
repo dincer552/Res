@@ -9,4 +9,4 @@ FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
 WORKDIR /app
 ENV ASPNETCORE_URLS=http://+:10000
 COPY --from=build /app/publish .
-ENTRYPOINT ["dotnet","HattrickAI.V5.dll"]
+ENTRYPOINT ["dotnet","HattrickAI.V5.dll","--hostBuilder:reloadConfigOnChange=false"]
