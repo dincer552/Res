@@ -209,7 +209,7 @@ public sealed class V3AnalysisService
         return Math.Clamp(raw, 0, 20);
     }
 
-    private static V3Pitch BuildOpponentPitch(string teamName, IReadOnlyList<V3Slot> slots) => new(teamName, "Son maç", slots, true);
+    private static V3Pitch BuildOpponentPitch(string teamName, IReadOnlyList<V3Slot> slots) => new(teamName, "Rakip Kadro", slots, true);
 
     private static int ReadInt(XElement? node, string name) => int.TryParse(ReadText(node, name), NumberStyles.Integer, CultureInfo.InvariantCulture, out var x) ? x : 0;
     private static double ReadDoubleCandidates(XElement? node, params string[] names)
