@@ -1,5 +1,7 @@
 using HattrickAI.V5.Core;
 
+const string EmbeddedConsumerKey = "4CzYYAnSg7SSHkQyDVMLIV";
+
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddDistributedMemoryCache();
@@ -13,9 +15,10 @@ builder.Services.AddSession(options =>
 });
 builder.Services.AddScoped<ChppV5>(sp =>
 {
-    var key = builder.Configuration["CHPP_CONSUMER_KEY"] ?? string.Empty;
-    var secret = builder.Configuration["CHPP_CONSUMER_SECRET"] ?? string.Empty;
-    return new ChppV5(new Credentials(key.Trim(), secret.Trim()), sp.GetRequiredService<IHttpContextAccessor>());
+    var configuredKey = builder.Configuration["CHPP_CONSUMER_KEY"];
+    var key = string.IsNullOrWhiteSpace(configuredKey) ? EmbeddedConsumerKey : configuredKey.Trim();
+    var secret = builder.Configuration["CHPP_CONSUMER_SECRET"]?.Trim() ?? string.Empty;
+    return new ChppV5(new Credentials(key, secret), sp.GetRequiredService<IHttpContextAccessor>());
 });
 builder.Services.AddScoped<AnalysisService>();
 
@@ -36,35 +39,26 @@ app.MapGet("/api/v5/build", () => Results.Ok(new { build }));
 app.MapGet("/api/v5/status", (ChppV5 chpp) => Results.Ok(new
 {
     connected = chpp.Connected,
-    configured = !string.IsNullOrWhiteSpace(builder.Configuration["CHPP_CONSUMER_KEY"]) && !string.IsNullOrWhiteSpace(builder.Configuration["CHPP_CONSUMER_SECRET"])
+    configured = !string.IsNullOrWhiteSpace(builder.Configuration["CHPP_CONSUMER_SECRET"])
 }));
 app.MapGet("/api/v5/analysis", async (AnalysisService service, ChppV5 chpp, CancellationToken ct) =>
 {
     if (!chpp.Connected) return Results.Unauthorized();
-    try
-    {
-        return Results.Ok(await service.RunAsync(build, ct));
-    }
-    catch (Exception ex)
-    {
-        return Results.Problem(ex.Message, statusCode: 502);
-    }
+    try { return Results.Ok(await service.RunAsync(build, ct)); }
+    catch (Exception ex) { return Results.Problem(ex.Message, statusCode: 502); }
 });
 
 app.MapGet("/auth/chpp/start", async (HttpContext http, ChppV5 chpp, CancellationToken ct) =>
 {
     try
     {
-        if (string.IsNullOrWhiteSpace(builder.Configuration["CHPP_CONSUMER_KEY"]) || string.IsNullOrWhiteSpace(builder.Configuration["CHPP_CONSUMER_SECRET"]))
-            return Results.Redirect("/?error=" + Uri.EscapeDataString("CHPP environment değişkenleri eksik."));
+        if (string.IsNullOrWhiteSpace(builder.Configuration["CHPP_CONSUMER_SECRET"]))
+            return Results.Redirect("/?error=" + Uri.EscapeDataString("CHPP_CONSUMER_SECRET Render Environment Variables içinde tanımlı değil."));
         var proto = http.Request.Headers["X-Forwarded-Proto"].FirstOrDefault() ?? http.Request.Scheme;
         var callback = $"{proto}://{http.Request.Host}/auth/chpp/callback";
         return Results.Redirect(await chpp.StartAsync(callback, ct));
     }
-    catch (Exception ex)
-    {
-        return Results.Redirect("/?error=" + Uri.EscapeDataString(ex.Message));
-    }
+    catch (Exception ex) { return Results.Redirect("/?error=" + Uri.EscapeDataString(ex.Message)); }
 });
 
 app.MapGet("/auth/chpp/callback", async (HttpContext http, ChppV5 chpp, CancellationToken ct) =>
@@ -77,10 +71,7 @@ app.MapGet("/auth/chpp/callback", async (HttpContext http, ChppV5 chpp, Cancella
         await chpp.FinishAsync(verifier, ct);
         return Results.Redirect("/?connected=1");
     }
-    catch (Exception ex)
-    {
-        return Results.Redirect("/?error=" + Uri.EscapeDataString(ex.Message));
-    }
+    catch (Exception ex) { return Results.Redirect("/?error=" + Uri.EscapeDataString(ex.Message)); }
 });
 
 app.MapPost("/auth/chpp/logout", (ChppV5 chpp) => { chpp.Disconnect(); return Results.Ok(new { ok = true }); });
