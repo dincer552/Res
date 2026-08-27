@@ -1,5 +1,5 @@
 (()=>{
-  const VERSION='20260827-responsive-pitch-v4';
+  const VERSION='20260827-responsive-pitch-v6';
   if(window.__responsivePitchV4Installed===VERSION)return;
   window.__responsivePitchV4Installed=VERSION;
 
@@ -69,6 +69,21 @@
     return assigned;
   }
 
+  function purgeLegacy(pitch){
+    if(!pitch)return;
+    /* Old renderers append absolute .player-node elements directly to .pitch.
+       The responsive renderer owns the nested .responsive-pitch-slots layer. */
+    pitch.querySelectorAll(':scope > .player-node, :scope > .lineup-empty').forEach(n=>n.remove());
+    pitch.querySelectorAll(':scope > [data-legacy-pitch-node="1"]').forEach(n=>n.remove());
+  }
+
+  function purgeAllPitches(){
+    document.querySelectorAll('.pitch').forEach(p=>{
+      p.classList.add('responsive-pitch-v4');
+      purgeLegacy(p);
+    });
+  }
+
   function slotLabel(s){return slots[s]||s}
   function slotClass(s,filled){return `lineup-slot lineup-slot-${s.replace(/[^A-Z0-9]/g,'-')} ${filled?'filled':'empty'}`}
 
@@ -76,7 +91,10 @@
     const pitch=typeof target==='string'?document.querySelector(target):target;
     if(!pitch)return;
     pitch.classList.add('responsive-pitch-v4');
-    pitch.querySelectorAll('.responsive-pitch-slots,.player-node,.lineup-empty').forEach(n=>n.remove());
+
+    /* Remove every previous responsive layer, then remove any legacy direct-child layer. */
+    pitch.querySelectorAll(':scope > .responsive-pitch-slots').forEach(n=>n.remove());
+    purgeLegacy(pitch);
 
     const layer=document.createElement('div');
     layer.className='responsive-pitch-slots';
@@ -106,9 +124,12 @@
     pitch.appendChild(layer);
   };
 
-  function patchExisting(){
-    document.querySelectorAll('.pitch').forEach(p=>p.classList.add('responsive-pitch-v4'));
-  }
-  patchExisting();
-  new MutationObserver(patchExisting).observe(document.documentElement,{childList:true,subtree:true});
+  purgeAllPitches();
+  const observer=new MutationObserver(records=>{
+    document.querySelectorAll('.pitch').forEach(p=>{
+      p.classList.add('responsive-pitch-v4');
+      purgeLegacy(p);
+    });
+  });
+  observer.observe(document.documentElement,{childList:true,subtree:true});
 })();
