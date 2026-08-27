@@ -13,8 +13,9 @@
 .pitch.responsive-pitch-v4 .responsive-player-node b{font-size:clamp(8px,1.2vw,12px);line-height:1.2}
 .pitch.responsive-pitch-v4 .responsive-player-node strong{font-size:clamp(10px,1.4vw,14px);line-height:1.1}
 .pitch.responsive-pitch-v4 .responsive-player-node small{font-size:clamp(6px,.9vw,9px);line-height:1.1}
-.pitch.responsive-pitch-v4 .lineup-slot.filled{border-color:rgba(125,205,255,.9);background:rgba(84,166,214,.18)}
-.pitch.responsive-pitch-v4 .lineup-slot.filled .responsive-player-node{background:rgba(93,178,225,.30)!important}
+/* Filled slots are intentionally darker than empty placement frames. */
+.pitch.responsive-pitch-v4 .lineup-slot.filled{border-color:rgba(125,205,255,.9);background:rgba(42,128,82,.34)}
+.pitch.responsive-pitch-v4 .lineup-slot.filled .responsive-player-node{background:rgba(18,88,57,.68)!important}
 @media(max-width:700px){
   .pitch.responsive-pitch-v4{height:420px}
   .pitch.responsive-pitch-v4 .responsive-pitch-slots{inset:5% 4% 5%;gap:7px}
