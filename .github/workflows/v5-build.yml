@@ -1,4 +1,4 @@
-name: HattrickAI V5 Build
+name: HattrickAI V5 Deploy
 
 on:
   push:
@@ -6,18 +6,28 @@ on:
   workflow_dispatch:
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
+  deploy:
+    runs-on: self-hosted
+
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '9.0.x'
-      - name: Restore V5
-        run: dotnet restore HattrickAI_V5/HattrickAI.V5.csproj
-      - name: Build V5
-        run: dotnet build HattrickAI_V5/HattrickAI.V5.csproj --configuration Release --no-restore
-      - name: Publish V5
-        run: dotnet publish HattrickAI_V5/HattrickAI.V5.csproj --configuration Release --no-restore --output /tmp/v5-publish
+      - name: Checkout V5
+        uses: actions/checkout@v4
+
       - name: Build Docker image
-        run: docker build --pull -t hattrickai-v5:ci -f HattrickAI_V5/Dockerfile .
+        run: |
+          docker build --pull -t hattrick-v5:latest -f HattrickAI_V5/Dockerfile .
+
+      - name: Replace running container
+        run: |
+          docker rm -f hattrick-v5 || true
+          docker run -d \
+            --name hattrick-v5 \
+            --restart unless-stopped \
+            -p 10000:10000 \
+            hattrick-v5:latest
+
+      - name: Verify deployment
+        run: |
+          sleep 5
+          docker ps --filter name=hattrick-v5
+          curl --fail http://127.0.0.1:10000
