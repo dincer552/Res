@@ -1,0 +1,24 @@
+name: HattrickAI V5 Phase 1 Tests
+
+on:
+  push:
+    branches: [v5-phase1-rating-core]
+  workflow_dispatch:
+
+jobs:
+  phase1:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 9
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 9.0.x
+
+      - name: Build V5
+        run: dotnet build HattrickAI_V5/HattrickAI.V5.csproj -c Release
+
+      - name: Run Phase 1 tests
+        run: dotnet run --project HattrickAI_V5.Phase1Tests/HattrickAI_V5.Phase1Tests.csproj -c Release --no-restore
