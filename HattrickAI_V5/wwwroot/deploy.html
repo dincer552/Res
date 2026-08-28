@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>HattrickAI • Deploy Log</title>
+<style>
+:root{--bg:#eef1ef;--card:#fff;--ink:#27322d;--muted:#747b76;--green:#21804a;--dark:#0b1517;--line:#27322d}
+*{box-sizing:border-box}html,body{margin:0;background:var(--bg);color:var(--ink);font-family:Arial,Helvetica,sans-serif}.page{max-width:1000px;margin:auto;padding:18px}.top{background:var(--card);border-radius:15px;box-shadow:0 2px 9px #0002;padding:16px 18px;margin-bottom:14px;display:flex;align-items:center;gap:12px}.brand{font-size:22px;font-weight:900}.brand span{color:var(--green)}.title{font-size:13px;color:var(--muted);flex:1}.state{padding:8px 12px;border-radius:9px;background:#e5eee8;color:#267448;font-size:12px;font-weight:800}.panel{background:var(--dark);border-radius:15px;box-shadow:0 2px 9px #0003;overflow:hidden}.head{padding:13px 16px;background:#111e20;color:#fff;display:flex;align-items:center;justify-content:space-between}.head b{font-size:14px}.head span{font-size:11px;color:#aeb9b5}.log{height:620px;overflow:auto;padding:16px;font:12px/1.65 Consolas,"Courier New",monospace;color:#d7e1dd;white-space:pre-wrap}.line{border-bottom:1px solid #ffffff08;padding:1px 0}.ok{color:#75df9d}.bad{color:#ff8f8f}.info{color:#b9d9ff}.foot{margin-top:10px;color:var(--muted);font-size:11px;text-align:right}.empty{color:#9da8a3}
+</style>
+</head>
+<body>
+<main class="page">
+<section class="top"><div class="brand">Hattrick<span>AI</span></div><div class="title">V5 • canlı deploy geçmişi</div><div class="state" id="state">Bağlanıyor…</div></section>
+<section class="panel"><header class="head"><b>🚀 Deploy Log</b><span id="updated">—</span></header><div class="log" id="log"><div class="empty">Deploy kayıtları bekleniyor…</div></div></section>
+<div class="foot">Otomatik yenileme: 2 saniye</div>
+</main>
+<script>
+const logEl=document.getElementById('log'),stateEl=document.getElementById('state'),updatedEl=document.getElementById('updated');
+let last='';
+function paint(lines){
+  const joined=lines.join('\n');
+  if(joined===last)return;
+  last=joined;
+  logEl.innerHTML=lines.length?lines.map(x=>{const safe=x.replace(/[&<>]/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[m]));const cls=/BAŞARILI|başarılı|🟢/.test(x)?'ok':/FAILED|HATA|❌/.test(x)?'bad':/başladı|başlatılıyor|Commit:|Branch:/.test(x)?'info':'';return '<div class="line '+cls+'">'+safe+'</div>'}).join(''):'<div class="empty">Henüz deploy kaydı yok.</div>';
+  logEl.scrollTop=logEl.scrollHeight;
+  const lastLine=lines.at(-1)||'';
+  if(/BAŞARILI|🟢/.test(lastLine))stateEl.textContent='● Son deploy başarılı';
+  else if(/FAILED|❌/.test(lastLine))stateEl.textContent='● Deploy hatalı';
+  else if(/başladı|başlatılıyor|bekleniyor/.test(lastLine))stateEl.textContent='● Deploy çalışıyor';
+  else stateEl.textContent='● Sistem hazır';
+  updatedEl.textContent='Son kontrol: '+new Date().toLocaleTimeString('tr-TR');
+}
+async function refresh(){try{const r=await fetch('/api/deploy/log?ts='+Date.now(),{cache:'no-store'});if(!r.ok)throw new Error('HTTP '+r.status);const d=await r.json();paint(d.lines||[])}catch(e){stateEl.textContent='● Log bağlantısı yok'}}
+refresh();setInterval(refresh,2000);
+</script>
+</body>
+</html>
