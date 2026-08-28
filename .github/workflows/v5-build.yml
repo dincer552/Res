@@ -111,6 +111,7 @@ jobs:
             --name hattrick-v5 \
             --restart unless-stopped \
             -p 10000:10000 \
+            -e CHPP_CONSUMER_SECRET="${{ secrets.CHPP_CONSUMER_SECRET }}" \
             -v "\$LOG_FILE:/app/deploy.log:ro" \
             hattrick-v5:${GITHUB_SHA}
 
