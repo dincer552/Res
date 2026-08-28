@@ -9,4 +9,5 @@ FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
 WORKDIR /app
 ENV ASPNETCORE_URLS=http://+:10000
 COPY --from=build /app/publish .
+RUN sed -i 's#</style>#.slot-code,.slot-desc{display:none!important}</style>#' /app/publish/wwwroot/index.html
 ENTRYPOINT ["dotnet","HattrickAI.V5.dll","--hostBuilder:reloadConfigOnChange=false"]
