@@ -22,6 +22,7 @@ builder.Services.AddScoped<ChppV5>(sp =>
 });
 builder.Services.AddScoped<AnalysisService>();
 builder.Services.AddScoped<ReferenceMatchService>();
+builder.Services.AddScoped<RatingTestService>();
 
 var app = builder.Build();
 var portText = Environment.GetEnvironmentVariable("PORT");
@@ -61,6 +62,12 @@ app.MapGet("/api/v5/reference-match", async (ReferenceMatchService service, Chpp
 {
     if (!chpp.Connected) return Results.Unauthorized();
     try { return Results.Ok(await service.GetAsync(ct)); }
+    catch (Exception ex) { return Results.Problem(ex.Message, statusCode: 502); }
+});
+app.MapGet("/api/v5/rating-test", async (RatingTestService service, ChppV5 chpp, CancellationToken ct) =>
+{
+    if (!chpp.Connected) return Results.Unauthorized();
+    try { return Results.Ok(await service.RunAsync(ct)); }
     catch (Exception ex) { return Results.Problem(ex.Message, statusCode: 502); }
 });
 
