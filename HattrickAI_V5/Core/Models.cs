@@ -28,23 +28,10 @@ public sealed record Lineup(
     string Formation,
     IReadOnlyList<Slot> Slots);
 
-public sealed record MatchInfo(
-    int MatchId,
-    DateTimeOffset Date,
-    string HomeTeam,
-    int HomeTeamId,
-    string AwayTeam,
-    int AwayTeamId,
-    int? HomeGoals,
-    int? AwayGoals,
-    int MatchType,
-    string MatchTypeName);
-
 public sealed record Analysis(
     string Build,
     string TeamName,
     string OpponentName,
     string MatchTitle,
-    MatchInfo? OpponentReferenceMatch,
     Lineup Own,
     Lineup Opponent);
