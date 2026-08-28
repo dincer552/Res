@@ -21,6 +21,7 @@ builder.Services.AddScoped<ChppV5>(sp =>
     return new ChppV5(new Credentials(key, secret), sp.GetRequiredService<IHttpContextAccessor>());
 });
 builder.Services.AddScoped<AnalysisService>();
+builder.Services.AddScoped<ReferenceMatchService>();
 
 var app = builder.Build();
 var portText = Environment.GetEnvironmentVariable("PORT");
@@ -45,6 +46,12 @@ app.MapGet("/api/v5/analysis", async (AnalysisService service, ChppV5 chpp, Canc
 {
     if (!chpp.Connected) return Results.Unauthorized();
     try { return Results.Ok(await service.RunAsync(build, ct)); }
+    catch (Exception ex) { return Results.Problem(ex.Message, statusCode: 502); }
+});
+app.MapGet("/api/v5/reference-match", async (ReferenceMatchService service, ChppV5 chpp, CancellationToken ct) =>
+{
+    if (!chpp.Connected) return Results.Unauthorized();
+    try { return Results.Ok(await service.GetAsync(ct)); }
     catch (Exception ex) { return Results.Problem(ex.Message, statusCode: 502); }
 });
 
