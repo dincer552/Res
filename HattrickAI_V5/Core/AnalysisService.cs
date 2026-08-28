@@ -6,6 +6,7 @@ namespace HattrickAI.V5.Core;
 public sealed class AnalysisService
 {
     private readonly ChppV5 _chpp;
+    private readonly RegionalRatingEngine _ratingEngine = new();
     public AnalysisService(ChppV5 chpp) => _chpp = chpp;
 
     public async Task<Analysis> RunAsync(string build, CancellationToken ct)
@@ -49,9 +50,43 @@ public sealed class AnalysisService
 
         var ownLineup = BuildOwnLineup(teamName, ownPlayers);
         var opponentLineup = new Lineup(opponentName, Formation(opponentSlots), opponentSlots);
+        var ownRating = CalculateRegionalRating(ownLineup, ownPlayers);
+        var opponentRating = CalculateRegionalRating(opponentLineup, opponentPlayers);
         var location = next.HomeId == teamId ? "Ev sahibi" : "Deplasman";
         var title = $"{next.Date.ToLocalTime():dd.MM.yyyy HH:mm} • {opponentName} • {location}";
-        return new Analysis(build, teamName, opponentName, title, ownLineup, opponentLineup);
+        return new Analysis(build, teamName, opponentName, title, ownLineup, opponentLineup, ownRating, opponentRating);
+    }
+
+    private RegionalRatingSnapshot CalculateRegionalRating(Lineup lineup, IReadOnlyList<Player> players)
+    {
+        var byId = players.ToDictionary(p => p.Id);
+        var regionalPlayers = lineup.Slots
+            .Where(s => byId.ContainsKey(s.PlayerId))
+            .Select(s => ToRegionalPlayer(s, byId[s.PlayerId]))
+            .ToList();
+        return _ratingEngine.Calculate(regionalPlayers);
+    }
+
+    private static RegionalPlayer ToRegionalPlayer(Slot slot, Player p)
+    {
+        var code = slot.Code;
+        var position = code switch
+        {
+            "GK" => RegionalPosition.Goalkeeper,
+            "DEF-L" or "DEF-R" => RegionalPosition.WingBack,
+            "DEF-CL" or "DEF-C" or "DEF-CR" => RegionalPosition.CentralDefender,
+            "W-L" or "W-R" => RegionalPosition.Winger,
+            "IM-L" or "IM-C" or "IM-R" => RegionalPosition.InnerMidfielder,
+            "FW-L" or "FW-C" or "FW-R" => RegionalPosition.Forward,
+            _ => RegionalPosition.InnerMidfielder
+        };
+        var side = code.EndsWith("-L", StringComparison.Ordinal) ? PlayerSide.Left
+            : code.EndsWith("-R", StringComparison.Ordinal) ? PlayerSide.Right
+            : PlayerSide.Center;
+        return new RegionalPlayer(
+            p.Id, position, side, PlayerOrder.Normal,
+            p.Keeper, p.Defending, p.Playmaking, p.Passing, p.Winger, p.Scoring,
+            p.Form, 0, p.Experience);
     }
 
     private async Task<List<Player>> ReadPlayers(int teamId, CancellationToken ct)
