@@ -65,12 +65,18 @@ public sealed class ReferenceMatchService
                 homeId,
                 XmlV5.Text(m,"AwayTeamName"),
                 awayId,
-                XmlV5.NullableInt(m,"HomeGoals"),
-                XmlV5.NullableInt(m,"AwayGoals"),
+                NullableInt(m,"HomeGoals"),
+                NullableInt(m,"AwayGoals"),
                 type,
                 MatchTypeName(type)));
         }
         return result;
+    }
+
+    private static int? NullableInt(XElement? e, string name)
+    {
+        var text = XmlV5.Text(e, name);
+        return int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var value) ? value : null;
     }
 
     private static string MatchTypeName(int type) => type switch
