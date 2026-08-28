@@ -21,7 +21,8 @@ public sealed record Slot(
     int PlayerId,
     double Rating,
     double X,
-    double Y);
+    double Y,
+    PlayerOrder Order = PlayerOrder.Normal);
 
 public sealed record Lineup(
     string TeamName,
@@ -42,4 +43,5 @@ public sealed record Analysis(
     public Lineup OpponentLineup => Opponent;
     public string OwnFormation => Own.Formation;
     public string OpponentFormation => Opponent.Formation;
+    public RegionalRatingPair RegionalRatings => new(OwnRating, OpponentRating);
 }
