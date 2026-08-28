@@ -1,3 +1,4 @@
+using System.Text;
 using HattrickAI.V5.Core;
 
 const string EmbeddedConsumerKey = "4CzYYAnSg7SSHkQyDVMLIV";
@@ -29,6 +30,57 @@ var portText = Environment.GetEnvironmentVariable("PORT");
 var port = int.TryParse(portText, out var parsed) ? parsed : 10000;
 app.Urls.Add($"http://0.0.0.0:{port}");
 app.UseSession();
+
+// V5 ana sayfada CHPP bağlantısı başarılıysa bölgesel rating testine geçiş göster.
+app.Use(async (context, next) =>
+{
+    if (context.Request.Path == "/" || context.Request.Path == "/index.html")
+    {
+        var originalBody = context.Response.Body;
+        await using var buffer = new MemoryStream();
+        context.Response.Body = buffer;
+        try
+        {
+            await next();
+            if (context.Response.ContentType?.StartsWith("text/html", StringComparison.OrdinalIgnoreCase) == true)
+            {
+                buffer.Position = 0;
+                using var reader = new StreamReader(buffer, Encoding.UTF8, detectEncodingFromByteOrderMarks: true, leaveOpen: true);
+                var html = await reader.ReadToEndAsync();
+                var chpp = context.RequestServices.GetRequiredService<ChppV5>();
+
+                if (chpp.Connected && !html.Contains("id=\"ratingTestLink\"", StringComparison.Ordinal))
+                {
+                    const string marker = "<article class=\"lineup-card\">";
+                    const string testPanel = "<section class=\"panel analysis\" id=\"ratingTestLink\"><div class=\"panel-head\"><div><div class=\"eyebrow\">GELİŞTİRME / TEST</div><div class=\"panel-title\">Bölgesel Rating Testi</div></div></div><div class=\"analysis\"><a class=\"analyze\" href=\"/rating-test.html\" style=\"display:flex;align-items:center;justify-content:center;text-decoration:none\">TEST EKRANINI AÇ</a></div></section>";
+                    html = html.Replace(marker, testPanel + "\n" + marker, StringComparison.Ordinal);
+                }
+
+                var bytes = Encoding.UTF8.GetBytes(html);
+                context.Response.Headers.Remove("Content-Length");
+                context.Response.Headers.Remove("ETag");
+                context.Response.Headers.CacheControl = "no-cache, no-store, must-revalidate";
+                context.Response.Body = originalBody;
+                await originalBody.WriteAsync(bytes);
+            }
+            else
+            {
+                context.Response.Body = originalBody;
+                buffer.Position = 0;
+                await buffer.CopyToAsync(originalBody);
+            }
+        }
+        finally
+        {
+            context.Response.Body = originalBody;
+        }
+    }
+    else
+    {
+        await next();
+    }
+});
+
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
