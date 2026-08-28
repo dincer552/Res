@@ -5,9 +5,9 @@ using System.Linq;
 namespace HattrickAI.V5.Core;
 
 /// <summary>
-/// Hattrick-style regional rating calculator based on the public/community
-/// contribution table.  The implementation is independent code using the
-/// published coefficients; it is not a copy of Hattrick Organizer source.
+/// Hattrick-style seven-sector rating calculator.
+/// Coefficients are based on the public/community contribution research.
+/// The engine keeps the raw sector calculation separate from display conversion.
 /// </summary>
 public sealed class RegionalRatingEngine
 {
@@ -33,17 +33,53 @@ public sealed class RegionalRatingEngine
             AddContribution(s, p, k);
         }
 
+        // Central-position overcrowding reduces the contribution before XP is added.
         ApplyOvercrowding(s, players);
+        // Experience is a flat contribution added after skill/form/overcrowding.
+        ApplyExperience(s, players);
         ApplyContext(s, context);
 
-        return new RegionalRatingSnapshot(
+        return Snapshot(s);
+    }
+
+    /// <summary>
+    /// Explicit lineup entry point. The UI has 14 possible position boxes;
+    /// empty boxes are ignored and the filled boxes are converted into the
+    /// same seven-sector engine used for both teams.
+    /// </summary>
+    public RegionalRatingSnapshot CalculateLineup(
+        Lineup lineup,
+        IReadOnlyList<Player> players,
+        RatingContext? context = null)
+    {
+        var byId = players.ToDictionary(p => p.Id);
+        var regionalPlayers = lineup.Slots
+            .Where(s => s.PlayerId > 0 && byId.ContainsKey(s.PlayerId))
+            .Select(s => ToRegionalPlayer(s, byId[s.PlayerId]))
+            .ToList();
+        return Calculate(regionalPlayers, context);
+    }
+
+    /// <summary>Calculates the fourteen displayed sectors: seven for each team.</summary>
+    public RegionalRatingPair CalculatePair(
+        Lineup ownLineup,
+        IReadOnlyList<Player> ownPlayers,
+        Lineup opponentLineup,
+        IReadOnlyList<Player> opponentPlayers,
+        RatingContext? ownContext = null,
+        RatingContext? opponentContext = null)
+        => new(
+            CalculateLineup(ownLineup, ownPlayers, ownContext),
+            CalculateLineup(opponentLineup, opponentPlayers, opponentContext));
+
+    private static RegionalRatingSnapshot Snapshot(IDictionary<RatingSector, double> s)
+        => new(
             s[RatingSector.LeftDefence], s[RatingSector.CentralDefence], s[RatingSector.RightDefence],
             s[RatingSector.Midfield],
             s[RatingSector.LeftAttack], s[RatingSector.CentralAttack], s[RatingSector.RightAttack],
             Display(s[RatingSector.LeftDefence]), Display(s[RatingSector.CentralDefence]), Display(s[RatingSector.RightDefence]),
             Display(s[RatingSector.Midfield]),
             Display(s[RatingSector.LeftAttack]), Display(s[RatingSector.CentralAttack]), Display(s[RatingSector.RightAttack]));
-    }
 
     private static void AddContribution(IDictionary<RatingSector, double> s, RegionalPlayer p, EffectiveSkills k)
     {
@@ -51,6 +87,7 @@ public sealed class RegionalRatingEngine
         {
             case RegionalPosition.Goalkeeper:
                 Add(s, RatingSector.CentralDefence, k.Keeper * .165 + k.Defending * .079);
+                // These coefficients are per side, not a total to be split in half.
                 AddBothSides(s, RatingSector.LeftDefence, RatingSector.RightDefence,
                     k.Keeper * .183 + k.Defending * .082);
                 break;
@@ -75,7 +112,6 @@ public sealed class RegionalRatingEngine
                 else
                     Add(s, p.Side == PlayerSide.Left ? RatingSector.LeftDefence : RatingSector.RightDefence, side);
 
-                Add(s, RatingSector.Midfield, 0);
                 if (p.Order == PlayerOrder.TowardsWing)
                     Add(s, p.Side == PlayerSide.Left ? RatingSector.LeftAttack : RatingSector.RightAttack, k.Passing * .063);
                 break;
@@ -199,6 +235,98 @@ public sealed class RegionalRatingEngine
         }
     }
 
+    private static void ApplyExperience(IDictionary<RatingSector, double> s, IReadOnlyList<RegionalPlayer> players)
+    {
+        foreach (var p in players)
+        {
+            var bonus = ExperienceBonus(p.Experience);
+            if (bonus <= 0) continue;
+
+            // Schum/community research: experience is a flat contribution added
+            // after skill/form/overcrowding. It depends on the rating line, not
+            // on the player's raw skill coefficient for that line.
+            switch (p.Position)
+            {
+                case RegionalPosition.Goalkeeper:
+                    AddDefenceExperience(s, bonus, true, true, true);
+                    break;
+
+                case RegionalPosition.CentralDefender:
+                    Add(s, RatingSector.CentralDefence, bonus * .480);
+                    AddSideDefenceExperience(s, p.Side, bonus * .345);
+                    if (p.Order == PlayerOrder.TowardsWing)
+                        Add(s, p.Side == PlayerSide.Left ? RatingSector.LeftAttack : RatingSector.RightAttack, bonus * .375);
+                    Add(s, RatingSector.Midfield, bonus * .730);
+                    break;
+
+                case RegionalPosition.WingBack:
+                    Add(s, RatingSector.CentralDefence, bonus * .480);
+                    AddSideDefenceExperience(s, p.Side, bonus * .345);
+                    Add(s, RatingSector.Midfield, bonus * .730);
+                    Add(s, p.Side == PlayerSide.Left ? RatingSector.LeftAttack : RatingSector.RightAttack, bonus * .375);
+                    break;
+
+                case RegionalPosition.InnerMidfielder:
+                    Add(s, RatingSector.CentralDefence, bonus * .480);
+                    AddSideDefenceExperience(s, p.Side, bonus * .345);
+                    Add(s, RatingSector.Midfield, bonus * .730);
+                    Add(s, RatingSector.CentralAttack, bonus * .450);
+                    AddSideAttackExperience(s, p.Side, bonus * .375);
+                    break;
+
+                case RegionalPosition.Winger:
+                    Add(s, RatingSector.CentralDefence, bonus * .480);
+                    AddSideDefenceExperience(s, p.Side, bonus * .345);
+                    Add(s, RatingSector.Midfield, bonus * .730);
+                    Add(s, p.Side == PlayerSide.Left ? RatingSector.LeftAttack : RatingSector.RightAttack, bonus * .375);
+                    Add(s, RatingSector.CentralAttack, bonus * .450);
+                    break;
+
+                case RegionalPosition.Forward:
+                    Add(s, RatingSector.Midfield, bonus * .730);
+                    Add(s, RatingSector.CentralAttack, bonus * .450);
+                    AddSideAttackExperience(s, p.Side, bonus * .375);
+                    break;
+            }
+        }
+    }
+
+    private static void AddDefenceExperience(IDictionary<RatingSector, double> s, double bonus, bool left, bool center, bool right)
+    {
+        if (left) Add(s, RatingSector.LeftDefence, bonus * .345);
+        if (center) Add(s, RatingSector.CentralDefence, bonus * .480);
+        if (right) Add(s, RatingSector.RightDefence, bonus * .345);
+    }
+
+    private static void AddSideDefenceExperience(IDictionary<RatingSector, double> s, PlayerSide side, double value)
+    {
+        if (side == PlayerSide.Center)
+        {
+            Add(s, RatingSector.LeftDefence, value);
+            Add(s, RatingSector.RightDefence, value);
+        }
+        else
+            Add(s, side == PlayerSide.Left ? RatingSector.LeftDefence : RatingSector.RightDefence, value);
+    }
+
+    private static void AddSideAttackExperience(IDictionary<RatingSector, double> s, PlayerSide side, double value)
+    {
+        if (side == PlayerSide.Center)
+        {
+            Add(s, RatingSector.LeftAttack, value);
+            Add(s, RatingSector.RightAttack, value);
+        }
+        else
+            Add(s, side == PlayerSide.Left ? RatingSector.LeftAttack : RatingSector.RightAttack, value);
+    }
+
+    private static double ExperienceBonus(double experience)
+    {
+        var values = new[] { 0.0, 0.0, .40, .64, .80, .93, 1.04, 1.13, 1.20, 1.27, 1.33, 1.39, 1.44, 1.49, 1.53, 1.57, 1.61, 1.64, 1.67, 1.71, 1.73 };
+        var level = Math.Clamp((int)Math.Round(experience), 1, 20);
+        return values[level];
+    }
+
     private static void ApplyOvercrowding(IDictionary<RatingSector, double> s, IReadOnlyList<RegionalPlayer> players)
     {
         var centralDefenders = players.Count(p => p.Position == RegionalPosition.CentralDefender);
@@ -233,10 +361,10 @@ public sealed class RegionalRatingEngine
         s[RatingSector.Midfield] *= midfield;
     }
 
-    private static void AddBothSides(IDictionary<RatingSector, double> s, RatingSector left, RatingSector right, double total)
+    private static void AddBothSides(IDictionary<RatingSector, double> s, RatingSector left, RatingSector right, double valuePerSide)
     {
-        s[left] += total * .5;
-        s[right] += total * .5;
+        s[left] += valuePerSide;
+        s[right] += valuePerSide;
     }
 
     private static void Add(IDictionary<RatingSector, double> s, RatingSector sector, double value)
@@ -265,6 +393,27 @@ public sealed class RegionalRatingEngine
 
     public static double Display(double raw)
         => raw <= 0 ? .75 : Math.Floor(raw * 4.0) / 4.0 + .75;
+
+    private static RegionalPlayer ToRegionalPlayer(Slot slot, Player p)
+    {
+        var position = slot.Code switch
+        {
+            "GK" => RegionalPosition.Goalkeeper,
+            "DEF-L" or "DEF-R" => RegionalPosition.WingBack,
+            "DEF-CL" or "DEF-C" or "DEF-CR" => RegionalPosition.CentralDefender,
+            "W-L" or "W-R" => RegionalPosition.Winger,
+            "IM-L" or "IM-C" or "IM-R" => RegionalPosition.InnerMidfielder,
+            "FW-L" or "FW-C" or "FW-R" => RegionalPosition.Forward,
+            _ => RegionalPosition.InnerMidfielder
+        };
+        var side = slot.Code.EndsWith("-L", StringComparison.Ordinal) ? PlayerSide.Left
+            : slot.Code.EndsWith("-R", StringComparison.Ordinal) ? PlayerSide.Right
+            : PlayerSide.Center;
+        return new RegionalPlayer(
+            p.Id, position, side, slot.Order,
+            p.Keeper, p.Defending, p.Playmaking, p.Passing, p.Winger, p.Scoring,
+            p.Form, 0, p.Experience);
+    }
 }
 
 public enum RatingSector { LeftDefence, CentralDefence, RightDefence, Midfield, LeftAttack, CentralAttack, RightAttack }
@@ -293,6 +442,12 @@ public sealed record RegionalPlayer(
 public sealed record RatingContext(MatchLocation MatchLocation, TeamAttitude Attitude, TeamTactic Tactic)
 {
     public static RatingContext Default => new(MatchLocation.Away, TeamAttitude.Normal, TeamTactic.Normal);
+}
+
+public sealed record RegionalRatingPair(RegionalRatingSnapshot Own, RegionalRatingSnapshot Opponent)
+{
+    public IReadOnlyList<double> OwnSeven => new[] { Own.LeftDefence, Own.CentralDefence, Own.RightDefence, Own.Midfield, Own.LeftAttack, Own.CentralAttack, Own.RightAttack };
+    public IReadOnlyList<double> OpponentSeven => new[] { Opponent.LeftDefence, Opponent.CentralDefence, Opponent.RightDefence, Opponent.Midfield, Opponent.LeftAttack, Opponent.CentralAttack, Opponent.RightAttack };
 }
 
 public sealed record RegionalRatingSnapshot(
