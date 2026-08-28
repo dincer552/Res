@@ -13,21 +13,51 @@ jobs:
       - name: Checkout V5
         uses: actions/checkout@v4
 
-      - name: Build Docker image
+      - name: Deploy V5
+        shell: bash
         run: |
-          docker build --pull -t hattrick-v5:latest -f HattrickAI_V5/Dockerfile .
+          set -Eeuo pipefail
 
-      - name: Replace running container
-        run: |
+          LOG_DIR="/home/azureuser/hattrick-deploy"
+          LOG_FILE="$LOG_DIR/deploy.log"
+          mkdir -p "$LOG_DIR"
+          touch "$LOG_FILE"
+
+          log() {
+            printf '[%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >> "$LOG_FILE"
+          }
+
+          trap 'log "❌ DEPLOY FAILED (exit code $?)"' ERR
+
+          COMMIT_SHORT="${GITHUB_SHA:0:7}"
+          COMMIT_MESSAGE="$(git log -1 --pretty=%s)"
+
+          log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          log "🚀 GitHub deploy başladı"
+          log "Branch: ${GITHUB_REF_NAME}"
+          log "Commit: ${COMMIT_SHORT}"
+          log "Mesaj: ${COMMIT_MESSAGE}"
+          log "Gönderen: ${GITHUB_ACTOR}"
+          log "Runner: ${RUNNER_NAME}"
+
+          log "📦 Docker build başlatılıyor..."
+          docker build --pull -t hattrick-v5:latest -f HattrickAI_V5/Dockerfile .
+          log "✅ Docker image başarıyla oluşturuldu"
+
+          log "🛑 Eski container durduruluyor..."
           docker rm -f hattrick-v5 || true
+          log "▶️ Yeni container başlatılıyor..."
           docker run -d \
             --name hattrick-v5 \
             --restart unless-stopped \
             -p 10000:10000 \
+            -v "$LOG_FILE:/app/deploy.log:ro" \
             hattrick-v5:latest
 
-      - name: Verify deployment
-        run: |
+          log "⏳ Health check bekleniyor..."
           sleep 5
           docker ps --filter name=hattrick-v5
-          curl --fail http://127.0.0.1:10000
+          curl --fail --silent --show-error http://127.0.0.1:10000/health > /dev/null
+
+          log "🟢 DEPLOY BAŞARILI"
+          log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
