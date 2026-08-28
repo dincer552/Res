@@ -34,7 +34,9 @@ public sealed record Analysis(
     string OpponentName,
     string MatchTitle,
     Lineup Own,
-    Lineup Opponent)
+    Lineup Opponent,
+    RegionalRatingSnapshot OwnRating,
+    RegionalRatingSnapshot OpponentRating)
 {
     public Lineup OwnLineup => Own;
     public Lineup OpponentLineup => Opponent;
