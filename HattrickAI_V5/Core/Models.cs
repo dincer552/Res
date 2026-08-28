@@ -34,4 +34,10 @@ public sealed record Analysis(
     string OpponentName,
     string MatchTitle,
     Lineup Own,
-    Lineup Opponent);
+    Lineup Opponent)
+{
+    public Lineup OwnLineup => Own;
+    public Lineup OpponentLineup => Opponent;
+    public string OwnFormation => Own.Formation;
+    public string OpponentFormation => Opponent.Formation;
+}
