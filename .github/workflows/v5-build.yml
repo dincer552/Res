@@ -7,57 +7,136 @@ on:
 
 jobs:
   deploy:
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
 
     steps:
       - name: Checkout V5
         uses: actions/checkout@v4
 
-      - name: Deploy V5
+      - name: Build Docker image
         shell: bash
         run: |
           set -Eeuo pipefail
 
+          echo "📦 Docker build başlıyor..."
+          docker build --pull \
+            -t hattrick-v5:${GITHUB_SHA} \
+            -f HattrickAI_V5/Dockerfile .
+
+          echo "✅ Docker build tamamlandı"
+
+      - name: Save Docker image
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          echo "💾 Docker image paketleniyor..."
+          docker save hattrick-v5:${GITHUB_SHA} | gzip > hattrick-v5.tar.gz
+
+          echo "✅ Image hazır:"
+          ls -lh hattrick-v5.tar.gz
+
+      - name: Configure SSH
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          mkdir -p ~/.ssh
+
+          echo "${{ secrets.DEPLOY_SSH_KEY }}" | base64 -d > ~/.ssh/deploy_key
+
+          chmod 600 ~/.ssh/deploy_key
+
+          ssh-keyscan -H "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts
+
+          echo "✅ SSH hazır"
+
+      - name: Upload Docker image
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          echo "📤 Docker image Azure VM'ye gönderiliyor..."
+
+          scp \
+            -i ~/.ssh/deploy_key \
+            hattrick-v5.tar.gz \
+            "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/tmp/hattrick-v5.tar.gz"
+
+          echo "✅ Image Azure VM'ye gönderildi"
+
+      - name: Deploy on Azure VM
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+
+          ssh \
+            -i ~/.ssh/deploy_key \
+            "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" << EOF
+
+          set -Eeuo pipefail
+
           LOG_DIR="/home/azureuser/hattrick-deploy"
-          LOG_FILE="$LOG_DIR/deploy.log"
-          mkdir -p "$LOG_DIR"
-          touch "$LOG_FILE"
+          LOG_FILE="\$LOG_DIR/deploy.log"
+
+          mkdir -p "\$LOG_DIR"
+          touch "\$LOG_FILE"
 
           log() {
-            printf '[%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$1" >> "$LOG_FILE"
+            printf '[%s] %s\n' "\$(date '+%Y-%m-%d %H:%M:%S')" "\$1" >> "\$LOG_FILE"
           }
 
-          trap 'log "❌ DEPLOY FAILED (exit code $?)"' ERR
-
-          COMMIT_SHORT="${GITHUB_SHA:0:7}"
-          COMMIT_MESSAGE="$(git log -1 --pretty=%s)"
+          trap 'log "❌ DEPLOY FAILED (exit code \$?)"' ERR
 
           log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           log "🚀 GitHub deploy başladı"
           log "Branch: ${GITHUB_REF_NAME}"
-          log "Commit: ${COMMIT_SHORT}"
-          log "Mesaj: ${COMMIT_MESSAGE}"
+          log "Commit: ${GITHUB_SHA:0:7}"
+          log "Mesaj: \$(git log -1 --pretty=%s)"
           log "Gönderen: ${GITHUB_ACTOR}"
-          log "Runner: ${RUNNER_NAME}"
 
-          log "📦 Docker build başlatılıyor..."
-          docker build --pull -t hattrick-v5:latest -f HattrickAI_V5/Dockerfile .
-          log "✅ Docker image başarıyla oluşturuldu"
+          log "📥 Docker image yükleniyor..."
+
+          gunzip -c /tmp/hattrick-v5.tar.gz | sudo docker load
+
+          log "✅ Docker image yüklendi"
 
           log "🛑 Eski container durduruluyor..."
-          docker rm -f hattrick-v5 || true
+
+          sudo docker rm -f hattrick-v5 2>/dev/null || true
+
           log "▶️ Yeni container başlatılıyor..."
-          docker run -d \
+
+          sudo docker run -d \
             --name hattrick-v5 \
             --restart unless-stopped \
             -p 10000:10000 \
-            -v "$LOG_FILE:/app/deploy.log:ro" \
-            hattrick-v5:latest
+            -v "\$LOG_FILE:/app/deploy.log:ro" \
+            hattrick-v5:${GITHUB_SHA}
 
           log "⏳ Health check bekleniyor..."
+
           sleep 5
-          docker ps --filter name=hattrick-v5
-          curl --fail --silent --show-error http://127.0.0.1:10000/health > /dev/null
+
+          if sudo docker ps --filter "name=hattrick-v5" --filter "status=running" | grep -q hattrick-v5; then
+            log "✅ Container çalışıyor"
+          else
+            log "❌ Container başlamadı"
+            sudo docker logs hattrick-v5 >> "\$LOG_FILE" 2>&1 || true
+            exit 1
+          fi
+
+          curl --fail --silent --show-error \
+            http://127.0.0.1:10000/health > /dev/null
 
           log "🟢 DEPLOY BAŞARILI"
           log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+          rm -f /tmp/hattrick-v5.tar.gz
+
+          sudo docker image prune -f
+
+          EOF
+
+      - name: Deployment completed
+        run: echo "🟢 V5 deployment completed successfully"
