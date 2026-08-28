@@ -45,7 +45,7 @@ public sealed class RatingTestService
         var inputs = lineup.Select(x => ToRegionalPlayer(x, players)).Where(x => x != null).Cast<RegionalPlayer>().ToList();
 
         var context = new RatingContext(
-            match.IsHome ? MatchLocation.Home : MatchLocation.Away,
+            details.IsHome ? MatchLocation.Home : MatchLocation.Away,
             details.Attitude switch { 1 => TeamAttitude.MatchOfTheSeason, -1 => TeamAttitude.PlayItCool, _ => TeamAttitude.Normal },
             details.TacticType switch { 2 => TeamTactic.CounterAttack, 0 => TeamTactic.Normal, _ => TeamTactic.Normal });
 
