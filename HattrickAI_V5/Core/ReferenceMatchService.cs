@@ -23,7 +23,11 @@ public sealed class ReferenceMatchService
         if (opponentId <= 0) throw new InvalidOperationException("Rakip takım ID'si bulunamadı.");
 
         var opponentMatches = await ReadMatches(opponentId, ct);
-        var last = opponentMatches.Where(m => m.Date < DateTimeOffset.UtcNow).OrderByDescending(m => m.Date).FirstOrDefault();
+        var last = opponentMatches
+            .Where(m => m.Date < DateTimeOffset.UtcNow && m.HomeGoals.HasValue && m.AwayGoals.HasValue)
+            .OrderByDescending(m => m.Date)
+            .FirstOrDefault();
+        last ??= opponentMatches.Where(m => m.Date < DateTimeOffset.UtcNow).OrderByDescending(m => m.Date).FirstOrDefault();
         if (last is null) throw new InvalidOperationException("Rakibin baz alınan son maçı bulunamadı.");
 
         return new
