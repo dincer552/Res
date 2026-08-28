@@ -33,10 +33,11 @@ public sealed class RegionalRatingEngine
             AddContribution(s, p, k);
         }
 
-        // Central-position overcrowding reduces the contribution before XP is added.
+        // Hattrick's overcrowding penalty applies to the affected central sector.
+        // Experience is intentionally NOT added as a separate flat sector bonus:
+        // the published contribution coefficients already include the standard
+        // form/stamina/experience calibration. Adding XP again double-counts it.
         ApplyOvercrowding(s, players);
-        // Experience is a flat contribution added after skill/form/overcrowding.
-        ApplyExperience(s, players);
         ApplyContext(s, context);
 
         return Snapshot(s);
@@ -87,7 +88,6 @@ public sealed class RegionalRatingEngine
         {
             case RegionalPosition.Goalkeeper:
                 Add(s, RatingSector.CentralDefence, k.Keeper * .165 + k.Defending * .079);
-                // These coefficients are per side, not a total to be split in half.
                 AddBothSides(s, RatingSector.LeftDefence, RatingSector.RightDefence,
                     k.Keeper * .183 + k.Defending * .082);
                 break;
@@ -233,98 +233,6 @@ public sealed class RegionalRatingEngine
                 break;
             }
         }
-    }
-
-    private static void ApplyExperience(IDictionary<RatingSector, double> s, IReadOnlyList<RegionalPlayer> players)
-    {
-        foreach (var p in players)
-        {
-            var bonus = ExperienceBonus(p.Experience);
-            if (bonus <= 0) continue;
-
-            // Schum/community research: experience is a flat contribution added
-            // after skill/form/overcrowding. It depends on the rating line, not
-            // on the player's raw skill coefficient for that line.
-            switch (p.Position)
-            {
-                case RegionalPosition.Goalkeeper:
-                    AddDefenceExperience(s, bonus, true, true, true);
-                    break;
-
-                case RegionalPosition.CentralDefender:
-                    Add(s, RatingSector.CentralDefence, bonus * .480);
-                    AddSideDefenceExperience(s, p.Side, bonus * .345);
-                    if (p.Order == PlayerOrder.TowardsWing)
-                        Add(s, p.Side == PlayerSide.Left ? RatingSector.LeftAttack : RatingSector.RightAttack, bonus * .375);
-                    Add(s, RatingSector.Midfield, bonus * .730);
-                    break;
-
-                case RegionalPosition.WingBack:
-                    Add(s, RatingSector.CentralDefence, bonus * .480);
-                    AddSideDefenceExperience(s, p.Side, bonus * .345);
-                    Add(s, RatingSector.Midfield, bonus * .730);
-                    Add(s, p.Side == PlayerSide.Left ? RatingSector.LeftAttack : RatingSector.RightAttack, bonus * .375);
-                    break;
-
-                case RegionalPosition.InnerMidfielder:
-                    Add(s, RatingSector.CentralDefence, bonus * .480);
-                    AddSideDefenceExperience(s, p.Side, bonus * .345);
-                    Add(s, RatingSector.Midfield, bonus * .730);
-                    Add(s, RatingSector.CentralAttack, bonus * .450);
-                    AddSideAttackExperience(s, p.Side, bonus * .375);
-                    break;
-
-                case RegionalPosition.Winger:
-                    Add(s, RatingSector.CentralDefence, bonus * .480);
-                    AddSideDefenceExperience(s, p.Side, bonus * .345);
-                    Add(s, RatingSector.Midfield, bonus * .730);
-                    Add(s, p.Side == PlayerSide.Left ? RatingSector.LeftAttack : RatingSector.RightAttack, bonus * .375);
-                    Add(s, RatingSector.CentralAttack, bonus * .450);
-                    break;
-
-                case RegionalPosition.Forward:
-                    Add(s, RatingSector.Midfield, bonus * .730);
-                    Add(s, RatingSector.CentralAttack, bonus * .450);
-                    AddSideAttackExperience(s, p.Side, bonus * .375);
-                    break;
-            }
-        }
-    }
-
-    private static void AddDefenceExperience(IDictionary<RatingSector, double> s, double bonus, bool left, bool center, bool right)
-    {
-        if (left) Add(s, RatingSector.LeftDefence, bonus * .345);
-        if (center) Add(s, RatingSector.CentralDefence, bonus * .480);
-        if (right) Add(s, RatingSector.RightDefence, bonus * .345);
-    }
-
-    private static void AddSideDefenceExperience(IDictionary<RatingSector, double> s, PlayerSide side, double value)
-    {
-        if (side == PlayerSide.Center)
-        {
-            Add(s, RatingSector.LeftDefence, value);
-            Add(s, RatingSector.RightDefence, value);
-        }
-        else
-            Add(s, side == PlayerSide.Left ? RatingSector.LeftDefence : RatingSector.RightDefence, value);
-    }
-
-    private static void AddSideAttackExperience(IDictionary<RatingSector, double> s, PlayerSide side, double value)
-    {
-        if (side == PlayerSide.Center)
-        {
-            Add(s, RatingSector.LeftAttack, value);
-            Add(s, RatingSector.RightAttack, value);
-        }
-        else
-            Add(s, side == PlayerSide.Left ? RatingSector.LeftAttack : RatingSector.RightAttack, value);
-    }
-
-    private static double ExperienceBonus(double experience)
-    {
-        var values = new[] { 0.0, 0.0, .40, .64, .80, .93, 1.04, 1.13, 1.20, 1.27, 1.33, 1.39, 1.44, 1.49, 1.53, 1.57, 1.61, 1.64, 1.67, 1.71, 1.73 };
-        var level = Math.Clamp((int)Math.Round(experience), 1, 20);
-        return values[level];
     }
 
     private static void ApplyOvercrowding(IDictionary<RatingSector, double> s, IReadOnlyList<RegionalPlayer> players)
