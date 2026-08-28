@@ -1,9 +1,14 @@
 using System.Text;
+using System.Text.Json;
 using HattrickAI.V5.Core;
 
 const string EmbeddedConsumerKey = "4CzYYAnSg7SSHkQyDVMLIV";
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
+});
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddDistributedMemoryCache();
 builder.Services.AddSession(options =>
