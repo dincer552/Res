@@ -1,0 +1,29 @@
+(()=>{
+  const n=(p,k)=>Number(p?.[k]||0);
+  const ageBonus=(a,max)=>a<=17?max:a<=18?max*0.90:a<=19?max*0.80:a<=20?max*0.70:a<=21?max*0.60:a<=22?max*0.50:a<=23?max*0.40:a<=24?max*0.30:a<=25?max*0.20:a<=26?max*0.10:0;
+  const healthy=p=>!p?.injured&&!p?.suspended;
+  const explicitPos=p=>String(p?.position||p?.positionKey||'').toUpperCase();
+  const naturalPos=p=>{
+    const x=explicitPos(p);
+    if(['K','LW','RW','WING','LEFTWINGER','RIGHTWINGER'].includes(x))return'K';
+    if(['STP','CD','CENTRALDEFENDER'].includes(x))return'STP';
+    if(['SLB','SGB','WB','LEFTDEFENDER','RIGHTDEFENDER'].includes(x))return'Bek';
+    if(['KL','GK','GOALKEEPER'].includes(x))return'KL';
+    if(['SF','FWD','LF','CF','RF'].includes(x))return'SF';
+    if(['OM','IM','CENTRALMIDFIELDER'].includes(x))return'OM';
+    const vals=[['K',n(p,'winger')],['STP',n(p,'defending')],['SF',n(p,'scoring')],['OM',n(p,'playmaking')],['KL',n(p,'goalkeeping')]];
+    const best=vals.sort((a,b)=>b[1]-a[1])[0];
+    return best&&best[1]>0?best[0]:'—';
+  };
+  // Gerçek kanat: Kanat %45, yaş %30, Pas %10, Oyun Kurma %10, Golcülük %5.
+  const wingScore=p=>{const w=n(p,'winger'),a=n(p,'age'),pm=n(p,'playmaking'),pa=n(p,'passing'),s=n(p,'scoring');return (w/18)*45+ageBonus(a,30)+(Math.min(12,pa)/12)*10+(pm/18)*10+(s/18)*5};
+  // Bek adayı: Kanat %35, yaş %25, Defans %25, Pas %10, Oyun Kurma %5.
+  const wbScore=p=>{const d=n(p,'defending'),w=n(p,'winger'),a=n(p,'age'),pa=n(p,'passing'),pm=n(p,'playmaking');return (w/18)*35+ageBonus(a,25)+(d/18)*25+(Math.min(12,pa)/12)*10+(pm/18)*5};
+  const row=(p,i,kind)=>{const main=kind==='wing'?`Kanat ${n(p,'winger')}`:`Defans ${n(p,'defending')}`;const extra=kind==='wing'?`OM ${n(p,'playmaking')} · Golcülük ${n(p,'scoring')}`:`Kanat ${n(p,'winger')} · OM ${n(p,'playmaking')}`;return `<button type="button" data-wing-select="${p.playerId}" data-wing-kind="${kind}" style="display:block;width:100%;text-align:left;border:0;border-bottom:1px solid rgba(255,255,255,.06);background:transparent;color:#d8e4e9;padding:5px 3px;font-size:10px;cursor:pointer"><b>${i+1}.</b> ${p.name||'#'+p.playerId} · ${naturalPos(p)} · ${n(p,'age')}y · pas ${n(p,'passing')} · ${main} · ${extra} · skor ${p._score.toFixed(2)}</button>`};
+  const render=players=>{if(Number(window.__selectedTrainingType||0)!==2)return;const el=document.getElementById('ownRatingStrip');if(!el)return;if(el.dataset.wingRendered==='1')return;const wings=players.filter(healthy).filter(p=>naturalPos(p)==='K'&&n(p,'winger')>0).map(p=>({...p,_score:wingScore(p)})).sort((a,b)=>b._score-a._score).slice(0,15);const backs=players.filter(healthy).filter(p=>['STP','Bek'].includes(naturalPos(p))&&n(p,'defending')>0).map(p=>({...p,_score:wbScore(p)})).sort((a,b)=>b._score-a._score).slice(0,15);const wingText=`Gerçek Kanat · %100\n${wings.map((p,i)=>`${i+1}. ${p.name||'#'+p.playerId} · K · ${n(p,'age')}y · pas ${n(p,'passing')} · Kanat ${n(p,'winger')} · skor ${p._score.toFixed(2)}`).join('\n')}`;const backText=`Bek Adayları · %50\n${backs.map((p,i)=>`${i+1}. ${p.name||'#'+p.playerId} · ${naturalPos(p)} · ${n(p,'age')}y · pas ${n(p,'passing')} · Defans ${n(p,'defending')} · Kanat ${n(p,'winger')} · skor ${p._score.toFixed(2)}`).join('\n')}`;el.dataset.wingRendered='1';el.innerHTML=`<div style="width:100%;padding:4px 0 8px"><div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:7px"><b style="font-size:12px">Antrenman adayları — Kanat</b><button id="copyWingCandidates" type="button" style="border:1px solid #28536a;background:#0b2531;color:#b9cbd4;border-radius:8px;padding:4px 8px;font-size:10px;font-weight:800;cursor:pointer">İki listeyi kopyala</button></div><div style="display:grid;grid-template-columns:1fr 1fr;gap:9px"><div><div style="font-weight:800;font-size:10px;margin-bottom:4px">Gerçek Kanat · %100</div>${wings.map((p,i)=>row(p,i,'wing')).join('')||'<div style="font-size:10px;opacity:.7">Aday yok</div>'}</div><div><div style="font-weight:800;font-size:10px;margin-bottom:4px">Bek Adayları · %50</div>${backs.map((p,i)=>row(p,i,'back')).join('')||'<div style="font-size:10px;opacity:.7">Aday yok</div>'}</div></div></div>`;el.querySelectorAll('[data-wing-select]').forEach(b=>b.onclick=()=>{const id=b.dataset.wingSelect,kind=b.dataset.wingKind;window.__selectedTrainingPlayerId=id;window.__selectedWingCandidateType=kind;el.querySelectorAll('[data-wing-select]').forEach(x=>x.style.background='transparent');b.style.background='#163747';window.dispatchEvent(new CustomEvent('hattrickai:training-player-selected',{detail:{playerId:id,trainingType:2,candidateType:kind}}))});const btn=document.getElementById('copyWingCandidates');if(btn)btn.onclick=async()=>{const text=`${wingText}\n\n${backText}`;try{await navigator.clipboard.writeText(text)}catch(_){const ta=document.createElement('textarea');ta.value=text;document.body.appendChild(ta);ta.select();document.execCommand('copy');ta.remove()}btn.textContent='Kopyalandı ✓';setTimeout(()=>btn.textContent='İki listeyi kopyala',1400)}};
+  const hook=()=>{if(Number(window.__selectedTrainingType||0)!==2)return;const el=document.getElementById('ownRatingStrip');if(!el||el.dataset.wingRendered==='1')return;fetch('/api/team',{cache:'no-store'}).then(r=>r.json()).then(t=>render(t.players||[])).catch(()=>{})};
+  const reset=()=>{const el=document.getElementById('ownRatingStrip');if(el)delete el.dataset.wingRendered};
+  window.addEventListener('hattrickai:lineup-updated',()=>{reset();hook()});
+  const start=()=>{const e=document.getElementById('ownRatingStrip');if(e){new MutationObserver(()=>{if(Number(window.__selectedTrainingType||0)===2&&e.dataset.wingRendered!=='1')hook()}).observe(e,{childList:true,subtree:true})}hook()};
+  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',()=>setTimeout(start,600));else setTimeout(start,600);
+})();

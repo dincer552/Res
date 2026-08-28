@@ -1,0 +1,28 @@
+/* Responsive pitch V5: real grid cells, never percentage-positioned cards. */
+.pitch.responsive-pitch-v4{position:relative;overflow:hidden;isolation:isolate}
+.pitch.responsive-pitch-v4 .responsive-pitch-slots{position:absolute;z-index:3;inset:7% 3.5% 7%;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));grid-template-rows:repeat(4,minmax(0,1fr));gap:clamp(6px,1.2vw,12px);pointer-events:none}
+.pitch.responsive-pitch-v4 .lineup-slot{min-width:0;min-height:0;border:2px solid rgba(255,255,255,.42);border-radius:8px;background:rgba(22,105,61,.16);display:flex;align-items:center;justify-content:center;overflow:hidden;padding:4px;box-sizing:border-box}
+.pitch.responsive-pitch-v4 .lineup-slot.empty{background:rgba(22,105,61,.08)}
+.pitch.responsive-pitch-v4 .lineup-slot-GK{grid-column:3;grid-row:1}
+.pitch.responsive-pitch-v4 .lineup-slot-DEF-L{grid-column:1;grid-row:2}.pitch.responsive-pitch-v4 .lineup-slot-DEF-CL{grid-column:2;grid-row:2}.pitch.responsive-pitch-v4 .lineup-slot-DEF-C{grid-column:3;grid-row:2}.pitch.responsive-pitch-v4 .lineup-slot-DEF-CR{grid-column:4;grid-row:2}.pitch.responsive-pitch-v4 .lineup-slot-DEF-R{grid-column:5;grid-row:2}
+.pitch.responsive-pitch-v4 .lineup-slot-W-L{grid-column:1;grid-row:3}.pitch.responsive-pitch-v4 .lineup-slot-IM-L{grid-column:2;grid-row:3}.pitch.responsive-pitch-v4 .lineup-slot-IM-C{grid-column:3;grid-row:3}.pitch.responsive-pitch-v4 .lineup-slot-IM-R{grid-column:4;grid-row:3}.pitch.responsive-pitch-v4 .lineup-slot-W-R{grid-column:5;grid-row:3}
+.pitch.responsive-pitch-v4 .lineup-slot-FW-L{grid-column:1;grid-row:4}.pitch.responsive-pitch-v4 .lineup-slot-FW-C{grid-column:3;grid-row:4}.pitch.responsive-pitch-v4 .lineup-slot-FW-R{grid-column:5;grid-row:4}
+.pitch.responsive-pitch-v4 .responsive-player-node{position:static!important;transform:none!important;width:100%!important;min-width:0!important;max-width:none!important;height:100%;margin:0!important;padding:3px 4px!important;border:0!important;border-radius:5px!important;background:rgba(7,22,31,.84)!important;box-shadow:none!important;display:flex;flex-direction:column;align-items:center;justify-content:center;overflow:hidden;box-sizing:border-box}
+.pitch.responsive-pitch-v4 .responsive-player-node .shirt,.pitch.responsive-pitch-v4 .responsive-player-node b,.pitch.responsive-pitch-v4 .responsive-player-node strong,.pitch.responsive-pitch-v4 .responsive-player-node small{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block}
+.pitch.responsive-pitch-v4 .responsive-player-node .shirt{font-size:clamp(7px,1vw,10px)}
+.pitch.responsive-pitch-v4 .responsive-player-node b{font-size:clamp(8px,1.2vw,12px);line-height:1.2}
+.pitch.responsive-pitch-v4 .responsive-player-node strong{font-size:clamp(10px,1.4vw,14px);line-height:1.1}
+.pitch.responsive-pitch-v4 .responsive-player-node small{font-size:clamp(6px,.9vw,9px);line-height:1.1}
+/* Filled slots are intentionally darker than empty placement frames. */
+.pitch.responsive-pitch-v4 .lineup-slot.filled{border-color:rgba(125,205,255,.9);background:rgba(42,128,82,.34)}
+.pitch.responsive-pitch-v4 .lineup-slot.filled .responsive-player-node{background:rgba(18,88,57,.68)!important}
+@media(max-width:700px){
+  .pitch.responsive-pitch-v4{height:420px}
+  .pitch.responsive-pitch-v4 .responsive-pitch-slots{inset:5% 4% 5%;gap:7px}
+  .pitch.responsive-pitch-v4 .lineup-slot{border-width:1.5px;border-radius:7px;padding:3px}
+}
+@media(max-width:430px){
+  .pitch.responsive-pitch-v4{height:400px}
+  .pitch.responsive-pitch-v4 .responsive-pitch-slots{inset:4% 4.5% 4%;gap:6px}
+  .pitch.responsive-pitch-v4 .lineup-slot{padding:2px}
+}

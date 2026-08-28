@@ -1,0 +1,2 @@
+.cup-lineup-panel{margin-top:18px}.cup-meta{display:flex;flex-wrap:wrap;gap:8px 18px;align-items:center;margin:0 0 14px;padding:10px 12px;border:1px solid rgba(90,180,220,.18);border-radius:12px;color:#9bb1bc;font-size:.88rem}.cup-meta b{color:#f4f7f8}.cup-meta span{white-space:nowrap}.cup-lineup-panel .pitch{min-height:390px}
+@media (max-width:700px){.cup-meta{display:grid;grid-template-columns:1fr 1fr;gap:7px 10px;font-size:.8rem}.cup-meta b{grid-column:1/-1}.cup-lineup-panel .pitch{min-height:340px}}

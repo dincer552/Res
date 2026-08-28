@@ -1,0 +1,81 @@
+name: HattrickAI v26 Android APK
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build-apk:
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Repository'i indir
+        uses: actions/checkout@v4
+
+      - name: ZIP'i aç
+        run: |
+          mkdir -p src
+          unzip -q HattrickAI_v26_HO_Simulation_Engine.zip -d src
+          echo "ZIP içeriği:"
+          find src -maxdepth 4 -type f | sort
+
+      - name: .NET 9 kur
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: MAUI Android workload kur
+        run: |
+          dotnet workload install maui-android
+
+      - name: Projeyi bul
+        id: project
+        run: |
+          PROJECT=$(find src -type f -name "*.csproj" | head -1)
+
+          if [ -z "$PROJECT" ]; then
+            echo "HATA: .csproj bulunamadı!"
+            exit 1
+          fi
+
+          echo "Bulunan proje: $PROJECT"
+          echo "path=$PROJECT" >> "$GITHUB_OUTPUT"
+
+      - name: Restore
+        run: |
+          dotnet restore "${{ steps.project.outputs.path }}"
+
+      - name: Android APK oluştur
+        run: |
+          dotnet publish "${{ steps.project.outputs.path }}" \
+            --configuration Release \
+            --framework net9.0-android \
+            --property:AndroidPackageFormat=apk \
+            --property:AndroidKeyStore=false \
+            --no-restore
+
+      - name: APK bul
+        run: |
+          mkdir -p artifacts
+
+          APK=$(find src -type f -name "*.apk" | head -1)
+
+          if [ -z "$APK" ]; then
+            echo "HATA: APK üretilemedi!"
+            exit 1
+          fi
+
+          echo "APK bulundu:"
+          ls -lh "$APK"
+
+          cp "$APK" artifacts/HattrickAI-v26.apk
+
+      - name: APK'yi yükle
+        uses: actions/upload-artifact@v4
+        with:
+          name: HattrickAI-v26-APK
+          path: artifacts/HattrickAI-v26.apk
+          if-no-files-found: error
+          retention-days: 14

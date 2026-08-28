@@ -1,0 +1,110 @@
+(()=>{
+  const style=document.createElement('style');
+  style.textContent=`
+    .ai-loading-inline{display:none;margin:10px 0 14px;padding:18px 18px 16px;background:linear-gradient(145deg,#0d2431,#071821);border:1px solid #21485c;border-radius:16px;box-shadow:0 10px 30px rgba(0,0,0,.22)}
+    .ai-loading-inline.show{display:block;animation:aiLoadingIn .18s ease-out}
+    .ai-loading-inline.loaded{border-color:#2fcb73;background:linear-gradient(145deg,#0d2b21,#071b17)}
+    .ai-loading-inline.error{border-color:#7a4b4b;background:linear-gradient(145deg,#2a1719,#071821)}
+    .ai-loading-title{font-weight:900;font-size:15px;color:#f5f8fa;margin-bottom:5px}
+    .ai-loading-text{font-size:11px;color:#8da3b2;margin-bottom:13px}
+    .ai-loading-inline.loaded .ai-loading-text{color:#8fe0ac}
+    .ai-loading-inline.error .ai-loading-text{color:#e3aaaa}
+    .ai-loading-track{height:9px;background:#132f3d;border-radius:99px;overflow:hidden;border:1px solid #1d4558}
+    .ai-loading-bar{height:100%;width:7%;border-radius:99px;background:#38e274;transition:width .45s ease;box-shadow:0 0 15px rgba(56,226,116,.35);position:relative;overflow:hidden}
+    .ai-loading-bar:after{content:"";position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(255,255,255,.42),transparent);transform:translateX(-100%);animation:aiLoadingShine 1.1s infinite}
+    .ai-loading-inline.loaded .ai-loading-bar{width:100%!important;background:#38e274}
+    .ai-loading-inline.error .ai-loading-bar{width:100%!important;background:#d86b6b}
+    .ai-loading-inline.loaded .ai-loading-bar:after,.ai-loading-inline.error .ai-loading-bar:after{display:none}
+    .ai-loading-percent{margin-top:7px;text-align:right;font-size:10px;font-weight:900;color:#38e274}
+    .ai-loading-inline.error .ai-loading-percent{color:#d86b6b}
+    @keyframes aiLoadingShine{to{transform:translateX(100%)}}
+    @keyframes aiLoadingIn{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}
+  `;
+  document.head.appendChild(style);
+
+  let timers=[],visible=false,currentCard=null,requestId=0;
+  const clearTimers=()=>{timers.forEach(clearTimeout);timers=[]};
+  const setProgress=(value,message)=>{
+    if(!currentCard)return;
+    const bar=currentCard.querySelector('#aiLoadingBar');
+    const percent=currentCard.querySelector('#aiLoadingPercent');
+    const text=currentCard.querySelector('#aiLoadingText');
+    if(bar)bar.style.width=value+'%';
+    if(percent)percent.textContent=value+'%';
+    if(message&&text)text.textContent=message;
+  };
+  const removeCard=()=>{
+    if(currentCard){currentCard.remove();currentCard=null}
+    visible=false;
+  };
+  const createCard=()=>{
+    const selected=document.querySelector('.fixture-card.selected,.recent-card.selected,[data-selected-match="true"]');
+    if(!selected)return null;
+    const old=document.querySelector('.ai-loading-inline');
+    if(old)old.remove();
+    const card=document.createElement('div');
+    card.className='ai-loading-inline show';
+    card.innerHTML='<div class="ai-loading-title">Rakip verileri yükleniyor</div><div class="ai-loading-text" id="aiLoadingText">Önce PostgreSQL cache kontrol ediliyor…</div><div class="ai-loading-track"><div class="ai-loading-bar" id="aiLoadingBar"></div></div><div class="ai-loading-percent" id="aiLoadingPercent">7%</div>';
+    selected.insertAdjacentElement('afterend',card);
+    return card;
+  };
+  const show=()=>{
+    clearTimers();
+    currentCard=createCard();
+    if(!currentCard)return;
+    visible=true;requestId++;setProgress(7,'Önce PostgreSQL cache kontrol ediliyor…');
+    timers.push(setTimeout(()=>setProgress(24,'PostgreSQL geçmiş maç kayıtları kontrol ediliyor…'),280));
+    timers.push(setTimeout(()=>setProgress(48,'Eksik kayıt varsa CHPP’den getiriliyor…'),750));
+    timers.push(setTimeout(()=>setProgress(70,'Kayıtlı rating ve kadro eşleştiriliyor…'),1350));
+    timers.push(setTimeout(()=>setProgress(86,'Kayıtlı HO Engine sonucu kontrol ediliyor…'),2100));
+    timers.push(setTimeout(()=>setProgress(94,'Analiz tamamlanmak üzere…'),3200));
+  };
+  const finish=(ok,source)=>{
+    if(!visible||!currentCard)return;
+    clearTimers();
+    const title=currentCard.querySelector('.ai-loading-title');
+    const text=currentCard.querySelector('.ai-loading-text');
+    const percent=currentCard.querySelector('.ai-loading-percent');
+    currentCard.classList.remove('show');
+    currentCard.classList.add(ok?'loaded':'error','show');
+    if(ok){
+      if(title)title.textContent='✓ Maç bilgileri hazır';
+      if(text)text.textContent=source||'Maç verileri başarıyla yüklendi.';
+      if(percent)percent.textContent='HAZIR';
+      setProgress(100,source||'Maç verileri başarıyla yüklendi.');
+    }else{
+      if(title)title.textContent='Maç bilgileri alınamadı';
+      if(text)text.textContent=source||'Veriler alınırken sorun oluştu; mevcut bilgiler korunuyor.';
+      if(percent)percent.textContent='DURUM';
+      setProgress(100,source||'Veriler alınırken sorun oluştu; mevcut bilgiler korunuyor.');
+    }
+    requestId++;
+  };
+
+  const originalFetch=window.fetch.bind(window);
+  window.fetch=async(...args)=>{
+    const input=args[0];
+    const url=typeof input==='string'?input:(input?.url||'');
+    const tracked=url.includes('/api/fixture-view/');
+    if(!tracked)return originalFetch(...args);
+    show();
+    try{
+      const response=await originalFetch(...args);
+      let source='Maç verileri başarıyla yüklendi.';
+      try{
+        const data=await response.clone().json();
+        const history=data?.cache?.history;
+        const lineup=data?.cache?.lineup;
+        const analysis=data?.cache?.analysis;
+        if(history==='POSTGRES_CACHE'&&lineup==='POSTGRES_CACHE'&&analysis==='COMPUTED_AND_CACHED') source='PostgreSQL cache’den hazırlandı • CHPP isteği yapılmadı';
+        else if(history==='CHPP_DOWNLOADED_AND_CACHED') source='Yeni geçmiş veriler CHPP’den alındı ve PostgreSQL cache’e kaydedildi';
+        else if(history==='POSTGRES_CACHE') source='PostgreSQL cache’den hazırlandı';
+      }catch{}
+      finish(response.ok,source);
+      return response;
+    }catch(error){
+      finish(false,'Veriler alınamadı; mevcut maç geçmişi korunuyor.');
+      throw error;
+    }
+  };
+})();

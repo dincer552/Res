@@ -1,0 +1,26 @@
+services:
+  - type: web
+    name: hattrickai-web
+    runtime: docker
+    plan: free
+    branch: main
+    rootDir: ./HattrickAI_Render_Web_v1/webapp
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+    envVars:
+      - key: CHPP_CONSUMER_KEY
+        sync: false
+      - key: CHPP_CONSUMER_SECRET
+        sync: false
+      - key: DATABASE_URL
+        fromDatabase:
+          name: hattrickai-postgres
+          property: connectionString
+
+databases:
+  - name: hattrickai-postgres
+    plan: free
+    databaseName: hattrickai
+    postgresMajorVersion: "17"
