@@ -42,6 +42,15 @@ app.MapGet("/api/v5/status", (ChppV5 chpp) => Results.Ok(new
     connected = chpp.Connected,
     configured = !string.IsNullOrWhiteSpace(builder.Configuration["CHPP_CONSUMER_SECRET"])
 }));
+app.MapGet("/api/deploy/log", () =>
+{
+    const string logPath = "/app/deploy.log";
+    if (!File.Exists(logPath))
+        return Results.Ok(new { lines = Array.Empty<string>(), updated = false });
+
+    var lines = File.ReadLines(logPath).TakeLast(150).ToArray();
+    return Results.Ok(new { lines, updated = true });
+});
 app.MapGet("/api/v5/analysis", async (AnalysisService service, ChppV5 chpp, CancellationToken ct) =>
 {
     if (!chpp.Connected) return Results.Unauthorized();
