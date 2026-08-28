@@ -50,43 +50,14 @@ public sealed class AnalysisService
 
         var ownLineup = BuildOwnLineup(teamName, ownPlayers);
         var opponentLineup = new Lineup(opponentName, Formation(opponentSlots), opponentSlots);
-        var ownRating = CalculateRegionalRating(ownLineup, ownPlayers);
-        var opponentRating = CalculateRegionalRating(opponentLineup, opponentPlayers);
+        var regionalPair = _ratingEngine.CalculatePair(
+            ownLineup, ownPlayers,
+            opponentLineup, opponentPlayers,
+            new RatingContext(next.HomeId == teamId ? MatchLocation.Home : MatchLocation.Away, TeamAttitude.Normal, TeamTactic.Normal),
+            new RatingContext(MatchLocation.Away, TeamAttitude.Normal, TeamTactic.Normal));
         var location = next.HomeId == teamId ? "Ev sahibi" : "Deplasman";
         var title = $"{next.Date.ToLocalTime():dd.MM.yyyy HH:mm} • {opponentName} • {location}";
-        return new Analysis(build, teamName, opponentName, title, ownLineup, opponentLineup, ownRating, opponentRating);
-    }
-
-    private RegionalRatingSnapshot CalculateRegionalRating(Lineup lineup, IReadOnlyList<Player> players)
-    {
-        var byId = players.ToDictionary(p => p.Id);
-        var regionalPlayers = lineup.Slots
-            .Where(s => byId.ContainsKey(s.PlayerId))
-            .Select(s => ToRegionalPlayer(s, byId[s.PlayerId]))
-            .ToList();
-        return _ratingEngine.Calculate(regionalPlayers);
-    }
-
-    private static RegionalPlayer ToRegionalPlayer(Slot slot, Player p)
-    {
-        var code = slot.Code;
-        var position = code switch
-        {
-            "GK" => RegionalPosition.Goalkeeper,
-            "DEF-L" or "DEF-R" => RegionalPosition.WingBack,
-            "DEF-CL" or "DEF-C" or "DEF-CR" => RegionalPosition.CentralDefender,
-            "W-L" or "W-R" => RegionalPosition.Winger,
-            "IM-L" or "IM-C" or "IM-R" => RegionalPosition.InnerMidfielder,
-            "FW-L" or "FW-C" or "FW-R" => RegionalPosition.Forward,
-            _ => RegionalPosition.InnerMidfielder
-        };
-        var side = code.EndsWith("-L", StringComparison.Ordinal) ? PlayerSide.Left
-            : code.EndsWith("-R", StringComparison.Ordinal) ? PlayerSide.Right
-            : PlayerSide.Center;
-        return new RegionalPlayer(
-            p.Id, position, side, PlayerOrder.Normal,
-            p.Keeper, p.Defending, p.Playmaking, p.Passing, p.Winger, p.Scoring,
-            p.Form, 0, p.Experience);
+        return new Analysis(build, teamName, opponentName, title, ownLineup, opponentLineup, regionalPair.Own, regionalPair.Opponent);
     }
 
     private async Task<List<Player>> ReadPlayers(int teamId, CancellationToken ct)
@@ -125,6 +96,15 @@ public sealed class AnalysisService
         var id = XmlV5.Int(node,"PlayerID");
         if (!players.TryGetValue(id, out var player)) return null;
         var position = XmlV5.Int(node,"PositionCode");
+        var behaviour = XmlV5.Int(node,"Behaviour");
+        var order = behaviour switch
+        {
+            1 => PlayerOrder.Offensive,
+            2 => PlayerOrder.Defensive,
+            3 => PlayerOrder.TowardsMiddle,
+            4 => PlayerOrder.TowardsWing,
+            _ => PlayerOrder.Normal
+        };
         var map = position switch
         {
             1 => ("GK","Kaleci",50d,10d),
@@ -140,7 +120,7 @@ public sealed class AnalysisService
             11 => ("FW-R","Sağ forvet",62d,72d),
             _ => ("IM-C","Merkez",50d,50d)
         };
-        return MakeSlot(map.Item1,map.Item2,map.Item2,player,map.Item3,map.Item4);
+        return MakeSlot(map.Item1,map.Item2,map.Item2,player,map.Item3,map.Item4,order);
     }
 
     private static Lineup BuildOwnLineup(string teamName, List<Player> players)
@@ -156,7 +136,7 @@ public sealed class AnalysisService
 
         var gk = Pick(p => p.Keeper + p.Form*.15);
         var dl = Pick(p => p.Defending + p.Passing*.10 + p.Winger*.05);
-        var dc = Pick(p => p.Defending*1.05 + p.Passing*.15 + p.Experience*.04);
+        var dc = Pick(p => p.Defending*1.05 + p.Passing*.15 + p.Playmaking*.04);
         var dr = Pick(p => p.Defending + p.Passing*.10 + p.Winger*.05);
         var wl = Pick(p => p.Winger + p.Passing*.22 + p.Playmaking*.08);
         var il = Pick(p => p.Playmaking + p.Passing*.25 + p.Stamina*.12);
@@ -183,14 +163,14 @@ public sealed class AnalysisService
         return new Lineup(teamName,"3-5-2",slots);
     }
 
-    private static Slot MakeSlot(string code,string label,string description,Player p,double x,double y)
+    private static Slot MakeSlot(string code,string label,string description,Player p,double x,double y,PlayerOrder order = PlayerOrder.Normal)
     {
         var rating = code == "GK" ? p.Keeper*.75 + p.Defending*.15 + p.Form*.10 :
             code.StartsWith("DEF") ? p.Defending*.70 + p.Passing*.15 + p.Playmaking*.10 + p.Form*.05 :
             code.StartsWith("IM") ? p.Playmaking*.55 + p.Passing*.20 + p.Stamina*.15 + p.Defending*.10 :
             code.StartsWith("W-") ? p.Winger*.45 + p.Playmaking*.20 + p.Passing*.20 + p.Defending*.10 + p.Form*.05 :
             p.Scoring*.55 + p.Passing*.20 + p.Winger*.15 + p.Playmaking*.10;
-        return new Slot(code,label,description,p.Name,p.Id,Math.Round(Math.Clamp(rating,0,20),2),x,y);
+        return new Slot(code,label,description,p.Name,p.Id,Math.Round(Math.Clamp(rating,0,20),2),x,y,order);
     }
 
     private static string Formation(IReadOnlyList<Slot> slots)
