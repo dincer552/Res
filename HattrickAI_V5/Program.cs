@@ -22,6 +22,7 @@ builder.Services.AddScoped<ChppV5>(sp =>
 });
 builder.Services.AddScoped<AnalysisService>();
 builder.Services.AddScoped<ReferenceMatchService>();
+builder.Services.AddScoped<Phase1ChppValidationService>();
 
 var app = builder.Build();
 var portText = Environment.GetEnvironmentVariable("PORT");
@@ -45,9 +46,7 @@ app.MapGet("/api/v5/status", (ChppV5 chpp) => Results.Ok(new
 app.MapGet("/api/deploy/log", () =>
 {
     const string logPath = "/app/deploy.log";
-    if (!File.Exists(logPath))
-        return Results.Ok(new { lines = Array.Empty<string>(), updated = false });
-
+    if (!File.Exists(logPath)) return Results.Ok(new { lines = Array.Empty<string>(), updated = false });
     var lines = File.ReadLines(logPath).TakeLast(150).ToArray();
     return Results.Ok(new { lines, updated = true });
 });
@@ -58,6 +57,12 @@ app.MapGet("/api/v5/analysis", async (AnalysisService service, ChppV5 chpp, Canc
     catch (Exception ex) { return Results.Problem(ex.Message, statusCode: 502); }
 });
 app.MapGet("/api/v5/reference-match", async (ReferenceMatchService service, ChppV5 chpp, CancellationToken ct) =>
+{
+    if (!chpp.Connected) return Results.Unauthorized();
+    try { return Results.Ok(await service.GetAsync(ct)); }
+    catch (Exception ex) { return Results.Problem(ex.Message, statusCode: 502); }
+});
+app.MapGet("/api/v5/phase1/chpp-validation", async (Phase1ChppValidationService service, ChppV5 chpp, CancellationToken ct) =>
 {
     if (!chpp.Connected) return Results.Unauthorized();
     try { return Results.Ok(await service.GetAsync(ct)); }
