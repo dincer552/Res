@@ -11,7 +11,8 @@ public sealed record Player(
     int Scoring,
     int Stamina,
     int Form,
-    int Experience);
+    int Experience,
+    int Loyalty = 0);
 
 public sealed record Slot(
     string Code,
