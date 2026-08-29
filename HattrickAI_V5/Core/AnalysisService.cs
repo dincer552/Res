@@ -54,7 +54,7 @@ public sealed class AnalysisService
             ownLineup, ownPlayers,
             opponentLineup, opponentPlayers,
             new RatingContext(next.HomeId == teamId ? MatchLocation.Home : MatchLocation.Away, TeamAttitude.Normal, TeamTactic.Normal),
-            new RatingContext(last.HomeId == opponentId ? MatchLocation.Home : MatchLocation.Away, TeamAttitude.Normal, TeamTactic.Normal));
+            new RatingContext(MatchLocation.Away, TeamAttitude.Normal, TeamTactic.Normal));
         var location = next.HomeId == teamId ? "Ev sahibi" : "Deplasman";
         var title = $"{next.Date.ToLocalTime():dd.MM.yyyy HH:mm} • {opponentName} • {location}";
         return new Analysis(build, teamName, opponentName, title, ownLineup, opponentLineup, regionalPair.Own, regionalPair.Opponent);
