@@ -9,8 +9,10 @@ public sealed class AnalysisService
     private readonly RegionalRatingEngine _ratingEngine = new();
     public AnalysisService(ChppV5 chpp) => _chpp = chpp;
 
-    public async Task<Analysis> RunAsync(string build, CancellationToken ct)
+    public async Task<Analysis> RunAsync(string build, MatchQuestionnaire? questionnaire, CancellationToken ct)
     {
+        questionnaire ??= MatchQuestionnaire.Default;
+
         var teamXml = await _chpp.GetXmlAsync("teamdetails", new Dictionary<string,string?> { ["version"]="3.0" }, ct);
         var teamNode = XmlV5.Root(teamXml)?.Descendants("Team").FirstOrDefault();
         var teamId = XmlV5.Int(teamNode, "TeamID");
@@ -50,14 +52,27 @@ public sealed class AnalysisService
 
         var ownLineup = BuildOwnLineup(teamName, ownPlayers);
         var opponentLineup = new Lineup(opponentName, Formation(opponentSlots), opponentSlots);
+
+        var ownContext = new RatingContext(
+            next.HomeId == teamId ? MatchLocation.Home : MatchLocation.Away,
+            questionnaire.MatchImportance,
+            TeamTactic.Normal);
+        var opponentContext = new RatingContext(MatchLocation.Away, TeamAttitude.Normal, TeamTactic.Normal);
+
         var regionalPair = _ratingEngine.CalculatePair(
             ownLineup, ownPlayers,
             opponentLineup, opponentPlayers,
-            new RatingContext(next.HomeId == teamId ? MatchLocation.Home : MatchLocation.Away, TeamAttitude.Normal, TeamTactic.Normal),
-            new RatingContext(MatchLocation.Away, TeamAttitude.Normal, TeamTactic.Normal));
+            ownContext,
+            opponentContext);
+
+        // The questionnaire supplies the three user-known variables that are not reliably
+        // present in the basic CHPP snapshot: coach tactical style, team spirit and attitude.
+        var ownRating = QuestionnaireRatingAdjuster.Apply(regionalPair.Own, questionnaire);
+        var opponentRating = regionalPair.Opponent;
+
         var location = next.HomeId == teamId ? "Ev sahibi" : "Deplasman";
         var title = $"{next.Date.ToLocalTime():dd.MM.yyyy HH:mm} • {opponentName} • {location}";
-        return new Analysis(build, teamName, opponentName, title, ownLineup, opponentLineup, regionalPair.Own, regionalPair.Opponent);
+        return new Analysis(build, teamName, opponentName, title, ownLineup, opponentLineup, ownRating, opponentRating);
     }
 
     private async Task<List<Player>> ReadPlayers(int teamId, CancellationToken ct)
