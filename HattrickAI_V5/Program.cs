@@ -56,12 +56,45 @@ app.MapGet("/api/deploy/log", () =>
     var lines = File.ReadLines(logPath).TakeLast(150).ToArray();
     return Results.Ok(new { lines, updated = true });
 });
-app.MapGet("/api/v5/analysis", async (AnalysisService service, ChppV5 chpp, CancellationToken ct) =>
+
+app.MapPost("/api/v5/questionnaire", (HttpContext http, QuestionnaireRequest request) =>
+{
+    if (!Enum.TryParse<CoachStyle>(request.CoachStyle, true, out var coach))
+        return Results.BadRequest(new { message = "Teknik direktör seçimi geçersiz." });
+    if (!Enum.TryParse<TeamSpiritLevel>(request.TeamSpirit, true, out var spirit))
+        return Results.BadRequest(new { message = "Takım ruhu seçimi geçersiz." });
+    if (!Enum.TryParse<TeamAttitude>(request.MatchImportance, true, out var attitude))
+        return Results.BadRequest(new { message = "Maç önemi seçimi geçersiz." });
+
+    http.Session.SetString("v5.coach", coach.ToString());
+    http.Session.SetString("v5.spirit", spirit.ToString());
+    http.Session.SetString("v5.attitude", attitude.ToString());
+    return Results.Ok(new { ok = true });
+});
+
+app.MapGet("/api/v5/questionnaire", (HttpContext http) =>
+{
+    var questionnaire = new MatchQuestionnaire(
+        Enum.TryParse<CoachStyle>(http.Session.GetString("v5.coach"), true, out var coach) ? coach : CoachStyle.Neutral,
+        Enum.TryParse<TeamSpiritLevel>(http.Session.GetString("v5.spirit"), true, out var spirit) ? spirit : TeamSpiritLevel.Composed,
+        Enum.TryParse<TeamAttitude>(http.Session.GetString("v5.attitude"), true, out var attitude) ? attitude : TeamAttitude.Normal);
+    return Results.Ok(questionnaire);
+});
+
+app.MapGet("/api/v5/analysis", async (HttpContext http, AnalysisService service, ChppV5 chpp, CancellationToken ct) =>
 {
     if (!chpp.Connected) return Results.Unauthorized();
-    try { return Results.Ok(await service.RunAsync(build, ct)); }
+    try
+    {
+        var questionnaire = new MatchQuestionnaire(
+            Enum.TryParse<CoachStyle>(http.Session.GetString("v5.coach"), true, out var coach) ? coach : CoachStyle.Neutral,
+            Enum.TryParse<TeamSpiritLevel>(http.Session.GetString("v5.spirit"), true, out var spirit) ? spirit : TeamSpiritLevel.Composed,
+            Enum.TryParse<TeamAttitude>(http.Session.GetString("v5.attitude"), true, out var attitude) ? attitude : TeamAttitude.Normal);
+        return Results.Ok(await service.RunAsync(build, questionnaire, ct));
+    }
     catch (Exception ex) { return Results.Problem(ex.Message, statusCode: 502); }
 });
+
 app.MapGet("/api/v5/reference-match", async (ReferenceMatchService service, ChppV5 chpp, CancellationToken ct) =>
 {
     if (!chpp.Connected) return Results.Unauthorized();
@@ -97,3 +130,5 @@ app.MapGet("/auth/chpp/callback", async (HttpContext http, ChppV5 chpp, Cancella
 
 app.MapPost("/auth/chpp/logout", (ChppV5 chpp) => { chpp.Disconnect(); return Results.Ok(new { ok = true }); });
 app.Run();
+
+public sealed record QuestionnaireRequest(string CoachStyle, string TeamSpirit, string MatchImportance);
