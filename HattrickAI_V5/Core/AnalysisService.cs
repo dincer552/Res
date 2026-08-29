@@ -54,7 +54,7 @@ public sealed class AnalysisService
             ownLineup, ownPlayers,
             opponentLineup, opponentPlayers,
             new RatingContext(next.HomeId == teamId ? MatchLocation.Home : MatchLocation.Away, TeamAttitude.Normal, TeamTactic.Normal),
-            new RatingContext(MatchLocation.Away, TeamAttitude.Normal, TeamTactic.Normal));
+            new RatingContext(last.HomeId == opponentId ? MatchLocation.Home : MatchLocation.Away, TeamAttitude.Normal, TeamTactic.Normal));
         var location = next.HomeId == teamId ? "Ev sahibi" : "Deplasman";
         var title = $"{next.Date.ToLocalTime():dd.MM.yyyy HH:mm} • {opponentName} • {location}";
         return new Analysis(build, teamName, opponentName, title, ownLineup, opponentLineup, regionalPair.Own, regionalPair.Opponent);
@@ -72,7 +72,8 @@ public sealed class AnalysisService
             XmlV5.Int(p,"PlayerID"), XmlV5.Text(p,"PlayerName"),
             XmlV5.Int(p,"KeeperSkill"), XmlV5.Int(p,"DefenderSkill"), XmlV5.Int(p,"PlaymakerSkill"),
             XmlV5.Int(p,"PassingSkill"), XmlV5.Int(p,"WingerSkill"), XmlV5.Int(p,"ScorerSkill"),
-            XmlV5.Int(p,"StaminaSkill"), XmlV5.Int(p,"PlayerForm"), XmlV5.Int(p,"Experience")))
+            XmlV5.Int(p,"StaminaSkill"), XmlV5.Int(p,"PlayerForm"), XmlV5.Int(p,"Experience"),
+            XmlV5.Int(p,"Loyalty")))
             .Where(p => p.Id > 0).ToList() ?? new List<Player>();
     }
 
