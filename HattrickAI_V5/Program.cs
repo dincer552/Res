@@ -33,6 +33,30 @@ var portText = Environment.GetEnvironmentVariable("PORT");
 var port = int.TryParse(portText, out var parsed) ? parsed : 10000;
 app.Urls.Add($"http://0.0.0.0:{port}");
 app.UseSession();
+
+// V5 ana sayfada build numarası göstermiyoruz; mevcut deploy.html ekranını
+// ana sayfadan doğrudan açılabilir hale getiriyoruz. Böylece deploy geçmişi
+// ve hataları tek yerden izlenebiliyor.
+app.Use(async (context, next) =>
+{
+    if (context.Request.Path == "/")
+    {
+        var indexPath = Path.Combine(app.Environment.WebRootPath ?? "wwwroot", "index.html");
+        if (File.Exists(indexPath))
+        {
+            var html = await File.ReadAllTextAsync(indexPath);
+            const string oldBuild = "<div class=\"build\" id=\"build\">build …</div>";
+            const string deployLink = "<a href=\"/deploy.html\" aria-label=\"Deploy Log\" style=\"flex:1;text-align:center;text-decoration:none;color:#21804a;font-size:11px;font-weight:800\">DEPLOY LOG</a>";
+            html = html.Replace(oldBuild, deployLink, StringComparison.Ordinal);
+            context.Response.ContentType = "text/html; charset=utf-8";
+            await context.Response.WriteAsync(html);
+            return;
+        }
+    }
+
+    await next();
+});
+
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
