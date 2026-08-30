@@ -8,6 +8,8 @@ RUN dotnet publish HattrickAI_V5/HattrickAI.V5.csproj -c Release -o /app/publish
 FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
 WORKDIR /app
 ENV ASPNETCORE_URLS=http://+:10000
+ARG BUILD_SHA=dev
+ENV V5_BUILD=${BUILD_SHA}
 COPY --from=build /app/publish .
 RUN sed -i 's#</style>#.slot-code,.slot-desc,.slot:not(.filled) .slot-name,.slot:not(.filled) .slot-rating{display:none!important}</style>#' /app/wwwroot/index.html
 ENTRYPOINT ["dotnet","HattrickAI.V5.dll","--hostBuilder:reloadConfigOnChange=false"]
