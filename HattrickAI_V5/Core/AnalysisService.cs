@@ -31,19 +31,26 @@ public sealed class AnalysisService
         var opponentName = next.HomeId == teamId ? next.AwayName : next.HomeName;
         if (opponentId <= 0) throw new InvalidOperationException("Rakip takım ID'si bulunamadı.");
 
-        var opponentMatchesXml = await _chpp.GetXmlAsync("matches", new Dictionary<string,string?> { ["version"]="1.3", ["teamId"]=opponentId.ToString(CultureInfo.InvariantCulture) }, ct);
-        var opponentMatches = ReadMatches(opponentMatchesXml, opponentId);
-        var last = opponentMatches.Where(x => x.Date < DateTimeOffset.UtcNow).OrderByDescending(x => x.Date).FirstOrDefault();
-        if (last.MatchId <= 0) throw new InvalidOperationException("Rakibin son maçı bulunamadı.");
-
+        // IMPORTANT: use CHPP's own lastmatch resolution instead of guessing the last match
+        // from the /matches list. Hattrick documents matchLineup actionType=lastmatch as
+        // the canonical latest completed lineup for the requested team.
         var lineupXml = await _chpp.GetXmlAsync("matchlineup", new Dictionary<string,string?>
         {
             ["version"]="1.1",
-            ["matchID"]=last.MatchId.ToString(CultureInfo.InvariantCulture),
+            ["actionType"]="lastmatch",
             ["teamID"]=opponentId.ToString(CultureInfo.InvariantCulture)
         }, ct);
-        var lineupNodes = XmlV5.Root(lineupXml)?.Descendants("Player").Take(11).ToList() ?? new List<XElement>();
-        if (lineupNodes.Count != 11) throw new InvalidOperationException("Rakibin son maçının 11 oyuncusu CHPP'den alınamadı.");
+
+        var lineupRoot = XmlV5.Root(lineupXml);
+        var lastMatchId = XmlV5.Int(lineupRoot, "MatchID");
+        var lastMatchDate = XmlV5.Date(lineupRoot, "MatchDate");
+        if (lastMatchId <= 0) throw new InvalidOperationException("Rakibin CHPP lastmatch kaydı bulunamadı.");
+
+        var lineupNodes = lineupRoot?.Descendants("Player")
+            .Where(p => XmlV5.Int(p, "PositionCode") > 0)
+            .Take(11)
+            .ToList() ?? new List<XElement>();
+        if (lineupNodes.Count != 11) throw new InvalidOperationException("Rakibin son maçının sahadaki 11 oyuncusu CHPP'den alınamadı.");
 
         var opponentPlayers = await ReadPlayers(opponentId, ct);
         var opponentById = opponentPlayers.ToDictionary(p => p.Id);
@@ -60,7 +67,7 @@ public sealed class AnalysisService
 
         // Rakip ratinginde tahmin/yeniden hesaplama yapma:
         // CHPP matchdetails son maçın 7 gerçek takım ratingini doğrudan verir.
-        var opponentHistoricalRating = await ReadDirectHistoricalOpponentRating(last.MatchId, opponentId, ct);
+        var opponentHistoricalRating = await ReadDirectHistoricalOpponentRating(lastMatchId, opponentId, ct);
 
         var regionalOwn = _ratingEngine.CalculateLineup(
             ownLineup,
@@ -74,6 +81,7 @@ public sealed class AnalysisService
 
         var location = next.HomeId == teamId ? "Ev sahibi" : "Deplasman";
         var title = $"{next.Date.ToLocalTime():dd.MM.yyyy HH:mm} • {opponentName} • {location}";
+        _ = lastMatchDate; // kept for diagnostics/traceability; rating source is lastMatchId.
         return new Analysis(build, teamName, opponentName, title, ownLineup, opponentLineup, ownRating, opponentRating);
     }
 
@@ -93,9 +101,8 @@ public sealed class AnalysisService
         if (team is null)
             throw new InvalidOperationException("Rakibin son maçındaki gerçek bölgesel ratingleri CHPP matchdetails'dan alınamadı.");
 
-        // Hattrick matchdetails stores these ratings in quarter-point units:
-        // e.g. 43 -> 10.75, 38 -> 9.50. Use the CHPP values directly;
-        // do not pass them through our player-rating engine.
+        // CHPP matchdetails exposes the team's actual seven sector ratings for the
+        // completed match. Convert the quarter-step integer scale to Hattrick display scale.
         var leftDefence = XmlV5.Int(team, "RatingLeftDef") / 4.0;
         var centralDefence = XmlV5.Int(team, "RatingMidDef") / 4.0;
         var rightDefence = XmlV5.Int(team, "RatingRightDef") / 4.0;
