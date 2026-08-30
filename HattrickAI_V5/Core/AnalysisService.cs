@@ -29,9 +29,7 @@ public sealed class AnalysisService
         }, ct);
         var matches = ReadMatches(matchesXml, teamId);
 
-        // Reference/analysis match selection deliberately ignores cup and friendly matches.
-        // Type 1 = league, 2 = qualification/play-off, 7 = Hattrick Masters,
-        // 10/11 = national-team official matches.
+        // Competitive club matches only. Cup and all friendly variants are excluded.
         var next = matches
             .Where(x => x.Date > DateTimeOffset.UtcNow && IsCompetitiveMatchType(x.MatchType))
             .OrderBy(x => x.Date)
@@ -49,7 +47,7 @@ public sealed class AnalysisService
         }, ct);
         var opponentMatches = ReadMatches(opponentMatchesXml, opponentId);
 
-        // The historical reference match follows the same rule: never use cup/friendly.
+        // Historical reference match uses the same rule: ignore cup/friendlies.
         var lastMatch = opponentMatches
             .Where(x => x.Date != default && x.Date <= DateTimeOffset.UtcNow && IsCompetitiveMatchType(x.MatchType))
             .OrderByDescending(x => x.Date)
@@ -70,26 +68,27 @@ public sealed class AnalysisService
         if (returnedMatchId != lastMatch.MatchId)
             throw new InvalidOperationException($"CHPP lineup MatchID uyuşmuyor. Beklenen {lastMatch.MatchId}, gelen {returnedMatchId}.");
 
+        // IMPORTANT: PositionCode is the final position after repositioning.
+        // Do not Take(11): field players are exactly those with PositionCode > 0.
+        // PositionCode may repeat after repositioning (e.g. an extra forward), so
+        // we re-flow players into unique visual slots below.
         var lineupNodes = lineupRoot?.Descendants("Player")
             .Where(p => XmlV5.Int(p, "PositionCode") > 0)
-            .Take(11)
             .ToList() ?? new List<XElement>();
-        if (lineupNodes.Count < 11)
-            throw new InvalidOperationException("Rakibin seçilen resmi son maçının sahadaki 11 oyuncusu CHPP'den alınamadı.");
+        if (lineupNodes.Count != 11)
+            throw new InvalidOperationException($"Rakibin seçilen resmi son maçında CHPP {lineupNodes.Count} saha oyuncusu döndürdü; beklenen 11.");
 
         var ownLineup = BuildOwnLineup(teamName, ownPlayers);
 
         // Historical opponent player skills are deliberately NOT requested.
-        // CHPP gives us the exact historical stars, final position/behaviour and
+        // CHPP gives the exact historical stars, final position/behaviour and
         // the exact seven team-sector ratings from matchdetails.
         var opponentHistoricalRating = await ReadDirectHistoricalOpponentRating(lastMatch.MatchId, opponentId, ct);
         var experienceLevel = Math.Clamp(
             XmlV5.Int(lineupRoot?.Descendants("Team").FirstOrDefault(), "ExperienceLevel"),
             1, 20);
 
-        var opponentSlots = lineupNodes
-            .Select(p => HistoricalSlot(p, opponentHistoricalRating, experienceLevel))
-            .ToList();
+        var opponentSlots = BuildHistoricalSlots(lineupNodes, opponentHistoricalRating, experienceLevel);
 
         var opponentLineup = new Lineup(
             lastMatch.HomeId == opponentId ? lastMatch.HomeName : lastMatch.AwayName,
@@ -103,6 +102,9 @@ public sealed class AnalysisService
 
         var regionalOwn = _ratingEngine.CalculateLineup(ownLineup, ownPlayers, ownContext);
         var ownRating = QuestionnaireRatingAdjuster.Apply(regionalOwn, questionnaire);
+
+        // Opponent regional ratings are Hattrick's exact historical values.
+        // Never recalculate or alter these with our own rating engine.
         var opponentRating = opponentHistoricalRating;
 
         var location = next.HomeId == teamId ? "Ev sahibi" : "Deplasman";
@@ -110,8 +112,10 @@ public sealed class AnalysisService
         return new Analysis(build, teamName, opponentName, title, ownLineup, opponentLineup, ownRating, opponentRating);
     }
 
+    // 1 = league, 2 = qualification/play-off, 7 = Hattrick Masters.
+    // 3/4/5/8/9 are cup or friendly variants and are intentionally ignored.
     private static bool IsCompetitiveMatchType(int type)
-        => type is 1 or 2 or 7 or 10 or 11;
+        => type is 1 or 2 or 7;
 
     private async Task<RegionalRatingSnapshot> ReadDirectHistoricalOpponentRating(int matchId, int opponentId, CancellationToken ct)
     {
@@ -192,7 +196,143 @@ public sealed class AnalysisService
         return result;
     }
 
-    private static Slot HistoricalSlot(XElement node, RegionalRatingSnapshot teamRating, int experienceLevel)
+    private static List<Slot> BuildHistoricalSlots(
+        IReadOnlyList<XElement> nodes,
+        RegionalRatingSnapshot teamRating,
+        int experienceLevel)
+    {
+        var raw = nodes
+            .Select(p => ReadHistoricalSlot(p, teamRating, experienceLevel))
+            .ToList();
+
+        // Group by actual final position family. PositionCode may repeat after
+        // repositioning, so RoleID is only a stable tie-breaker for equal visual x.
+        var ordered = raw
+            .Select((slot, index) => new { Slot = slot, Node = nodes[index] })
+            .GroupBy(x => PositionFamily(x.Node))
+            .ToDictionary(
+                g => g.Key,
+                g => g.OrderBy(x => x.Slot.X)
+                      .ThenBy(x => XmlV5.Int(x.Node, "RoleID"))
+                      .ThenBy(x => x.Slot.PlayerId)
+                      .Select(x => x.Slot)
+                      .ToList());
+
+        var result = new List<Slot>(11);
+        result.AddRange(ReflowGroup(ordered.TryGetValue(PositionGroup.GK, out var gk) ? gk : new List<Slot>(),
+            new[] { ("GK", 50d, 10d) }));
+
+        result.AddRange(ReflowGroup(
+            ordered.TryGetValue(PositionGroup.Defence, out var defs) ? defs : new List<Slot>(),
+            new[]
+            {
+                ("DEF-L", 12d, 34d),
+                ("DEF-CL", 30d, 34d),
+                ("DEF-C", 50d, 34d),
+                ("DEF-CR", 70d, 34d),
+                ("DEF-R", 88d, 34d)
+            }));
+
+        result.AddRange(ReflowGroup(
+            ordered.TryGetValue(PositionGroup.Midfield, out var mids) ? mids : new List<Slot>(),
+            new[]
+            {
+                ("W-L", 12d, 50d),
+                ("IM-L", 30d, 50d),
+                ("IM-C", 50d, 50d),
+                ("IM-R", 70d, 50d),
+                ("W-R", 88d, 50d)
+            }));
+
+        result.AddRange(ReflowGroup(
+            ordered.TryGetValue(PositionGroup.Attack, out var fws) ? fws : new List<Slot>(),
+            new[]
+            {
+                ("FW-L", 30d, 72d),
+                ("FW-C", 50d, 72d),
+                ("FW-R", 70d, 72d)
+            }));
+
+        if (result.Count != 11)
+            throw new InvalidOperationException($"Rakip saha yerleşimi oluşturulamadı: {result.Count}/11.");
+
+        return result;
+    }
+
+    private static List<Slot> ReflowGroup(
+        IReadOnlyList<Slot> slots,
+        IReadOnlyList<(string Code, double X, double Y)> anchors)
+    {
+        if (slots.Count == 0) return new List<Slot>();
+
+        // The current Hattrick UI supports up to 5 visual slots in a line.
+        // For legal formations with fewer players, centre the occupied anchors.
+        var usedAnchors = SelectAnchors(slots.Count, anchors.Count);
+        return slots
+            .Take(usedAnchors.Count)
+            .Select((s, i) =>
+            {
+                var a = anchors[usedAnchors[i]];
+                return s with
+                {
+                    Code = a.Code,
+                    Label = a.Code,
+                    Description = a.Code,
+                    X = a.X,
+                    Y = a.Y
+                };
+            })
+            .ToList();
+    }
+
+    private static List<int> SelectAnchors(int count, int anchorCount)
+    {
+        if (count >= anchorCount)
+            return Enumerable.Range(0, anchorCount).ToList();
+
+        if (count == 1)
+            return new List<int> { anchorCount / 2 };
+
+        if (count == 2 && anchorCount >= 5)
+            return new List<int> { 1, 3 };
+
+        if (count == 2 && anchorCount == 3)
+            return new List<int> { 0, 2 };
+
+        if (count == 3 && anchorCount >= 5)
+            return new List<int> { 1, 2, 3 };
+
+        var result = new List<int>();
+        for (var i = 0; i < count; i++)
+        {
+            var idx = (int)Math.Round(i * (anchorCount - 1d) / Math.Max(1, count - 1));
+            if (!result.Contains(idx)) result.Add(idx);
+        }
+        return result;
+    }
+
+    private enum PositionGroup
+    {
+        GK,
+        Defence,
+        Midfield,
+        Attack
+    }
+
+    private static PositionGroup PositionFamily(XElement node)
+    {
+        var position = XmlV5.Int(node, "PositionCode");
+        return position switch
+        {
+            1 => PositionGroup.GK,
+            >= 2 and <= 5 => PositionGroup.Defence,
+            >= 6 and <= 9 => PositionGroup.Midfield,
+            >= 10 and <= 11 => PositionGroup.Attack,
+            _ => throw new InvalidOperationException($"Geçersiz PositionCode: {position}.")
+        };
+    }
+
+    private static Slot ReadHistoricalSlot(XElement node, RegionalRatingSnapshot teamRating, int experienceLevel)
     {
         var id = XmlV5.Int(node,"PlayerID");
         var name = XmlV5.Text(node,"PlayerName");
