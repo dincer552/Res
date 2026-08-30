@@ -33,6 +33,34 @@ var portText = Environment.GetEnvironmentVariable("PORT");
 var port = int.TryParse(portText, out var parsed) ? parsed : 10000;
 app.Urls.Add($"http://0.0.0.0:{port}");
 app.UseSession();
+
+// Ana sayfaya deploy loglarını açılır/kapanır kutu olarak enjekte et.
+// Böylece mevcut V5 index tasarımı değiştirilmeden Azure VM'deki /app/deploy.log
+// API üzerinden canlı loglar ana sayfanın en altında gösterilir.
+app.Use(async (context, next) =>
+{
+    if (context.Request.Method == "GET" && context.Request.Path == "/")
+    {
+        var indexPath = Path.Combine(app.Environment.WebRootPath ?? "wwwroot", "index.html");
+        if (File.Exists(indexPath))
+        {
+            var html = await File.ReadAllTextAsync(indexPath, context.RequestAborted);
+            const string marker = "</main>";
+            const string box = @"
+<section id=""deployLogBox"" style=""margin-top:14px;background:#fff;border-radius:15px;box-shadow:0 2px 9px #0002;overflow:hidden;border:1px solid #dfe5e1""><button id=""deployLogToggle"" type=""button"" style=""width:100%;border:0;background:#fff;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;color:#27322d;font:800 13px Arial;cursor:pointer""><span>🚀 Deploy logları</span><span id=""deployLogArrow"">⌄</span></button><div id=""deployLogBody"" style=""display:none;border-top:1px solid #e5ebe7""><div style=""padding:9px 12px;display:flex;justify-content:space-between;align-items:center;color:#747c76;font:11px Arial""><span id=""deployLogState"">Kontrol ediliyor…</span><button id=""deployLogRefresh"" type=""button"" style=""border:1px solid #d5ddd8;background:#f7f9f7;border-radius:7px;padding:5px 8px;cursor:pointer"">↻ Yenile</button></div><pre id=""deployLogText"" style=""margin:0;background:#0b1517;color:#d7e1dd;padding:12px;font:11px/1.55 Consolas,'Courier New',monospace;white-space:pre-wrap;max-height:320px;overflow:auto"">Deploy kayıtları bekleniyor…</pre></div></section><script>(function(){const t=document.getElementById('deployLogToggle'),b=document.getElementById('deployLogBody'),a=document.getElementById('deployLogArrow'),s=document.getElementById('deployLogState'),p=document.getElementById('deployLogText'),r=document.getElementById('deployLogRefresh');if(!t)return;let open=false,last='';function paint(d){const lines=Array.isArray(d.lines)?d.lines:[];const x=lines.join('\n');if(x!==last){last=x;p.textContent=x||'Henüz deploy kaydı yok.';p.scrollTop=p.scrollHeight}const bad=lines.some(x=>/FAILED|HATA|ERROR|❌|failed/i.test(x));s.textContent=bad?'❌ Son deploy hatalı':(/BAŞARILI|🟢/.test(lines.at(-1)||'')?'🟢 Son deploy başarılı':'⏳ Deploy durumu kontrol ediliyor');s.style.color=bad?'#b33b32':'#267448'}async function load(){try{const q=await fetch('/api/deploy/log?ts='+Date.now(),{cache:'no-store'});if(!q.ok)throw Error('HTTP '+q.status);paint(await q.json())}catch(e){s.textContent='⚠️ Log alınamadı';s.style.color='#b33b32'}}t.onclick=()=>{open=!open;b.style.display=open?'block':'none';a.textContent=open?'⌃':'⌄';if(open)load()};r.onclick=load;setInterval(()=>{if(open)load()},2000)})();</script>";
+            if (html.Contains(marker, StringComparison.OrdinalIgnoreCase))
+                html = html.Replace(marker, box + marker, StringComparison.OrdinalIgnoreCase);
+
+            context.Response.ContentType = "text/html; charset=utf-8";
+            context.Response.Headers.CacheControl = "no-store";
+            await context.Response.WriteAsync(html, context.RequestAborted);
+            return;
+        }
+    }
+
+    await next();
+});
+
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
