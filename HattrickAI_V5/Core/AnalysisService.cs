@@ -22,7 +22,11 @@ public sealed class AnalysisService
         var ownPlayers = await ReadPlayers(teamId, ct);
         if (ownPlayers.Count < 11) throw new InvalidOperationException("Kullanıcı takımında analiz için yeterli oyuncu verisi yok.");
 
-        var matchesXml = await _chpp.GetXmlAsync("matches", new Dictionary<string,string?> { ["version"]="1.3", ["teamId"]=teamId.ToString(CultureInfo.InvariantCulture) }, ct);
+        var matchesXml = await _chpp.GetXmlAsync("matches", new Dictionary<string,string?>
+        {
+            ["version"]="2.2",
+            ["teamID"]=teamId.ToString(CultureInfo.InvariantCulture)
+        }, ct);
         var matches = ReadMatches(matchesXml, teamId);
         var next = matches.Where(x => x.Date > DateTimeOffset.UtcNow).OrderBy(x => x.Date).FirstOrDefault();
         if (next.MatchId <= 0) throw new InvalidOperationException("Yaklaşan maç bulunamadı.");
@@ -31,26 +35,43 @@ public sealed class AnalysisService
         var opponentName = next.HomeId == teamId ? next.AwayName : next.HomeName;
         if (opponentId <= 0) throw new InvalidOperationException("Rakip takım ID'si bulunamadı.");
 
-        // IMPORTANT: use CHPP's own lastmatch resolution instead of guessing the last match
-        // from the /matches list. Hattrick documents matchLineup actionType=lastmatch as
-        // the canonical latest completed lineup for the requested team.
+        // Use the exact latest completed match from the opponent's official CHPP /matches
+        // archive, then use that MatchID for BOTH lineup and matchdetails. This prevents
+        // the lineup and rating from silently coming from different cached matches.
+        var opponentMatchesXml = await _chpp.GetXmlAsync("matches", new Dictionary<string,string?>
+        {
+            ["version"]="2.2",
+            ["teamID"]=opponentId.ToString(CultureInfo.InvariantCulture)
+        }, ct);
+        var opponentMatches = ReadMatches(opponentMatchesXml, opponentId);
+        var lastMatch = opponentMatches
+            .Where(x => x.Date != default && x.Date <= DateTimeOffset.UtcNow)
+            .OrderByDescending(x => x.Date)
+            .FirstOrDefault();
+        if (lastMatch.MatchId <= 0)
+            throw new InvalidOperationException("Rakibin CHPP maç arşivinde tamamlanmış maç bulunamadı.");
+
+        // matchLineup with an explicit matchID is important: it binds the player placement
+        // to the same exact match whose seven regional ratings we read below.
         var lineupXml = await _chpp.GetXmlAsync("matchlineup", new Dictionary<string,string?>
         {
             ["version"]="1.1",
-            ["actionType"]="lastmatch",
+            ["actionType"]="view",
+            ["matchID"]=lastMatch.MatchId.ToString(CultureInfo.InvariantCulture),
             ["teamID"]=opponentId.ToString(CultureInfo.InvariantCulture)
         }, ct);
 
         var lineupRoot = XmlV5.Root(lineupXml);
-        var lastMatchId = XmlV5.Int(lineupRoot, "MatchID");
-        var lastMatchDate = XmlV5.Date(lineupRoot, "MatchDate");
-        if (lastMatchId <= 0) throw new InvalidOperationException("Rakibin CHPP lastmatch kaydı bulunamadı.");
+        var returnedMatchId = XmlV5.Int(lineupRoot, "MatchID");
+        if (returnedMatchId != lastMatch.MatchId)
+            throw new InvalidOperationException($"CHPP lineup MatchID uyuşmuyor. Beklenen {lastMatch.MatchId}, gelen {returnedMatchId}.");
 
         var lineupNodes = lineupRoot?.Descendants("Player")
             .Where(p => XmlV5.Int(p, "PositionCode") > 0)
-            .Take(11)
             .ToList() ?? new List<XElement>();
-        if (lineupNodes.Count != 11) throw new InvalidOperationException("Rakibin son maçının sahadaki 11 oyuncusu CHPP'den alınamadı.");
+        if (lineupNodes.Count < 11)
+            throw new InvalidOperationException("Rakibin seçilen son maçının sahadaki 11 oyuncusu CHPP'den alınamadı.");
+        lineupNodes = lineupNodes.Take(11).ToList();
 
         var opponentPlayers = await ReadPlayers(opponentId, ct);
         var opponentById = opponentPlayers.ToDictionary(p => p.Id);
@@ -58,7 +79,7 @@ public sealed class AnalysisService
         if (opponentSlots.Count != 11) throw new InvalidOperationException("Rakip oyuncularının tamamı güncel CHPP oyuncu verileriyle eşleşmedi.");
 
         var ownLineup = BuildOwnLineup(teamName, ownPlayers);
-        var opponentLineup = new Lineup(opponentName, Formation(opponentSlots), opponentSlots);
+        var opponentLineup = new Lineup(lastMatch.HomeId == opponentId ? lastMatch.HomeName : lastMatch.AwayName, Formation(opponentSlots), opponentSlots);
 
         var ownContext = new RatingContext(
             next.HomeId == teamId ? MatchLocation.Home : MatchLocation.Away,
@@ -67,21 +88,18 @@ public sealed class AnalysisService
 
         // Rakip ratinginde tahmin/yeniden hesaplama yapma:
         // CHPP matchdetails son maçın 7 gerçek takım ratingini doğrudan verir.
-        var opponentHistoricalRating = await ReadDirectHistoricalOpponentRating(lastMatchId, opponentId, ct);
+        var opponentHistoricalRating = await ReadDirectHistoricalOpponentRating(lastMatch.MatchId, opponentId, ct);
 
         var regionalOwn = _ratingEngine.CalculateLineup(
             ownLineup,
             ownPlayers,
             ownContext);
 
-        // The questionnaire supplies the three user-known variables that are not reliably
-        // present in the basic CHPP snapshot: coach tactical style, team spirit and attitude.
         var ownRating = QuestionnaireRatingAdjuster.Apply(regionalOwn, questionnaire);
         var opponentRating = opponentHistoricalRating;
 
         var location = next.HomeId == teamId ? "Ev sahibi" : "Deplasman";
         var title = $"{next.Date.ToLocalTime():dd.MM.yyyy HH:mm} • {opponentName} • {location}";
-        _ = lastMatchDate; // kept for diagnostics/traceability; rating source is lastMatchId.
         return new Analysis(build, teamName, opponentName, title, ownLineup, opponentLineup, ownRating, opponentRating);
     }
 
@@ -94,15 +112,20 @@ public sealed class AnalysisService
         }, ct);
 
         var root = XmlV5.Root(xml);
-        var team = root?.Descendants("HomeTeam")
-            .Concat(root.Descendants("AwayTeam"))
-            .FirstOrDefault(x => TeamNodeId(x) == opponentId);
+        var matchNode = root?.Descendants("Match").FirstOrDefault();
+        var returnedMatchId = XmlV5.Int(matchNode, "MatchID");
+        if (returnedMatchId != matchId)
+            throw new InvalidOperationException($"CHPP matchdetails MatchID uyuşmuyor. Beklenen {matchId}, gelen {returnedMatchId}.");
 
-        if (team is null)
-            throw new InvalidOperationException("Rakibin son maçındaki gerçek bölgesel ratingleri CHPP matchdetails'dan alınamadı.");
+        var team = matchNode?.Element("HomeTeam");
+        if (team is null || TeamNodeId(team) != opponentId)
+            team = matchNode?.Element("AwayTeam");
 
-        // CHPP matchdetails exposes the team's actual seven sector ratings for the
-        // completed match. Convert the quarter-step integer scale to Hattrick display scale.
+        if (team is null || TeamNodeId(team) != opponentId)
+            throw new InvalidOperationException("Rakibin son maçındaki takım kaydı CHPP matchdetails'dan alınamadı.");
+
+        // IMPORTANT: these are Hattrick's own completed-match sector ratings.
+        // Do not run them through our rating engine or any player-based approximation.
         var leftDefence = XmlV5.Int(team, "RatingLeftDef") / 4.0;
         var centralDefence = XmlV5.Int(team, "RatingMidDef") / 4.0;
         var rightDefence = XmlV5.Int(team, "RatingRightDef") / 4.0;
