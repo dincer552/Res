@@ -16,19 +16,26 @@ public sealed class ReferenceMatchService
         if (teamId <= 0) throw new InvalidOperationException("Kullanıcı takım bilgisi alınamadı.");
 
         var ownMatches = await ReadMatches(teamId, ct);
-        var next = ownMatches.Where(m => m.Date > DateTimeOffset.UtcNow).OrderBy(m => m.Date).FirstOrDefault();
-        if (next is null) throw new InvalidOperationException("Yaklaşan maç bulunamadı.");
+        var next = ownMatches
+            .Where(m => m.Date > DateTimeOffset.UtcNow && IsCompetitiveMatchType(m.MatchType))
+            .OrderBy(m => m.Date)
+            .FirstOrDefault();
+        if (next is null)
+            throw new InvalidOperationException("Kupa ve hazırlık maçları atlandıktan sonra yaklaşan resmi maç bulunamadı.");
 
         var opponentId = next.HomeTeamId == teamId ? next.AwayTeamId : next.HomeTeamId;
         if (opponentId <= 0) throw new InvalidOperationException("Rakip takım ID'si bulunamadı.");
 
         var opponentMatches = await ReadMatches(opponentId, ct);
         var last = opponentMatches
-            .Where(m => m.Date < DateTimeOffset.UtcNow && m.HomeGoals.HasValue && m.AwayGoals.HasValue)
+            .Where(m => m.Date < DateTimeOffset.UtcNow
+                     && m.HomeGoals.HasValue
+                     && m.AwayGoals.HasValue
+                     && IsCompetitiveMatchType(m.MatchType))
             .OrderByDescending(m => m.Date)
             .FirstOrDefault();
-        last ??= opponentMatches.Where(m => m.Date < DateTimeOffset.UtcNow).OrderByDescending(m => m.Date).FirstOrDefault();
-        if (last is null) throw new InvalidOperationException("Rakibin baz alınan son maçı bulunamadı.");
+        if (last is null)
+            throw new InvalidOperationException("Kupa ve hazırlık maçları atlandıktan sonra rakibin baz alınan resmi maçı bulunamadı.");
 
         return new
         {
@@ -45,6 +52,9 @@ public sealed class ReferenceMatchService
             finished = last.HomeGoals.HasValue && last.AwayGoals.HasValue
         };
     }
+
+    private static bool IsCompetitiveMatchType(int type)
+        => type is 1 or 2 or 7 or 10 or 11;
 
     private async Task<List<ReferenceMatch>> ReadMatches(int teamId, CancellationToken ct)
     {
