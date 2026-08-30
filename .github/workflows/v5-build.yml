@@ -21,7 +21,7 @@ jobs:
           echo "📦 Docker build başlıyor..."
           docker build --pull \
             --build-arg BUILD_SHA="${GITHUB_SHA}" \
-            -t hattrick-v5:${GITHUB_SHA} \
+            -t hattrick-v5:deploy \
             -f HattrickAI_V5/Dockerfile .
 
           echo "✅ Docker build tamamlandı"
@@ -33,7 +33,7 @@ jobs:
           set -Eeuo pipefail
 
           echo "💾 Docker image paketleniyor..."
-          docker save hattrick-v5:${GITHUB_SHA} | gzip > hattrick-v5.tar.gz
+          docker save hattrick-v5:deploy | gzip > hattrick-v5.tar.gz
 
           echo "✅ Image hazır:"
           ls -lh hattrick-v5.tar.gz
@@ -95,7 +95,7 @@ jobs:
           log "Branch: ${GITHUB_REF_NAME}"
           log "Commit: ${GITHUB_SHA:0:7}"
           log "Gönderen: ${GITHUB_ACTOR}"
-          log "📦 Image: hattrick-v5:${GITHUB_SHA}"
+          log "📦 Image: hattrick-v5:deploy"
 
           log "📥 Docker image yükleniyor..."
 
@@ -115,7 +115,7 @@ jobs:
             -p 10000:10000 \
             -e CHPP_CONSUMER_SECRET="${{ secrets.CHPP_CONSUMER_SECRET }}" \
             -v "\$LOG_FILE:/app/deploy.log:ro" \
-            hattrick-v5:${GITHUB_SHA}
+            hattrick-v5:deploy
 
           log "⏳ Health check bekleniyor..."
 
