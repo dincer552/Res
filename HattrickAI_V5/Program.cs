@@ -35,8 +35,6 @@ app.Urls.Add($"http://0.0.0.0:{port}");
 app.UseSession();
 
 // Ana sayfaya deploy loglarını açılır/kapanır kutu olarak enjekte et.
-// Böylece mevcut V5 index tasarımı değiştirilmeden Azure VM'deki /app/deploy.log
-// API üzerinden canlı loglar ana sayfanın en altında gösterilir.
 app.Use(async (context, next) =>
 {
     if (context.Request.Method == "GET" && context.Request.Path == "/")
@@ -47,7 +45,7 @@ app.Use(async (context, next) =>
             var html = await File.ReadAllTextAsync(indexPath, context.RequestAborted);
             const string marker = "</main>";
             const string box = @"
-<section id=""deployLogBox"" style=""margin-top:14px;background:#fff;border-radius:15px;box-shadow:0 2px 9px #0002;overflow:hidden;border:1px solid #dfe5e1""><button id=""deployLogToggle"" type=""button"" style=""width:100%;border:0;background:#fff;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;color:#27322d;font:800 13px Arial;cursor:pointer""><span>🚀 Deploy logları</span><span id=""deployLogArrow"">⌄</span></button><div id=""deployLogBody"" style=""display:none;border-top:1px solid #e5ebe7""><div style=""padding:9px 12px;display:flex;justify-content:space-between;align-items:center;color:#747c76;font:11px Arial""><span id=""deployLogState"">Kontrol ediliyor…</span><button id=""deployLogRefresh"" type=""button"" style=""border:1px solid #d5ddd8;background:#f7f9f7;border-radius:7px;padding:5px 8px;cursor:pointer"">↻ Yenile</button></div><pre id=""deployLogText"" style=""margin:0;background:#0b1517;color:#d7e1dd;padding:12px;font:11px/1.55 Consolas,'Courier New',monospace;white-space:pre-wrap;max-height:320px;overflow:auto"">Deploy kayıtları bekleniyor…</pre></div></section><script>(function(){const t=document.getElementById('deployLogToggle'),b=document.getElementById('deployLogBody'),a=document.getElementById('deployLogArrow'),s=document.getElementById('deployLogState'),p=document.getElementById('deployLogText'),r=document.getElementById('deployLogRefresh');if(!t)return;let open=false,last='';function paint(d){const lines=Array.isArray(d.lines)?d.lines:[];const x=lines.join('\n');if(x!==last){last=x;p.textContent=x||'Henüz deploy kaydı yok.';p.scrollTop=p.scrollHeight}const bad=lines.some(x=>/FAILED|HATA|ERROR|❌|failed/i.test(x));s.textContent=bad?'❌ Son deploy hatalı':(/BAŞARILI|🟢/.test(lines.at(-1)||'')?'🟢 Son deploy başarılı':'⏳ Deploy durumu kontrol ediliyor');s.style.color=bad?'#b33b32':'#267448'}async function load(){try{const q=await fetch('/api/deploy/log?ts='+Date.now(),{cache:'no-store'});if(!q.ok)throw Error('HTTP '+q.status);paint(await q.json())}catch(e){s.textContent='⚠️ Log alınamadı';s.style.color='#b33b32'}}t.onclick=()=>{open=!open;b.style.display=open?'block':'none';a.textContent=open?'⌃':'⌄';if(open)load()};r.onclick=load;setInterval(()=>{if(open)load()},2000)})();</script>";
+<section id=""deployLogBox"" style=""margin-top:14px;background:#fff;border-radius:15px;box-shadow:0 2px 9px #0002;overflow:hidden;border:1px solid #dfe5e1""><button id=""deployLogToggle"" type=""button"" style=""width:100%;border:0;background:#fff;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;color:#27322d;font:800 13px Arial;cursor:pointer""><span>🚀 Deploy logları</span><span id=""deployLogArrow"">⌄</span></button><div id=""deployLogBody"" style=""display:none;border-top:1px solid #e5ebe7""><div style=""padding:9px 12px;display:flex;justify-content:space-between;align-items:center;color:#747c76;font:11px Arial""><span id=""deployLogState"">Kontrol ediliyor…</span><button id=""deployLogRefresh"" type=""button"" style=""border:1px solid #d5ddd8;background:#f7f9f7;border-radius:7px;padding:5px 8px;cursor:pointer"">↻ Yenile</button></div><pre id=""deployLogText"" style=""margin:0;background:#0b1517;color:#d7e1dd;padding:12px;font:11px/1.55 Consolas,'Courier New',monospace;white-space:pre-wrap;max-height:320px;overflow:auto"">Deploy kayıtları bekleniyor…</pre></div></section><script>(function(){const t=document.getElementById('deployLogToggle'),b=document.getElementById('deployLogBody'),a=document.getElementById('deployLogArrow'),s=document.getElementById('deployLogState'),p=document.getElementById('deployLogText'),r=document.getElementById('deployLogRefresh');if(!t)return;let open=false,last='';function paint(d){const lines=Array.isArray(d.lines)?d.lines:[];const x=lines.join('\n');if(x!==last){last=x;p.textContent=x||'Henüz deploy kaydı yok.';p.scrollTop=p.scrollHeight}const sep=lines.reduce((i,x,idx)=>/🚀 GitHub deploy başladı/i.test(x)?idx:i,-1);const latest=sep>=0?lines.slice(sep):lines;const bad=latest.some(x=>/DEPLOY FAILED|❌ Container başlamadı|ERROR|HATA/i.test(x));const good=latest.some(x=>/🟢 DEPLOY BAŞARILI/.test(x));s.textContent=bad?'❌ Son deploy hatalı':(good?'🟢 Son deploy başarılı':'⏳ Deploy durumu kontrol ediliyor');s.style.color=bad?'#b33b32':'#267448'}async function load(){try{const q=await fetch('/api/deploy/log?ts='+Date.now(),{cache:'no-store'});if(!q.ok)throw Error('HTTP '+q.status);paint(await q.json())}catch(e){s.textContent='⚠️ Log alınamadı';s.style.color='#b33b32'}}t.onclick=()=>{open=!open;b.style.display=open?'block':'none';a.textContent=open?'⌃':'⌄';if(open)load()};r.onclick=load;setInterval(()=>{if(open)load()},2000)})();</script>";
             if (html.Contains(marker, StringComparison.OrdinalIgnoreCase))
                 html = html.Replace(marker, box + marker, StringComparison.OrdinalIgnoreCase);
 
@@ -64,9 +62,14 @@ app.Use(async (context, next) =>
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
-var build = Environment.GetEnvironmentVariable("RENDER_GIT_COMMIT")
-    ?? Environment.GetEnvironmentVariable("RENDER_GIT_COMMIT_SHA")
+// Build identity is baked into the Docker image by the V5 deployment workflow.
+var build = Environment.GetEnvironmentVariable("V5_BUILD")
+    ?? Environment.GetEnvironmentVariable("BUILD_SHA")
+    ?? Environment.GetEnvironmentVariable("GITHUB_SHA")
     ?? "dev";
+
+if (build.Length > 7)
+    build = build[..7];
 
 app.MapGet("/health", () => Results.Ok(new { ok = true, service = "HattrickAI V5", build }));
 app.MapGet("/api/v5/build", () => Results.Ok(new { build }));
@@ -135,7 +138,7 @@ app.MapGet("/auth/chpp/start", async (HttpContext http, ChppV5 chpp, Cancellatio
     try
     {
         if (string.IsNullOrWhiteSpace(builder.Configuration["CHPP_CONSUMER_SECRET"]))
-            return Results.Redirect("/?error=" + Uri.EscapeDataString("CHPP_CONSUMER_SECRET Render Environment Variables içinde tanımlı değil."));
+            return Results.Redirect("/?error=" + Uri.EscapeDataString("CHPP_CONSUMER_SECRET Azure Environment Variables içinde tanımlı değil."));
         var proto = http.Request.Headers["X-Forwarded-Proto"].FirstOrDefault() ?? http.Request.Scheme;
         var callback = $"{proto}://{http.Request.Host}/auth/chpp/callback";
         return Results.Redirect(await chpp.StartAsync(callback, ct));
