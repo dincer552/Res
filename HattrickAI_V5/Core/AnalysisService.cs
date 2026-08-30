@@ -28,8 +28,15 @@ public sealed class AnalysisService
             ["teamID"]=teamId.ToString(CultureInfo.InvariantCulture)
         }, ct);
         var matches = ReadMatches(matchesXml, teamId);
-        var next = matches.Where(x => x.Date > DateTimeOffset.UtcNow).OrderBy(x => x.Date).FirstOrDefault();
-        if (next.MatchId <= 0) throw new InvalidOperationException("Yaklaşan maç bulunamadı.");
+
+        // Reference/analysis match selection deliberately ignores cup and friendly matches.
+        // Type 1 = league, 2 = qualification/play-off, 7 = Hattrick Masters,
+        // 10/11 = national-team official matches.
+        var next = matches
+            .Where(x => x.Date > DateTimeOffset.UtcNow && IsCompetitiveMatchType(x.MatchType))
+            .OrderBy(x => x.Date)
+            .FirstOrDefault();
+        if (next.MatchId <= 0) throw new InvalidOperationException("Kupa ve hazırlık maçları atlandıktan sonra yaklaşan resmi maç bulunamadı.");
 
         var opponentId = next.HomeId == teamId ? next.AwayId : next.HomeId;
         var opponentName = next.HomeId == teamId ? next.AwayName : next.HomeName;
@@ -41,12 +48,14 @@ public sealed class AnalysisService
             ["teamID"]=opponentId.ToString(CultureInfo.InvariantCulture)
         }, ct);
         var opponentMatches = ReadMatches(opponentMatchesXml, opponentId);
+
+        // The historical reference match follows the same rule: never use cup/friendly.
         var lastMatch = opponentMatches
-            .Where(x => x.Date != default && x.Date <= DateTimeOffset.UtcNow)
+            .Where(x => x.Date != default && x.Date <= DateTimeOffset.UtcNow && IsCompetitiveMatchType(x.MatchType))
             .OrderByDescending(x => x.Date)
             .FirstOrDefault();
         if (lastMatch.MatchId <= 0)
-            throw new InvalidOperationException("Rakibin CHPP maç arşivinde tamamlanmış maç bulunamadı.");
+            throw new InvalidOperationException("Kupa ve hazırlık maçları atlandıktan sonra rakibin resmi tamamlanmış maçı bulunamadı.");
 
         var lineupXml = await _chpp.GetXmlAsync("matchlineup", new Dictionary<string,string?>
         {
@@ -66,7 +75,7 @@ public sealed class AnalysisService
             .Take(11)
             .ToList() ?? new List<XElement>();
         if (lineupNodes.Count < 11)
-            throw new InvalidOperationException("Rakibin seçilen son maçının sahadaki 11 oyuncusu CHPP'den alınamadı.");
+            throw new InvalidOperationException("Rakibin seçilen resmi son maçının sahadaki 11 oyuncusu CHPP'den alınamadı.");
 
         var ownLineup = BuildOwnLineup(teamName, ownPlayers);
 
@@ -100,6 +109,9 @@ public sealed class AnalysisService
         var title = $"{next.Date.ToLocalTime():dd.MM.yyyy HH:mm} • {opponentName} • {location}";
         return new Analysis(build, teamName, opponentName, title, ownLineup, opponentLineup, ownRating, opponentRating);
     }
+
+    private static bool IsCompetitiveMatchType(int type)
+        => type is 1 or 2 or 7 or 10 or 11;
 
     private async Task<RegionalRatingSnapshot> ReadDirectHistoricalOpponentRating(int matchId, int opponentId, CancellationToken ct)
     {
@@ -164,17 +176,18 @@ public sealed class AnalysisService
             .Where(p => p.Id > 0).ToList() ?? new List<Player>();
     }
 
-    private static List<(int MatchId,DateTimeOffset Date,int HomeId,int AwayId,string HomeName,string AwayName)> ReadMatches(string xml, int teamId)
+    private static List<(int MatchId,DateTimeOffset Date,int HomeId,int AwayId,string HomeName,string AwayName,int MatchType)> ReadMatches(string xml, int teamId)
     {
-        var result = new List<(int,DateTimeOffset,int,int,string,string)>();
+        var result = new List<(int,DateTimeOffset,int,int,string,string,int)>();
         foreach (var m in XmlV5.Root(xml)?.Descendants("Match") ?? Enumerable.Empty<XElement>())
         {
             var id = XmlV5.Int(m,"MatchID");
             var date = XmlV5.Date(m,"MatchDate");
             var home = XmlV5.Int(m,"HomeTeamID");
             var away = XmlV5.Int(m,"AwayTeamID");
+            var type = XmlV5.Int(m,"MatchType");
             if (id > 0 && date != default && (home == teamId || away == teamId))
-                result.Add((id,date,home,away,XmlV5.Text(m,"HomeTeamName"),XmlV5.Text(m,"AwayTeamName")));
+                result.Add((id,date,home,away,XmlV5.Text(m,"HomeTeamName"),XmlV5.Text(m,"AwayTeamName"),type));
         }
         return result;
     }
