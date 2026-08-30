@@ -23,7 +23,8 @@ public sealed record Slot(
     double Rating,
     double X,
     double Y,
-    PlayerOrder Order = PlayerOrder.Normal);
+    PlayerOrder Order = PlayerOrder.Normal,
+    double? HistoricalStars = null);
 
 public sealed record Lineup(
     string TeamName,
