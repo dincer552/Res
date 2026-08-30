@@ -20,10 +20,12 @@ jobs:
 
           echo "📦 Docker build başlıyor..."
           docker build --pull \
+            --build-arg BUILD_SHA="${GITHUB_SHA}" \
             -t hattrick-v5:${GITHUB_SHA} \
             -f HattrickAI_V5/Dockerfile .
 
           echo "✅ Docker build tamamlandı"
+          echo "🔖 Build SHA: ${GITHUB_SHA:0:7}"
 
       - name: Save Docker image
         shell: bash
@@ -86,14 +88,14 @@ jobs:
             printf '[%s] %s\n' "\$(date '+%Y-%m-%d %H:%M:%S')" "\$1" >> "\$LOG_FILE"
           }
 
-          trap 'log "❌ DEPLOY FAILED (exit code \$?)"' ERR
+          trap 'rc=$?; log "❌ DEPLOY FAILED (exit code \$rc)"; exit \$rc' ERR
 
           log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           log "🚀 GitHub deploy başladı"
           log "Branch: ${GITHUB_REF_NAME}"
           log "Commit: ${GITHUB_SHA:0:7}"
-          log "Mesaj: \$(git log -1 --pretty=%s)"
           log "Gönderen: ${GITHUB_ACTOR}"
+          log "📦 Image: hattrick-v5:${GITHUB_SHA}"
 
           log "📥 Docker image yükleniyor..."
 
@@ -127,8 +129,8 @@ jobs:
             exit 1
           fi
 
-          curl --fail --silent --show-error \
-            http://127.0.0.1:10000/health > /dev/null
+          health="\$(curl --fail --silent --show-error http://127.0.0.1:10000/health)"
+          log "❤️ Health: \$health"
 
           log "🟢 DEPLOY BAŞARILI"
           log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
