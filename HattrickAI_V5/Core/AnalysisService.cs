@@ -19,6 +19,12 @@ public sealed class AnalysisService
         var teamName = XmlV5.Text(teamNode, "TeamName");
         if (teamId <= 0) throw new InvalidOperationException("Kullanıcı takım bilgisi alınamadı.");
 
+        // Team spirit is a live team state in Hattrick and is exposed by CHPP training.
+        // Prefer that value over the questionnaire guess; keep the questionnaire as fallback.
+        var psychology = await ReadCurrentPsychology(teamId, ct);
+        if (psychology.Morale is >= 1 and <= 10)
+            questionnaire = questionnaire with { TeamSpirit = ToTeamSpirit(psychology.Morale) };
+
         var ownPlayers = await ReadPlayers(teamId, ct);
         if (ownPlayers.Count < 11) throw new InvalidOperationException("Kullanıcı takımında analiz için yeterli oyuncu verisi yok.");
 
@@ -30,8 +36,6 @@ public sealed class AnalysisService
         var matches = ReadMatches(matchesXml, teamId);
 
         // Reference/analysis match selection deliberately ignores cup and friendly matches.
-        // Type 1 = league, 2 = qualification/play-off, 7 = Hattrick Masters,
-        // 10/11 = national-team official matches.
         var next = matches
             .Where(x => x.Date > DateTimeOffset.UtcNow && IsCompetitiveMatchType(x.MatchType))
             .OrderBy(x => x.Date)
@@ -77,8 +81,6 @@ public sealed class AnalysisService
         var ownLineup = BuildOwnLineup(teamName, ownPlayers);
 
         // Historical opponent player skills are deliberately NOT requested.
-        // CHPP gives us the exact historical stars, final position/behaviour and
-        // the exact seven team-sector ratings from matchdetails.
         var opponentHistoricalRating = await ReadDirectHistoricalOpponentRating(lastMatch.MatchId, opponentId, ct);
         var experienceLevel = Math.Clamp(
             XmlV5.Int(lineupRoot?.Descendants("Team").FirstOrDefault(), "ExperienceLevel"),
@@ -107,6 +109,43 @@ public sealed class AnalysisService
         return new Analysis(build, teamName, opponentName, title, ownLineup, opponentLineup, ownRating, opponentRating);
     }
 
+    private async Task<(int Morale, int Confidence)> ReadCurrentPsychology(int teamId, CancellationToken ct)
+    {
+        try
+        {
+            var xml = await _chpp.GetXmlAsync("training", new Dictionary<string,string?>
+            {
+                ["version"]="1.2"
+            }, ct);
+            var root = XmlV5.Root(xml);
+            var team = root?.Descendants("Team").FirstOrDefault();
+            return (
+                XmlV5.Int(team, "Morale"),
+                XmlV5.Int(team, "SelfConfidence"));
+        }
+        catch
+        {
+            // Do not break analysis if the optional psychology endpoint is unavailable.
+            return (0, 0);
+        }
+    }
+
+    private static TeamSpiritLevel ToTeamSpirit(int morale)
+        => morale switch
+        {
+            1 => TeamSpiritLevel.Murderous,
+            2 => TeamSpiritLevel.Furious,
+            3 => TeamSpiritLevel.Irritated,
+            4 => TeamSpiritLevel.Composed,
+            5 => TeamSpiritLevel.Calm,
+            6 => TeamSpiritLevel.Content,
+            7 => TeamSpiritLevel.Satisfied,
+            8 => TeamSpiritLevel.Delirious,
+            9 => TeamSpiritLevel.WalkingOnClouds,
+            >= 10 => TeamSpiritLevel.ParadiseOnEarth,
+            _ => TeamSpiritLevel.Composed
+        };
+
     private static bool IsCompetitiveMatchType(int type)
         => type is 1 or 2 or 7 or 10 or 11;
 
@@ -115,9 +154,6 @@ public sealed class AnalysisService
         var team = lineupRoot?.Descendants("Team").FirstOrDefault();
         if (team is null) return new List<XElement>();
 
-        // matchLineup contains both the kick-off XI and substitution history.
-        // Do NOT take the first 11 Player nodes: that can mix starters and
-        // substitutes and was the cause of the 13-player/incorrect-placement bug.
         var finalPlayers = team.Element("Lineup")?.Elements("Player")
             .Where(p => XmlV5.Int(p, "PlayerID") > 0)
             .ToList() ?? new List<XElement>();
@@ -128,9 +164,6 @@ public sealed class AnalysisService
 
         var onField = new HashSet<int>(startingPlayers.Select(p => XmlV5.Int(p, "PlayerID")));
 
-        // Reconstruct the final XI from the starting XI plus actual substitutions.
-        // A behaviour change has the same subject/object player; a real
-        // substitution replaces SubjectPlayerID with ObjectPlayerID.
         var substitutions = team.Descendants("Substitution")
             .Select(s => new
             {
@@ -146,8 +179,6 @@ public sealed class AnalysisService
                 onField.Add(sub.Object);
         }
 
-        // If CHPP did not expose StartingLineup in this response, use the
-        // formal starting roles from the final list as a safe fallback.
         if (onField.Count == 0)
         {
             onField = finalPlayers
@@ -157,15 +188,11 @@ public sealed class AnalysisService
                 .ToHashSet();
         }
 
-        // Final PositionCode/Behaviour/RatingStars must come from the final
-        // lineup record, while membership comes from the reconstructed XI.
-        var result = finalPlayers
+        return finalPlayers
             .Where(p => onField.Contains(XmlV5.Int(p, "PlayerID")) && XmlV5.Int(p, "PositionCode") > 0)
             .GroupBy(p => XmlV5.Int(p, "PlayerID"))
             .Select(g => g.First())
             .ToList();
-
-        return result;
     }
 
     private async Task<RegionalRatingSnapshot> ReadDirectHistoricalOpponentRating(int matchId, int opponentId, CancellationToken ct)
@@ -205,14 +232,12 @@ public sealed class AnalysisService
     }
 
     private static int TeamNodeId(XElement node)
-    {
-        return node.Name.LocalName switch
+        => node.Name.LocalName switch
         {
             "HomeTeam" => XmlV5.Int(node, "HomeTeamID"),
             "AwayTeam" => XmlV5.Int(node, "AwayTeamID"),
             _ => 0
         };
-    }
 
     private async Task<List<Player>> ReadPlayers(int teamId, CancellationToken ct)
     {
