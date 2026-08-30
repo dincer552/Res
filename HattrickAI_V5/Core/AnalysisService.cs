@@ -57,22 +57,68 @@ public sealed class AnalysisService
             next.HomeId == teamId ? MatchLocation.Home : MatchLocation.Away,
             questionnaire.MatchImportance,
             TeamTactic.Normal);
-        var opponentContext = new RatingContext(MatchLocation.Away, TeamAttitude.Normal, TeamTactic.Normal);
 
-        var regionalPair = _ratingEngine.CalculatePair(
-            ownLineup, ownPlayers,
-            opponentLineup, opponentPlayers,
-            ownContext,
-            opponentContext);
+        // Rakip ratinginde tahmin/yeniden hesaplama yapma:
+        // CHPP matchdetails son maçın 7 gerçek takım ratingini doğrudan verir.
+        var opponentHistoricalRating = await ReadDirectHistoricalOpponentRating(last.MatchId, opponentId, ct);
+
+        var regionalOwn = _ratingEngine.CalculateLineup(
+            ownLineup,
+            ownPlayers,
+            ownContext);
 
         // The questionnaire supplies the three user-known variables that are not reliably
         // present in the basic CHPP snapshot: coach tactical style, team spirit and attitude.
-        var ownRating = QuestionnaireRatingAdjuster.Apply(regionalPair.Own, questionnaire);
-        var opponentRating = regionalPair.Opponent;
+        var ownRating = QuestionnaireRatingAdjuster.Apply(regionalOwn, questionnaire);
+        var opponentRating = opponentHistoricalRating;
 
         var location = next.HomeId == teamId ? "Ev sahibi" : "Deplasman";
         var title = $"{next.Date.ToLocalTime():dd.MM.yyyy HH:mm} • {opponentName} • {location}";
         return new Analysis(build, teamName, opponentName, title, ownLineup, opponentLineup, ownRating, opponentRating);
+    }
+
+    private async Task<RegionalRatingSnapshot> ReadDirectHistoricalOpponentRating(int matchId, int opponentId, CancellationToken ct)
+    {
+        var xml = await _chpp.GetXmlAsync("matchdetails", new Dictionary<string,string?>
+        {
+            ["version"]="1.4",
+            ["matchID"]=matchId.ToString(CultureInfo.InvariantCulture)
+        }, ct);
+
+        var root = XmlV5.Root(xml);
+        var team = root?.Descendants("HomeTeam")
+            .Concat(root.Descendants("AwayTeam"))
+            .FirstOrDefault(x => TeamNodeId(x) == opponentId);
+
+        if (team is null)
+            throw new InvalidOperationException("Rakibin son maçındaki gerçek bölgesel ratingleri CHPP matchdetails'dan alınamadı.");
+
+        // Hattrick matchdetails stores these ratings in quarter-point units:
+        // e.g. 43 -> 10.75, 38 -> 9.50. Use the CHPP values directly;
+        // do not pass them through our player-rating engine.
+        var leftDefence = XmlV5.Int(team, "RatingLeftDef") / 4.0;
+        var centralDefence = XmlV5.Int(team, "RatingMidDef") / 4.0;
+        var rightDefence = XmlV5.Int(team, "RatingRightDef") / 4.0;
+        var midfield = XmlV5.Int(team, "RatingMidfield") / 4.0;
+        var leftAttack = XmlV5.Int(team, "RatingLeftAtt") / 4.0;
+        var centralAttack = XmlV5.Int(team, "RatingMidAtt") / 4.0;
+        var rightAttack = XmlV5.Int(team, "RatingRightAtt") / 4.0;
+
+        return new RegionalRatingSnapshot(
+            leftDefence, centralDefence, rightDefence, midfield,
+            leftAttack, centralAttack, rightAttack,
+            leftDefence, centralDefence, rightDefence, midfield,
+            leftAttack, centralAttack, rightAttack);
+    }
+
+    private static int TeamNodeId(XElement node)
+    {
+        return node.Name.LocalName switch
+        {
+            "HomeTeam" => XmlV5.Int(node, "HomeTeamID"),
+            "AwayTeam" => XmlV5.Int(node, "AwayTeamID"),
+            _ => 0
+        };
     }
 
     private async Task<List<Player>> ReadPlayers(int teamId, CancellationToken ct)
