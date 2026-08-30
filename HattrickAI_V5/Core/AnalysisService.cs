@@ -35,9 +35,6 @@ public sealed class AnalysisService
         var opponentName = next.HomeId == teamId ? next.AwayName : next.HomeName;
         if (opponentId <= 0) throw new InvalidOperationException("Rakip takım ID'si bulunamadı.");
 
-        // Use the exact latest completed match from the opponent's official CHPP /matches
-        // archive, then use that MatchID for BOTH lineup and matchdetails. This prevents
-        // the lineup and rating from silently coming from different cached matches.
         var opponentMatchesXml = await _chpp.GetXmlAsync("matches", new Dictionary<string,string?>
         {
             ["version"]="2.2",
@@ -51,8 +48,6 @@ public sealed class AnalysisService
         if (lastMatch.MatchId <= 0)
             throw new InvalidOperationException("Rakibin CHPP maç arşivinde tamamlanmış maç bulunamadı.");
 
-        // matchLineup with an explicit matchID is important: it binds the player placement
-        // to the same exact match whose seven regional ratings we read below.
         var lineupXml = await _chpp.GetXmlAsync("matchlineup", new Dictionary<string,string?>
         {
             ["version"]="1.1",
@@ -68,33 +63,36 @@ public sealed class AnalysisService
 
         var lineupNodes = lineupRoot?.Descendants("Player")
             .Where(p => XmlV5.Int(p, "PositionCode") > 0)
+            .Take(11)
             .ToList() ?? new List<XElement>();
         if (lineupNodes.Count < 11)
             throw new InvalidOperationException("Rakibin seçilen son maçının sahadaki 11 oyuncusu CHPP'den alınamadı.");
-        lineupNodes = lineupNodes.Take(11).ToList();
-
-        var opponentPlayers = await ReadPlayers(opponentId, ct);
-        var opponentById = opponentPlayers.ToDictionary(p => p.Id);
-        var opponentSlots = lineupNodes.Select(p => HistoricalSlot(p, opponentById)).Where(x => x != null).Cast<Slot>().ToList();
-        if (opponentSlots.Count != 11) throw new InvalidOperationException("Rakip oyuncularının tamamı güncel CHPP oyuncu verileriyle eşleşmedi.");
 
         var ownLineup = BuildOwnLineup(teamName, ownPlayers);
-        var opponentLineup = new Lineup(lastMatch.HomeId == opponentId ? lastMatch.HomeName : lastMatch.AwayName, Formation(opponentSlots), opponentSlots);
+
+        // Historical opponent player skills are deliberately NOT requested.
+        // CHPP gives us the exact historical stars, final position/behaviour and
+        // the exact seven team-sector ratings from matchdetails.
+        var opponentHistoricalRating = await ReadDirectHistoricalOpponentRating(lastMatch.MatchId, opponentId, ct);
+        var experienceLevel = Math.Clamp(
+            XmlV5.Int(lineupRoot?.Descendants("Team").FirstOrDefault(), "ExperienceLevel"),
+            1, 20);
+
+        var opponentSlots = lineupNodes
+            .Select(p => HistoricalSlot(p, opponentHistoricalRating, experienceLevel))
+            .ToList();
+
+        var opponentLineup = new Lineup(
+            lastMatch.HomeId == opponentId ? lastMatch.HomeName : lastMatch.AwayName,
+            Formation(opponentSlots),
+            opponentSlots);
 
         var ownContext = new RatingContext(
             next.HomeId == teamId ? MatchLocation.Home : MatchLocation.Away,
             questionnaire.MatchImportance,
             TeamTactic.Normal);
 
-        // Rakip ratinginde tahmin/yeniden hesaplama yapma:
-        // CHPP matchdetails son maçın 7 gerçek takım ratingini doğrudan verir.
-        var opponentHistoricalRating = await ReadDirectHistoricalOpponentRating(lastMatch.MatchId, opponentId, ct);
-
-        var regionalOwn = _ratingEngine.CalculateLineup(
-            ownLineup,
-            ownPlayers,
-            ownContext);
-
+        var regionalOwn = _ratingEngine.CalculateLineup(ownLineup, ownPlayers, ownContext);
         var ownRating = QuestionnaireRatingAdjuster.Apply(regionalOwn, questionnaire);
         var opponentRating = opponentHistoricalRating;
 
@@ -124,8 +122,6 @@ public sealed class AnalysisService
         if (team is null || TeamNodeId(team) != opponentId)
             throw new InvalidOperationException("Rakibin son maçındaki takım kaydı CHPP matchdetails'dan alınamadı.");
 
-        // IMPORTANT: these are Hattrick's own completed-match sector ratings.
-        // Do not run them through our rating engine or any player-based approximation.
         var leftDefence = XmlV5.Int(team, "RatingLeftDef") / 4.0;
         var centralDefence = XmlV5.Int(team, "RatingMidDef") / 4.0;
         var rightDefence = XmlV5.Int(team, "RatingRightDef") / 4.0;
@@ -183,12 +179,14 @@ public sealed class AnalysisService
         return result;
     }
 
-    private static Slot? HistoricalSlot(XElement node, Dictionary<int,Player> players)
+    private static Slot HistoricalSlot(XElement node, RegionalRatingSnapshot teamRating, int experienceLevel)
     {
         var id = XmlV5.Int(node,"PlayerID");
-        if (!players.TryGetValue(id, out var player)) return null;
+        var name = XmlV5.Text(node,"PlayerName");
         var position = XmlV5.Int(node,"PositionCode");
         var behaviour = XmlV5.Int(node,"Behaviour");
+        var stars = ParseStars(XmlV5.Text(node,"RatingStars"));
+
         var order = behaviour switch
         {
             1 => PlayerOrder.Offensive,
@@ -197,6 +195,7 @@ public sealed class AnalysisService
             4 => PlayerOrder.TowardsWing,
             _ => PlayerOrder.Normal
         };
+
         var map = position switch
         {
             1 => ("GK","Kaleci",50d,10d),
@@ -212,8 +211,26 @@ public sealed class AnalysisService
             11 => ("FW-R","Sağ forvet",62d,72d),
             _ => ("IM-C","Merkez",50d,50d)
         };
-        return MakeSlot(map.Item1,map.Item2,map.Item2,player,map.Item3,map.Item4,order);
+
+        var rating = OpponentRatingEstimator.Estimate(stars, map.Item1, behaviour, teamRating, experienceLevel);
+
+        return new Slot(
+            map.Item1,
+            map.Item2,
+            map.Item2,
+            name,
+            id,
+            rating,
+            map.Item3,
+            map.Item4,
+            order,
+            stars);
     }
+
+    private static double ParseStars(string value)
+        => double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var x)
+            ? Math.Clamp(x, 0, 10)
+            : 0;
 
     private static Lineup BuildOwnLineup(string teamName, List<Player> players)
     {
