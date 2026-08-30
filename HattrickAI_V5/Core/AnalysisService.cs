@@ -70,12 +70,9 @@ public sealed class AnalysisService
         if (returnedMatchId != lastMatch.MatchId)
             throw new InvalidOperationException($"CHPP lineup MatchID uyuşmuyor. Beklenen {lastMatch.MatchId}, gelen {returnedMatchId}.");
 
-        var lineupNodes = lineupRoot?.Descendants("Player")
-            .Where(p => XmlV5.Int(p, "PositionCode") > 0)
-            .Take(11)
-            .ToList() ?? new List<XElement>();
-        if (lineupNodes.Count < 11)
-            throw new InvalidOperationException("Rakibin seçilen resmi son maçının sahadaki 11 oyuncusu CHPP'den alınamadı.");
+        var lineupNodes = SelectFinalFieldPlayers(lineupRoot);
+        if (lineupNodes.Count != 11)
+            throw new InvalidOperationException($"Rakibin seçilen resmi son maçında final saha 11'i belirlenemedi. CHPP final saha oyuncusu: {lineupNodes.Count}.");
 
         var ownLineup = BuildOwnLineup(teamName, ownPlayers);
 
@@ -112,6 +109,64 @@ public sealed class AnalysisService
 
     private static bool IsCompetitiveMatchType(int type)
         => type is 1 or 2 or 7 or 10 or 11;
+
+    private static List<XElement> SelectFinalFieldPlayers(XElement? lineupRoot)
+    {
+        var team = lineupRoot?.Descendants("Team").FirstOrDefault();
+        if (team is null) return new List<XElement>();
+
+        // matchLineup contains both the kick-off XI and substitution history.
+        // Do NOT take the first 11 Player nodes: that can mix starters and
+        // substitutes and was the cause of the 13-player/incorrect-placement bug.
+        var finalPlayers = team.Element("Lineup")?.Elements("Player")
+            .Where(p => XmlV5.Int(p, "PlayerID") > 0)
+            .ToList() ?? new List<XElement>();
+
+        var startingPlayers = team.Element("StartingLineup")?.Elements("Player")
+            .Where(p => XmlV5.Int(p, "PlayerID") > 0 && XmlV5.Int(p, "RoleID") is >= 1 and <= 11)
+            .ToList() ?? new List<XElement>();
+
+        var onField = new HashSet<int>(startingPlayers.Select(p => XmlV5.Int(p, "PlayerID")));
+
+        // Reconstruct the final XI from the starting XI plus actual substitutions.
+        // A behaviour change has the same subject/object player; a real
+        // substitution replaces SubjectPlayerID with ObjectPlayerID.
+        var substitutions = team.Descendants("Substitution")
+            .Select(s => new
+            {
+                Subject = XmlV5.Int(s, "SubjectPlayerID"),
+                Object = XmlV5.Int(s, "ObjectPlayerID")
+            })
+            .Where(x => x.Subject > 0 && x.Object > 0 && x.Subject != x.Object)
+            .ToList();
+
+        foreach (var sub in substitutions)
+        {
+            if (onField.Remove(sub.Subject))
+                onField.Add(sub.Object);
+        }
+
+        // If CHPP did not expose StartingLineup in this response, use the
+        // formal starting roles from the final list as a safe fallback.
+        if (onField.Count == 0)
+        {
+            onField = finalPlayers
+                .Where(p => XmlV5.Int(p, "RoleID") is >= 1 and <= 11)
+                .Select(p => XmlV5.Int(p, "PlayerID"))
+                .Where(id => id > 0)
+                .ToHashSet();
+        }
+
+        // Final PositionCode/Behaviour/RatingStars must come from the final
+        // lineup record, while membership comes from the reconstructed XI.
+        var result = finalPlayers
+            .Where(p => onField.Contains(XmlV5.Int(p, "PlayerID")) && XmlV5.Int(p, "PositionCode") > 0)
+            .GroupBy(p => XmlV5.Int(p, "PlayerID"))
+            .Select(g => g.First())
+            .ToList();
+
+        return result;
+    }
 
     private async Task<RegionalRatingSnapshot> ReadDirectHistoricalOpponentRating(int matchId, int opponentId, CancellationToken ct)
     {
