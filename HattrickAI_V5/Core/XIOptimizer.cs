@@ -6,9 +6,9 @@ namespace HattrickAI.V5.Core;
 
 /// <summary>
 /// Motor 2: selects an XI/position assignment for a fixed formation.
-/// The optimizer uses Motor 1 suitability scores as the primary assignment
-/// signal, while keeping the position occupancy valid. It deliberately does
-/// not choose player behaviour yet; that belongs to Motor 3/4.
+/// Uses Motor 1 suitability as the assignment weight and solves the full
+/// rectangular assignment problem instead of truncating the squad to 20.
+/// Behaviour remains Normal here; Motor 3/4 handles individual orders later.
 /// </summary>
 public sealed class XIOptimizer
 {
@@ -23,90 +23,120 @@ public sealed class XIOptimizer
         if (players.Count < 11) throw new InvalidOperationException("XI optimizasyonu için en az 11 oyuncu gerekli.");
 
         var slots = FormationSlots(formation);
-        if (slots.Count != 11) throw new InvalidOperationException($"Desteklenmeyen diziliş: {formation}");
+        var rows = slots.Count;
+        var cols = players.Count;
+        var cost = new double[rows, cols];
 
-        // The problem is a weighted bipartite assignment: every player can be
-        // used once and every slot must be filled once. For a normal squad
-        // size we can solve it exactly with dynamic programming over players.
-        // This is intentionally deterministic and avoids the old greedy
-        // BuildOwnLineup() order dependency.
-        var candidateCount = Math.Min(players.Count, 20);
-        var orderedPlayers = players
-            .OrderByDescending(p => BroadScore(p))
-            .Take(candidateCount)
-            .ToList();
-
-        var memo = new Dictionary<(int SlotIndex, ulong UsedMask), AssignmentResult>();
-        var best = Solve(0, 0UL, orderedPlayers, slots, memo);
-
-        if (best.Assignments.Count != slots.Count)
-            throw new InvalidOperationException("XI optimizasyonu geçerli bir 11 üretemedi.");
-
-        var result = new List<Slot>(slots.Count);
-        foreach (var assignment in best.Assignments)
+        for (var i = 0; i < rows; i++)
         {
-            var slot = slots[assignment.SlotIndex];
-            var player = orderedPlayers[assignment.PlayerIndex];
-            result.Add(new Slot(
-                slot.Code,
-                slot.Label,
-                slot.Description,
-                player.Name,
-                player.Id,
-                assignment.Suitability,
-                slot.X,
-                slot.Y,
-                PlayerOrder.Normal));
+            for (var j = 0; j < cols; j++)
+            {
+                var score = _suitability.Score(players[j], slots[i].Code);
+                cost[i, j] = double.IsNegativeInfinity(score) ? 1e9 : -score;
+            }
+        }
+
+        var assignment = RectangularHungarian(cost);
+        var result = new List<Slot>(rows);
+
+        for (var i = 0; i < rows; i++)
+        {
+            var playerIndex = assignment[i];
+            if (playerIndex < 0)
+                throw new InvalidOperationException("XI optimizasyonu geçerli bir atama üretemedi.");
+
+            var slot = slots[i];
+            var player = players[playerIndex];
+            var suitability = _suitability.Score(player, slot.Code);
+            if (double.IsNegativeInfinity(suitability))
+                throw new InvalidOperationException($"Oyuncu {player.Name} için {slot.Code} geçersiz atama.");
+
+            result.Add(new Slot(slot.Code, slot.Label, slot.Description,
+                player.Name, player.Id, suitability, slot.X, slot.Y, PlayerOrder.Normal));
         }
 
         return new Lineup(teamName, formation, result);
     }
 
-    private AssignmentResult Solve(
-        int slotIndex,
-        ulong usedMask,
-        IReadOnlyList<Player> players,
-        IReadOnlyList<TemplateSlot> slots,
-        Dictionary<(int SlotIndex, ulong UsedMask), AssignmentResult> memo)
+    private static int[] RectangularHungarian(double[,] cost)
     {
-        if (slotIndex >= slots.Count)
-            return new AssignmentResult(0, new List<Assignment>());
+        var rows = cost.GetLength(0);
+        var cols = cost.GetLength(1);
+        if (rows > cols) throw new ArgumentException("Satır sayısı sütun sayısından büyük olamaz.");
 
-        if (memo.TryGetValue((slotIndex, usedMask), out var cached))
-            return cached;
+        var u = new double[rows + 1];
+        var v = new double[cols + 1];
+        var p = new int[cols + 1];
+        var way = new int[cols + 1];
 
-        var slot = slots[slotIndex];
-        AssignmentResult? best = null;
-
-        for (var playerIndex = 0; playerIndex < players.Count; playerIndex++)
+        for (var i = 1; i <= rows; i++)
         {
-            var bit = 1UL << playerIndex;
-            if ((usedMask & bit) != 0) continue;
+            p[0] = i;
+            var j0 = 0;
+            var minv = Enumerable.Repeat(double.PositiveInfinity, cols + 1).ToArray();
+            var used = new bool[cols + 1];
 
-            var score = _suitability.Score(players[playerIndex], slot.Code);
-            if (double.IsNegativeInfinity(score)) continue;
-
-            var child = Solve(slotIndex + 1, usedMask | bit, players, slots, memo);
-            if (child.Assignments.Count != slots.Count - slotIndex - 1) continue;
-
-            var assignments = new List<Assignment>(child.Assignments.Count + 1)
+            do
             {
-                new(slotIndex, playerIndex, score)
-            };
-            assignments.AddRange(child.Assignments);
+                used[j0] = true;
+                var i0 = p[j0];
+                var delta = double.PositiveInfinity;
+                var j1 = 0;
 
-            var candidate = new AssignmentResult(score + child.TotalScore, assignments);
-            if (best is null || candidate.TotalScore > best.TotalScore + 1e-9)
-                best = candidate;
+                for (var j = 1; j <= cols; j++)
+                {
+                    if (used[j]) continue;
+                    var cur = cost[i0 - 1, j - 1] - u[i0] - v[j];
+                    if (cur < minv[j])
+                    {
+                        minv[j] = cur;
+                        way[j] = j0;
+                    }
+                    if (minv[j] < delta)
+                    {
+                        delta = minv[j];
+                        j1 = j;
+                    }
+                }
+
+                if (double.IsPositiveInfinity(delta))
+                    throw new InvalidOperationException("XI atamasında geçerli yol bulunamadı.");
+
+                for (var j = 0; j <= cols; j++)
+                {
+                    if (used[j])
+                    {
+                        u[p[j]] += delta;
+                        v[j] -= delta;
+                    }
+                    else
+                    {
+                        minv[j] -= delta;
+                    }
+                }
+
+                j0 = j1;
+            }
+            while (p[j0] != 0);
+
+            do
+            {
+                var j1 = way[j0];
+                p[j0] = p[j1];
+                j0 = j1;
+            }
+            while (j0 != 0);
         }
 
-        best ??= new AssignmentResult(double.NegativeInfinity, new List<Assignment>());
-        memo[(slotIndex, usedMask)] = best;
-        return best;
-    }
+        var assignment = Enumerable.Repeat(-1, rows).ToArray();
+        for (var j = 1; j <= cols; j++)
+        {
+            if (p[j] > 0)
+                assignment[p[j] - 1] = j - 1;
+        }
 
-    private static double BroadScore(Player p)
-        => p.Keeper + p.Defending + p.Playmaking + p.Passing + p.Winger + p.Scoring + p.Form * .1 + p.Stamina * .05;
+        return assignment;
+    }
 
     private static IReadOnlyList<TemplateSlot> FormationSlots(string formation)
         => formation switch
@@ -129,6 +159,4 @@ public sealed class XIOptimizer
         };
 
     private readonly record struct TemplateSlot(string Code,string Label,string Description,double X,double Y);
-    private readonly record struct Assignment(int SlotIndex,int PlayerIndex,double Suitability);
-    private sealed record AssignmentResult(double TotalScore,List<Assignment> Assignments);
 }
