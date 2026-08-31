@@ -6,11 +6,10 @@ namespace HattrickAI.V5.Core;
 
 /// <summary>
 /// V5 Hattrick regional-rating engine.
-/// Uses the researched position/skill contribution coefficients, central-line
-/// overcrowding penalties and separate match-context modifiers.
-/// Experience is intentionally NOT added as a second absolute rating layer:
-/// the public contribution coefficients already include a standard experience
-/// component, so experience will only be reintroduced after multi-match calibration.
+/// Uses the researched 2017-era contribution coefficients from the Hattrick
+/// community contribution tables. Player skills are adjusted for loyalty,
+/// form and the flat experience contribution before sector aggregation.
+/// Central-line overcrowding is applied to the complete central line.
 /// </summary>
 public sealed class RegionalRatingEngine
 {
@@ -19,9 +18,8 @@ public sealed class RegionalRatingEngine
         context ??= RatingContext.Default;
         var sectors = Empty();
 
-        // Hattrick's overcrowding penalties apply to the whole central line:
-        // all central defenders / inner midfielders / forwards count, regardless
-        // of whether the player's final visual side is L/C/R.
+        // Overcrowding counts the complete central line. A visual L/C/R side
+        // does not remove a player from the central-role penalty.
         var centralDefenders = players.Count(p => p.Position == RegionalPosition.CentralDefender);
         var centralMidfielders = players.Count(p => p.Position == RegionalPosition.InnerMidfielder);
         var centralForwards = players.Count(p => p.Position == RegionalPosition.Forward);
@@ -30,19 +28,21 @@ public sealed class RegionalRatingEngine
         {
             var form = FormFactor(player.Form);
             var loyalty = LoyaltyEffect(player.Loyalty);
+            // Hattrick's researched experience effect is a flat contribution
+            // equivalent to skill levels. Apply it to skills before the same
+            // position-specific contribution coefficients are used.
+            var experience = ExperienceBonus(player.Experience);
             var effective = new EffectiveSkills(
-                (player.Keeper + loyalty) * form,
-                (player.Defending + loyalty) * form,
-                (player.Playmaking + loyalty) * form,
-                (player.Passing + loyalty) * form,
-                (player.Winger + loyalty) * form,
-                (player.Scoring + loyalty) * form);
+                (player.Keeper + loyalty + experience) * form,
+                (player.Defending + loyalty + experience) * form,
+                (player.Playmaking + loyalty + experience) * form,
+                (player.Passing + loyalty + experience) * form,
+                (player.Winger + loyalty + experience) * form,
+                (player.Scoring + loyalty + experience) * form);
 
             AddPositionContribution(sectors, player, effective, centralDefenders, centralMidfielders, centralForwards);
         }
 
-        // Do not add a second absolute experience contribution. The published
-        // contribution coefficients already contain a standard experience factor.
         ApplyContext(sectors, context);
         return ToSnapshot(sectors);
     }
@@ -245,9 +245,7 @@ public sealed class RegionalRatingEngine
             case PlayerOrder.TowardsWing:
                 Add(s, RatingSector.Midfield, k.Playmaking * .024);
                 if (p.Side == PlayerSide.Center)
-                {
                     AddBothSides(s, RatingSector.LeftAttack, RatingSector.RightAttack, k.Scoring * .093 + k.Passing * .101 + k.Winger * .044);
-                }
                 else
                 {
                     Add(s, side, k.Scoring * .093 + k.Passing * .101 + k.Winger * .044);
@@ -259,9 +257,7 @@ public sealed class RegionalRatingEngine
             case PlayerOrder.Defensive:
                 Add(s, RatingSector.Midfield, k.Playmaking * .058);
                 if (p.Side == PlayerSide.Center)
-                {
                     AddBothSides(s, RatingSector.LeftAttack, RatingSector.RightAttack, k.Scoring * .030 + k.Passing * .033 + k.Winger * .059);
-                }
                 else
                 {
                     Add(s, side, k.Scoring * .030 + k.Passing * .033 + k.Winger * .059);
@@ -273,9 +269,7 @@ public sealed class RegionalRatingEngine
             default:
                 Add(s, RatingSector.Midfield, k.Playmaking * .041);
                 if (p.Side == PlayerSide.Center)
-                {
                     AddBothSides(s, RatingSector.LeftAttack, RatingSector.RightAttack, k.Scoring * .058 + k.Passing * .048 + k.Winger * .032);
-                }
                 else
                 {
                     var sideCore = k.Scoring * .058 + k.Passing * .048;
@@ -356,6 +350,17 @@ public sealed class RegionalRatingEngine
 
     private static double LoyaltyEffect(double loyalty)
         => loyalty <= 0 ? 0 : Math.Clamp(loyalty * .05, 0.0, 1.0);
+
+    private static double ExperienceBonus(double experience)
+    {
+        var values = new[]
+        {
+            0.00, 0.00, .40, .64, .80, .93, 1.04, 1.13, 1.20, 1.27,
+            1.33, 1.39, 1.44, 1.49, 1.53, 1.57, 1.61, 1.64, 1.67, 1.71, 1.73
+        };
+        var level = Math.Clamp((int)Math.Round(experience), 1, 20);
+        return values[level];
+    }
 
     private static void AddBothSides(Dictionary<RatingSector, double> s, RatingSector left, RatingSector right, double value)
     {
