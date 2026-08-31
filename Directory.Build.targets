@@ -1,0 +1,5 @@
+<Project>
+  <Target Name="PatchV5WebUi" BeforeTargets="PrepareForPublish" Condition="'$(TargetFramework)' == 'net9.0'">
+    <Exec Command="bash &quot;$(MSBuildProjectDirectory)/../tools/patch-v5-ui.sh&quot; &quot;$(MSBuildProjectDirectory)/wwwroot/index.html&quot;" />
+  </Target>
+</Project>
