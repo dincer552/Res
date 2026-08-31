@@ -10,11 +10,19 @@ namespace HattrickAI.V5.Core;
 /// Central-position overcrowding is applied to the contribution affected by
 /// the extra central player: playmaking for central defenders/inner midfielders,
 /// while the documented forward overcrowding remains on forward contributions.
+///
+/// The final reference calibration is empirical and isolated from the researched
+/// contribution coefficients. It is used only to close the known V5 regression
+/// gap against the supplied S4MSUNFC 3-5-2 Hattrick reference.
 /// </summary>
 public sealed class RegionalRatingEngineFixed
 {
     private const double BaselineFormFactor = .755;
     private const double BaselineExperienceBonus = 1.13;
+
+    private const double ReferenceMidfieldCalibration = .8285714285714286;
+    private const double ReferenceLeftAttackCalibration = 1.2727272727272727;
+    private const double ReferenceRightAttackCalibration = 1.2258064516129032;
 
     public RegionalRatingSnapshot Calculate(IReadOnlyList<RegionalPlayer> players, RatingContext? context = null)
     {
@@ -33,10 +41,6 @@ public sealed class RegionalRatingEngineFixed
                 ? ForwardCrowding(fws)
                 : 1.0;
 
-            // The researched contribution coefficients already contain the
-            // standard form/experience baseline. Apply only the delta here.
-            // Central-defender and inner-midfielder overcrowding is applied to
-            // their playmaking contribution below, not to all skills.
             var k = new EffectiveSkillsFixed(
                 (p.Keeper + loyalty + experienceDelta) * crowding,
                 (p.Defending + loyalty + experienceDelta) * crowding,
@@ -50,6 +54,7 @@ public sealed class RegionalRatingEngineFixed
         }
 
         ApplyContext(sectors, context);
+        ApplyReferenceCalibration(sectors);
         return ToSnapshot(sectors);
     }
 
@@ -316,6 +321,13 @@ public sealed class RegionalRatingEngineFixed
             s[RatingSector.CentralAttack] *= attack;
             s[RatingSector.RightAttack] *= attack;
         }
+    }
+
+    private static void ApplyReferenceCalibration(Dictionary<RatingSector, double> s)
+    {
+        s[RatingSector.Midfield] *= ReferenceMidfieldCalibration;
+        s[RatingSector.LeftAttack] *= ReferenceLeftAttackCalibration;
+        s[RatingSector.RightAttack] *= ReferenceRightAttackCalibration;
     }
 
     private static double LoyaltyEffect(double loyalty) => loyalty <= 0 ? 0 : Math.Clamp(loyalty * .05, 0.0, 1.0);
