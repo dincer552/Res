@@ -4,10 +4,9 @@ using System.Collections.Generic;
 namespace HattrickAI.V5.Core;
 
 /// <summary>
-/// Integration bridge for Motor 2.
-/// Motor 1 supplies positional suitability; an optional opponent profile is
-/// supplied before XI selection so the chosen XI is opponent-aware without
-/// creating a circular dependency on our own final rating.
+/// Motor 2 integration bridge.
+/// Keeps the public contract explicit: players are the second argument and
+/// the opponent profile is optional and supplied before XI selection.
 /// </summary>
 public sealed class XIOptimizationService
 {
@@ -28,5 +27,8 @@ public sealed class XIOptimizationService
         IReadOnlyList<Player> players,
         string formation,
         OpponentMatchProfile? opponent = null)
-        => _optimizer.Optimize(teamName, players, formation, opponent);
+    {
+        ArgumentNullException.ThrowIfNull(players);
+        return _optimizer.Optimize(teamName, players, formation, opponent);
+    }
 }
