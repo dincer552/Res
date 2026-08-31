@@ -43,43 +43,32 @@ public sealed record Lineup(
     {
         var used = new HashSet<string>(StringComparer.Ordinal);
         var result = new List<Slot>(source.Count);
-
         foreach (var slot in source)
         {
             var code = slot.Code;
             if (!used.Add(code))
-            {
                 foreach (var alternative in Alternatives(code))
-                {
-                    if (used.Add(alternative))
-                    {
-                        code = alternative;
-                        break;
-                    }
-                }
-            }
-
+                    if (used.Add(alternative)) { code = alternative; break; }
             result.Add(code == slot.Code ? slot : slot with { Code = code });
         }
-
         return result;
     }
 
     private static IEnumerable<string> Alternatives(string code) => code switch
     {
-        "DEF-C"  => ["DEF-CL", "DEF-CR", "DEF-L", "DEF-R"],
+        "DEF-C" => ["DEF-CL", "DEF-CR", "DEF-L", "DEF-R"],
         "DEF-CL" => ["DEF-C", "DEF-CR", "DEF-L", "DEF-R"],
         "DEF-CR" => ["DEF-C", "DEF-CL", "DEF-R", "DEF-L"],
-        "DEF-L"  => ["DEF-CL", "DEF-C", "DEF-CR", "DEF-R"],
-        "DEF-R"  => ["DEF-CR", "DEF-C", "DEF-CL", "DEF-L"],
-        "IM-C"    => ["IM-L", "IM-R", "W-L", "W-R"],
-        "IM-L"    => ["IM-C", "IM-R", "W-L", "W-R"],
-        "IM-R"    => ["IM-C", "IM-L", "W-R", "W-L"],
-        "W-L"     => ["IM-L", "IM-C", "W-R", "IM-R"],
-        "W-R"     => ["IM-R", "IM-C", "W-L", "IM-L"],
-        "FW-C"    => ["FW-L", "FW-R"],
-        "FW-L"    => ["FW-C", "FW-R"],
-        "FW-R"    => ["FW-C", "FW-L"],
+        "DEF-L" => ["DEF-CL", "DEF-C", "DEF-CR", "DEF-R"],
+        "DEF-R" => ["DEF-CR", "DEF-C", "DEF-CL", "DEF-L"],
+        "IM-C" => ["IM-L", "IM-R", "W-L", "W-R"],
+        "IM-L" => ["IM-C", "IM-R", "W-L", "W-R"],
+        "IM-R" => ["IM-C", "IM-L", "W-R", "W-L"],
+        "W-L" => ["IM-L", "IM-C", "W-R", "IM-R"],
+        "W-R" => ["IM-R", "IM-C", "W-L", "IM-L"],
+        "FW-C" => ["FW-L", "FW-R"],
+        "FW-L" => ["FW-C", "FW-R"],
+        "FW-R" => ["FW-C", "FW-L"],
         _ => []
     };
 }
@@ -100,4 +89,47 @@ public sealed record Analysis(
     public string OwnFormation => Own.Formation;
     public string OpponentFormation => Opponent.Formation;
     public RegionalRatingPair RegionalRatings => new(OwnRating, OpponentRating);
+    /// <summary>Motor 7 sonucu: rakip hücumunun bizim savunma eşleşmelerindeki tehdidi.</summary>
+    public OpponentThreatSnapshot OpponentThreat => new OpponentThreatEngine().Analyze(OwnRating, OpponentRating);
 }
+
+/// <summary>Motor 7: rakibin bölgesel hücumlarını kendi savunma eşleşmelerine çevirir.</summary>
+public sealed class OpponentThreatEngine
+{
+    public OpponentThreatSnapshot Analyze(RegionalRatingSnapshot own, RegionalRatingSnapshot opponent)
+    {
+        var left = opponent.RightAttack - own.LeftDefence;
+        var center = opponent.CentralAttack - own.CentralDefence;
+        var right = opponent.LeftAttack - own.RightDefence;
+        var threats = new[]
+        {
+            new SectorThreat("LEFT", left, opponent.RightAttack, own.LeftDefence),
+            new SectorThreat("CENTER", center, opponent.CentralAttack, own.CentralDefence),
+            new SectorThreat("RIGHT", right, opponent.LeftAttack, own.RightDefence)
+        };
+        var ordered = threats.OrderByDescending(x => x.Gap).ToList();
+        return new OpponentThreatSnapshot(ordered[0].Sector, left, center, right,
+            Severity(left), Severity(center), Severity(right), ordered);
+    }
+
+    private static ThreatSeverity Severity(double gap) => gap switch
+    {
+        >= 3.0 => ThreatSeverity.Critical,
+        >= 1.5 => ThreatSeverity.High,
+        >= 0.5 => ThreatSeverity.Medium,
+        > -0.5 => ThreatSeverity.Low,
+        _ => ThreatSeverity.Controlled
+    };
+}
+
+public enum ThreatSeverity { Controlled, Low, Medium, High, Critical }
+public sealed record SectorThreat(string Sector, double Gap, double OpponentAttack, double OwnDefence);
+public sealed record OpponentThreatSnapshot(
+    string PrimaryThreatSector,
+    double LeftGap,
+    double CenterGap,
+    double RightGap,
+    ThreatSeverity LeftSeverity,
+    ThreatSeverity CenterSeverity,
+    ThreatSeverity RightSeverity,
+    IReadOnlyList<SectorThreat> OrderedThreats);
