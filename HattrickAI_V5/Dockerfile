@@ -11,5 +11,19 @@ ENV ASPNETCORE_URLS=http://+:10000
 ARG BUILD_SHA=dev
 ENV V5_BUILD=${BUILD_SHA}
 COPY --from=build /app/publish .
+# Hattrick's Turkish team-spirit names are not the English enum translations.
+# Keep the wire values stable, but render the official Turkish labels in V5.
+RUN sed -i \
+  -e 's#\[\x27Murderous\x27,\x27Öldürücü\x27\]#[\x27Murderous\x27,\x27Öldürücü\x27]#' \
+  -e 's#\[\x27Furious\x27,\x27Öfkeli\x27\]#[\x27Furious\x27,\x27Köpürmüş\x27]#' \
+  -e 's#\[\x27Irritated\x27,\x27Sinirli\x27\]#[\x27Irritated\x27,\x27Rahatsız\x27]#' \
+  -e 's#\[\x27Composed\x27,\x27Soğukkanlı\x27\]#[\x27Composed\x27,\x27Kaynaşık\x27]#' \
+  -e 's#\[\x27Calm\x27,\x27Sakin\x27\]#[\x27Calm\x27,\x27Huzurlu\x27]#' \
+  -e 's#\[\x27Content\x27,\x27Memnun\x27\]#[\x27Content\x27,\x27Hoşnut\x27]#' \
+  -e 's#\[\x27Satisfied\x27,\x27Tatmin olmuş\x27\]#[\x27Satisfied\x27,\x27Memnun\x27]#' \
+  -e 's#\[\x27Delirious\x27,\x27Coşkulu\x27\]#[\x27Delirious\x27,\x27Coşkulu\x27]#' \
+  -e 's#\[\x27WalkingOnClouds\x27,\x27Bulutların üzerinde\x27\]#[\x27WalkingOnClouds\x27,\x27Bulutların Üzerinde\x27]#' \
+  -e 's#\[\x27ParadiseOnEarth\x27,\x27Cennette\x27\]#[\x27ParadiseOnEarth\x27,\x27Yeryüzünde Cennet\x27]#' \
+  /app/wwwroot/index.html
 RUN sed -i 's#</style>#.slot-code,.slot-desc,.slot:not(.filled) .slot-name,.slot:not(.filled) .slot-rating{display:none!important}</style>#' /app/wwwroot/index.html
 ENTRYPOINT ["dotnet","HattrickAI.V5.dll","--hostBuilder:reloadConfigOnChange=false"]
