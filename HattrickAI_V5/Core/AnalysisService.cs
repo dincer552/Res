@@ -11,6 +11,9 @@ public sealed class AnalysisService
 
     public async Task<Analysis> RunAsync(string build, MatchQuestionnaire? questionnaire, CancellationToken ct)
     {
+        // V5 intentionally asks the user for exactly three match inputs:
+        // coach style, team spirit and match importance. All other parameters
+        // are filled with stable neutral defaults by RatingContext/engine.
         questionnaire ??= MatchQuestionnaire.Default;
 
         var teamXml = await _chpp.GetXmlAsync("teamdetails", new Dictionary<string,string?> { ["version"]="3.0" }, ct);
@@ -18,12 +21,6 @@ public sealed class AnalysisService
         var teamId = XmlV5.Int(teamNode, "TeamID");
         var teamName = XmlV5.Text(teamNode, "TeamName");
         if (teamId <= 0) throw new InvalidOperationException("Kullanıcı takım bilgisi alınamadı.");
-
-        // Team spirit is a live team state in Hattrick and is exposed by CHPP training.
-        // Prefer that value over the questionnaire guess; keep the questionnaire as fallback.
-        var psychology = await ReadCurrentPsychology(teamId, ct);
-        if (psychology.Morale is >= 1 and <= 10)
-            questionnaire = questionnaire with { TeamSpirit = ToTeamSpirit(psychology.Morale) };
 
         var ownPlayers = await ReadPlayers(teamId, ct);
         if (ownPlayers.Count < 11) throw new InvalidOperationException("Kullanıcı takımında analiz için yeterli oyuncu verisi yok.");
@@ -95,6 +92,10 @@ public sealed class AnalysisService
             Formation(opponentSlots),
             opponentSlots);
 
+        // Questionnaire inputs are applied only to our calculated rating.
+        // Coach style and team spirit are applied by QuestionnaireRatingAdjuster;
+        // match importance is passed through RatingContext. No extra user input
+        // is required. Unknown inputs remain neutral/default inside the engine.
         var ownContext = new RatingContext(
             next.HomeId == teamId ? MatchLocation.Home : MatchLocation.Away,
             questionnaire.MatchImportance,
@@ -106,45 +107,8 @@ public sealed class AnalysisService
 
         var location = next.HomeId == teamId ? "Ev sahibi" : "Deplasman";
         var title = $"{next.Date.ToLocalTime():dd.MM.yyyy HH:mm} • {opponentName} • {location}";
-        return new Analysis(build, teamName, opponentName, title, ownLineup, opponentLineup, ownRating, opponentRating);
+        return new Analysis(build, teamName, opponentName, title, ownLineup, opponentLineup, ownRating, opponentRating, questionnaire);
     }
-
-    private async Task<(int Morale, int Confidence)> ReadCurrentPsychology(int teamId, CancellationToken ct)
-    {
-        try
-        {
-            var xml = await _chpp.GetXmlAsync("training", new Dictionary<string,string?>
-            {
-                ["version"]="1.2"
-            }, ct);
-            var root = XmlV5.Root(xml);
-            var team = root?.Descendants("Team").FirstOrDefault();
-            return (
-                XmlV5.Int(team, "Morale"),
-                XmlV5.Int(team, "SelfConfidence"));
-        }
-        catch
-        {
-            // Do not break analysis if the optional psychology endpoint is unavailable.
-            return (0, 0);
-        }
-    }
-
-    private static TeamSpiritLevel ToTeamSpirit(int morale)
-        => morale switch
-        {
-            1 => TeamSpiritLevel.Murderous,
-            2 => TeamSpiritLevel.Furious,
-            3 => TeamSpiritLevel.Irritated,
-            4 => TeamSpiritLevel.Composed,
-            5 => TeamSpiritLevel.Calm,
-            6 => TeamSpiritLevel.Content,
-            7 => TeamSpiritLevel.Satisfied,
-            8 => TeamSpiritLevel.Delirious,
-            9 => TeamSpiritLevel.WalkingOnClouds,
-            >= 10 => TeamSpiritLevel.ParadiseOnEarth,
-            _ => TeamSpiritLevel.Composed
-        };
 
     private static bool IsCompetitiveMatchType(int type)
         => type is 1 or 2 or 7 or 10 or 11;
