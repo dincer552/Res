@@ -1,95 +1,40 @@
 (function(){
   'use strict';
-
-  function clean(value){
-    return String(value == null ? '' : value).replace(/\s+/g,' ').trim();
-  }
-
+  function clean(v){return String(v==null?'':v).replace(/\s+/g,' ').trim();}
   function readTeam(prefix){
     var pitch=document.getElementById(prefix+'Pitch');
-    var title=clean(document.getElementById(prefix+'Title') && document.getElementById(prefix+'Title').textContent);
-    var formation=clean(document.getElementById(prefix+'Formation') && document.getElementById(prefix+'Formation').textContent);
-    var meta=clean(document.getElementById(prefix+'Meta') && document.getElementById(prefix+'Meta').textContent);
+    var title=clean(document.getElementById(prefix+'Title')&&document.getElementById(prefix+'Title').textContent).replace(/\s*•.*$/,'');
+    var formation=clean(document.getElementById(prefix+'Formation')&&document.getElementById(prefix+'Formation').textContent);
     var players=[];
-
+    if(pitch) pitch.querySelectorAll('.slot.filled').forEach(function(slot){
+      var code=clean(slot.querySelector('.slot-code')&&slot.querySelector('.slot-code').textContent);
+      var name=clean(slot.querySelector('.slot-name')&&slot.querySelector('.slot-name').textContent);
+      var raw=clean(slot.querySelector('.slot-rating')&&slot.querySelector('.slot-rating').textContent);
+      var rp=raw.replace(/^RP\s*=\s*/i,'').replace(/^RP\s*/i,'');
+      if(name) players.push((code?code+': ':'')+name+' | RP='+rp);
+    });
+    var values=[];
     if(pitch){
-      pitch.querySelectorAll('.slot.filled').forEach(function(slot){
-        var code=clean(slot.querySelector('.slot-code') && slot.querySelector('.slot-code').textContent);
-        var name=clean(slot.querySelector('.slot-name') && slot.querySelector('.slot-name').textContent);
-        var rating=clean(slot.querySelector('.slot-rating') && slot.querySelector('.slot-rating').textContent);
-        if(name) players.push((code ? code+': ' : '')+name+(rating ? ' | RP='+rating : ''));
-      });
+      var board=pitch.querySelector('.rating-board');
+      if(board) values=[].slice.call(board.querySelectorAll('.rating-row span,.rating-mid span')).map(function(x){return clean(x.textContent);}).filter(Boolean);
     }
-
-    return {title:title,formation:formation,meta:meta,players:players};
+    return {title:title,formation:formation,players:players,ratings:values};
   }
-
-  function buildText(){
-    var own=readTeam('own');
-    var opp=readTeam('opp');
-    return [
-      'HattrickAI V5 KOPYA',
-      'TAKIM: '+(own.title || '—'),
-      'DİZİLİŞ: '+(own.formation || '—'),
-      '',
-      'OYUNCULAR:',
-      own.players.join('\n'),
-      '',
-      'BÖLGESEL RATING:',
-      own.meta || '—',
-      '',
-      'rakip HattrickAI V5 KOPYA',
-      'TAKIM: '+(opp.title || '—'),
-      'DİZİLİŞ: '+(opp.formation || '—'),
-      '',
-      'OYUNCULAR:',
-      opp.players.join('\n'),
-      '',
-      'BÖLGESEL RATING:',
-      opp.meta || '—'
-    ].join('\n');
+  function block(prefix,opponent){
+    var t=readTeam(prefix), labels=['DEF-L','DEF-C','DEF-R','MID','ATT-L','ATT-C','ATT-R'];
+    return [(opponent?'RAKİP ':'')+'HattrickAI V5 KOPYA','TAKIM: '+(t.title||'—'),'DİZİLİŞ: '+(t.formation||'—'),'','OYUNCULAR:',t.players.join('\n'),'','BÖLGESEL RATING:'].concat(labels.map(function(l,i){return l+': '+(t.ratings[i]||'—');})).join('\n');
   }
-
   function install(){
-    var own=document.getElementById('copyOwn');
-    var opp=document.getElementById('copyOpp');
+    var own=document.getElementById('copyOwn'),opp=document.getElementById('copyOpp');
     if(opp) opp.remove();
-    if(!own || own.dataset.combinedCopy==='1') return;
-
-    own.dataset.combinedCopy='1';
-    own.textContent='İKİ TAKIMI KOPYALA';
-    own.title='Kendi takımını ve rakip takımı birlikte kopyala';
+    if(!own||own.dataset.combinedCopy==='1') return;
+    own.dataset.combinedCopy='1';own.textContent='İKİ TAKIMI KOPYALA';
     own.addEventListener('click',function(){
-      var text=buildText();
-      var button=own;
-      function done(){
-        button.textContent='KOPYALANDI ✓';
-        button.classList.add('ok');
-        window.setTimeout(function(){
-          button.textContent='İKİ TAKIMI KOPYALA';
-          button.classList.remove('ok');
-        },1400);
-      }
-      if(navigator.clipboard && window.isSecureContext){
-        navigator.clipboard.writeText(text).then(done).catch(function(){fallback();});
-      }else fallback();
-      function fallback(){
-        var area=document.createElement('textarea');
-        area.value=text;
-        area.style.position='fixed';
-        area.style.opacity='0';
-        document.body.appendChild(area);
-        area.focus();
-        area.select();
-        try{document.execCommand('copy');done();}finally{area.remove();}
-      }
+      var text=block('own',false)+'\n\n'+block('opp',true),button=own;
+      function done(){button.textContent='KOPYALANDI ✓';button.classList.add('ok');setTimeout(function(){button.textContent='İKİ TAKIMI KOPYALA';button.classList.remove('ok');},1400);}
+      function fallback(){var a=document.createElement('textarea');a.value=text;a.style.position='fixed';a.style.opacity='0';document.body.appendChild(a);a.focus();a.select();try{document.execCommand('copy');done();}finally{a.remove();}}
+      if(navigator.clipboard&&window.isSecureContext) navigator.clipboard.writeText(text).then(done).catch(fallback); else fallback();
     });
   }
-
-  function start(){
-    install();
-  }
-
-  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',start);
-  else start();
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',install); else install();
 })();
