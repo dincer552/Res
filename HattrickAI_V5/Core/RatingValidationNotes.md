@@ -73,7 +73,14 @@ ATT-R 6.75
 9. **The questionnaire remains exactly three questions.**
    Coach style, team spirit and match importance are the only user inputs. Confidence is live CHPP data and is not a fourth question.
 
-## Next regression test
+10. **Latest regression calibration targets the two remaining systematic gaps.**
+    - Midfield calibration: `8.75 -> 7.25` (`× 0.8285714286`)
+    - Left attack calibration: `8.25 -> 10.50` (`× 1.2727272727`)
+    - Right attack calibration: `7.75 -> 9.50` (`× 1.2258064516`)
+    - Defence and central attack are deliberately untouched.
+    - These three factors are an empirical regression layer, not a claim that Hattrick itself uses these multipliers. They remain isolated so they can be replaced when another verified lineup disproves them.
+
+## Current regression test
 
 Run the same S4MSUNFC 3-5-2 XI with the same questionnaire choices:
 
@@ -85,4 +92,4 @@ Ground truth from Hattrick:
 
 `10.25 / 16.50 / 10.25 / 7.25 / 10.50 / 12.00 / 9.50`
 
-The next live V5 output should be compared sector-by-sector. Do not tune coefficients again until this exact XI is tested after the new build.
+The next live V5 output should be compared sector-by-sector. Do not tune the coefficients again until this exact XI is tested after the new build.
