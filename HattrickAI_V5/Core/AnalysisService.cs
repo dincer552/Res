@@ -8,13 +8,11 @@ public sealed class AnalysisService
     private readonly ChppV5 _chpp;
     private readonly RegionalRatingEngineFixed _ratingEngine = new();
     private readonly XIOptimizationService _xiOptimization = new();
+    private readonly OpponentThreatEngine _threatEngine = new();
     public AnalysisService(ChppV5 chpp) => _chpp = chpp;
 
     public async Task<Analysis> RunAsync(string build, MatchQuestionnaire? questionnaire, CancellationToken ct)
     {
-        // V5 intentionally asks the user for exactly three match inputs:
-        // coach style, team spirit and match importance. Other live team
-        // psychology data that CHPP exposes is read automatically.
         questionnaire ??= MatchQuestionnaire.Default;
 
         var teamXml = await _chpp.GetXmlAsync("teamdetails", new Dictionary<string,string?> { ["version"]="3.0" }, ct);
@@ -23,8 +21,6 @@ public sealed class AnalysisService
         var teamName = XmlV5.Text(teamNode, "TeamName");
         if (teamId <= 0) throw new InvalidOperationException("Kullanıcı takım bilgisi alınamadı.");
 
-        // Confidence is not a questionnaire item: CHPP provides it directly
-        // through training.asp. It is a live attack-rating modifier.
         var trainingXml = await _chpp.GetXmlAsync("training", new Dictionary<string,string?> { ["version"]="1.1" }, ct);
         var trainingTeam = XmlV5.Root(trainingXml)?.Descendants("Team").FirstOrDefault();
         var selfConfidence = XmlV5.Int(trainingTeam, "SelfConfidence");
@@ -81,11 +77,7 @@ public sealed class AnalysisService
         if (lineupNodes.Count != 11)
             throw new InvalidOperationException($"Rakibin seçilen resmi son maçında final saha 11'i belirlenemedi. CHPP final saha oyuncusu: {lineupNodes.Count}.");
 
-        // Motor 2 is now the live source of the user's XI. It uses Motor 1
-        // position suitability scores and replaces the old greedy selector.
-        const string formation = "3-5-2";
-        var ownLineup = _xiOptimization.BuildBestXI(teamName, ownPlayers, formation);
-
+        // Stage 1/2: analyse the opponent BEFORE selecting our XI.
         var opponentHistoricalRating = await ReadDirectHistoricalOpponentRating(lastMatch.MatchId, opponentId, ct);
         var experienceLevel = Math.Clamp(
             XmlV5.Int(lineupRoot?.Descendants("Team").FirstOrDefault(), "ExperienceLevel"),
@@ -99,6 +91,17 @@ public sealed class AnalysisService
             lastMatch.HomeId == opponentId ? lastMatch.HomeName : lastMatch.AwayName,
             Formation(opponentSlots),
             opponentSlots);
+
+        var opponentThreat = _threatEngine.Analyze(opponentHistoricalRating);
+        var opponentProfile = new OpponentMatchProfile(
+            opponentName,
+            opponentLineup.Formation,
+            opponentHistoricalRating,
+            opponentThreat);
+
+        // Motor 2: choose our XI only after the opponent profile is known.
+        const string formation = "3-5-2";
+        var ownLineup = _xiOptimization.BuildBestXI(teamName, ownPlayers, formation, opponentProfile);
 
         var ownContext = new RatingContext(
             next.HomeId == teamId ? MatchLocation.Home : MatchLocation.Away,
@@ -286,6 +289,18 @@ public sealed class AnalysisService
             map.Item3, map.Item4, order, stars);
     }
 
+    private static int ParseStars(string value)
+        => int.TryParse(value.Replace(".", string.Empty, StringComparison.Ordinal).Trim(),
+            NumberStyles.Integer, CultureInfo.InvariantCulture, out var v) ? v : 0;
+
+    private static Lineup Formation(IReadOnlyList<Slot> slots)
+    {
+        var d = slots.Count(x => x.Code.StartsWith("DEF",StringComparison.Ordinal));
+        var m = slots.Count(x => x.Code.StartsWith("IM",StringComparison.Ordinal) || x.Code.StartsWith("W-",StringComparison.Ordinal));
+        var f = slots.Count(x => x.Code.StartsWith("FW",StringComparison.Ordinal));
+        return new Lineup("Opponent", $"{d}-{m}-{f}", slots);
+    }
+
     // Legacy/reference implementation retained for comparison during migration.
     // Live analysis no longer calls this method; Motor 2 is the active XI selector.
     private static Lineup BuildOwnLineup(string teamName, List<Player> players)
@@ -336,13 +351,5 @@ public sealed class AnalysisService
             code.StartsWith("W-") ? p.Winger*.45 + p.Playmaking*.20 + p.Passing*.20 + p.Defending*.10 + p.Form*.05 :
             p.Scoring*.55 + p.Passing*.20 + p.Winger*.15 + p.Playmaking*.10;
         return new Slot(code,label,description,p.Name,p.Id,Math.Round(Math.Clamp(rating,0,20),2),x,y,order);
-    }
-
-    private static string Formation(IReadOnlyList<Slot> slots)
-    {
-        var d = slots.Count(x => x.Code.StartsWith("DEF",StringComparison.Ordinal));
-        var m = slots.Count(x => x.Code.StartsWith("IM",StringComparison.Ordinal) || x.Code.StartsWith("W-",StringComparison.Ordinal));
-        var f = slots.Count(x => x.Code.StartsWith("FW",StringComparison.Ordinal));
-        return $"{d}-{m}-{f}";
     }
 }
