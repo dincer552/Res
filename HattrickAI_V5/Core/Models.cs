@@ -89,47 +89,10 @@ public sealed record Analysis(
     public string OwnFormation => Own.Formation;
     public string OpponentFormation => Opponent.Formation;
     public RegionalRatingPair RegionalRatings => new(OwnRating, OpponentRating);
-    /// <summary>Motor 7 sonucu: rakip hücumunun bizim savunma eşleşmelerindeki tehdidi.</summary>
-    public OpponentThreatSnapshot OpponentThreat => new OpponentThreatEngine().Analyze(OwnRating, OpponentRating);
+
+    /// <summary>
+    /// Motor 7 adapter. The canonical threat engine lives in
+    /// OpponentThreatEngine.cs; Models.cs only exposes its result.
+    /// </summary>
+    public OpponentThreatMap OpponentThreat => new OpponentThreatEngine().Analyze(OpponentRating);
 }
-
-/// <summary>Motor 7: rakibin bölgesel hücumlarını kendi savunma eşleşmelerine çevirir.</summary>
-public sealed class OpponentThreatEngine
-{
-    public OpponentThreatSnapshot Analyze(RegionalRatingSnapshot own, RegionalRatingSnapshot opponent)
-    {
-        var left = opponent.RightAttack - own.LeftDefence;
-        var center = opponent.CentralAttack - own.CentralDefence;
-        var right = opponent.LeftAttack - own.RightDefence;
-        var threats = new[]
-        {
-            new SectorThreat("LEFT", left, opponent.RightAttack, own.LeftDefence),
-            new SectorThreat("CENTER", center, opponent.CentralAttack, own.CentralDefence),
-            new SectorThreat("RIGHT", right, opponent.LeftAttack, own.RightDefence)
-        };
-        var ordered = threats.OrderByDescending(x => x.Gap).ToList();
-        return new OpponentThreatSnapshot(ordered[0].Sector, left, center, right,
-            Severity(left), Severity(center), Severity(right), ordered);
-    }
-
-    private static ThreatSeverity Severity(double gap) => gap switch
-    {
-        >= 3.0 => ThreatSeverity.Critical,
-        >= 1.5 => ThreatSeverity.High,
-        >= 0.5 => ThreatSeverity.Medium,
-        > -0.5 => ThreatSeverity.Low,
-        _ => ThreatSeverity.Controlled
-    };
-}
-
-public enum ThreatSeverity { Controlled, Low, Medium, High, Critical }
-public sealed record SectorThreat(string Sector, double Gap, double OpponentAttack, double OwnDefence);
-public sealed record OpponentThreatSnapshot(
-    string PrimaryThreatSector,
-    double LeftGap,
-    double CenterGap,
-    double RightGap,
-    ThreatSeverity LeftSeverity,
-    ThreatSeverity CenterSeverity,
-    ThreatSeverity RightSeverity,
-    IReadOnlyList<SectorThreat> OrderedThreats);
