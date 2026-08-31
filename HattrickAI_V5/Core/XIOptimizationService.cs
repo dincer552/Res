@@ -5,9 +5,9 @@ namespace HattrickAI.V5.Core;
 
 /// <summary>
 /// Integration bridge for Motor 2.
-/// Keeps XI selection separate from rating calculation and from future
-/// behaviour optimization. The bridge is intentionally thin so the
-/// RegionalRatingEngine remains the single rating authority.
+/// Motor 1 supplies positional suitability; an optional opponent profile is
+/// supplied before XI selection so the chosen XI is opponent-aware without
+/// creating a circular dependency on our own final rating.
 /// </summary>
 public sealed class XIOptimizationService
 {
@@ -23,6 +23,10 @@ public sealed class XIOptimizationService
         _optimizer = new XIOptimizer(suitability ?? throw new ArgumentNullException(nameof(suitability)));
     }
 
-    public Lineup BuildBestXI(string teamName, IReadOnlyList<Player> players, string formation)
-        => _optimizer.Optimize(teamName, players, formation);
+    public Lineup BuildBestXI(
+        string teamName,
+        IReadOnlyList<Player> players,
+        string formation,
+        OpponentMatchProfile? opponent = null)
+        => _optimizer.Optimize(teamName, players, formation, opponent);
 }
