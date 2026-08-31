@@ -13,8 +13,12 @@ CHPP'den kendi takımının oyuncu becerileri ve takım verileri ile rakibin son
 ### Motor 2 — XI Optimizer
 `XIOptimizer` ve `XIOptimizationService`, Motor 1'in uygunluk skorlarını kullanarak aynı anda 11 oyuncuyu ve pozisyonlarını seçmek için oluşturuldu. Amaç, oyuncuları sırayla greedy biçimde dağıtmak yerine takım bütünlüğünü dikkate alan bir XI üretmektir.
 
-### Motor 3 — Behaviour Engine (sıradaki katman)
-Seçilen pozisyon için oyuncunun Normal, Ofansif, Defansif, Ortaya Doğru veya Kanada Doğru davranış alternatiflerini değerlendirecek. Behaviour seçimi yalnızca görüntü bilgisi değildir; Regional Rating Engine'e gerçek bir girdi olacaktır.
+### Motor 3 — Behaviour Engine ✅
+`BehaviourEngine`, seçilen pozisyon için Hattrick'in izin verdiği individual order seçeneklerini üretir: Normal, Ofansif, Defansif, Ortaya Doğru ve Kanada Doğru. Pozisyona izin verilmeyen davranışları aday listesinden çıkarır.
+
+`BehaviourRatingService`, Motor 3'ü `RegionalRatingEngineFixed` ile bağlar. Aynı oyuncu ve aynı pozisyon için her geçerli davranış ayrı ayrı rating motorundan geçirilir; böylece davranış seçimi yalnızca metin/UI bilgisi değil, DEF/MID/ATT sektörlerinin gerçek girdisi olur.
+
+Hattrick'te individual order'lar pozisyona göre farklı skill katkılarını değiştirir; örneğin winger'ın Ofansif/Defansif/Ortaya Doğru emirleri savunma, playmaking, passing ve winger katkılarını farklılaştırır. citeturn116706search2turn116706search0
 
 ### Motor 4 — Regional Rating Engine
 `RegionalRatingEngineFixed`, pozisyon + skill + behaviour + maç bağlamından DEF-L/DEF-C/DEF-R, MID ve ATT-L/ATT-C/ATT-R ratinglerini üretir. Mevcut V5'in doğrulanmış rating baseline'ı bu katmanda korunur.
@@ -34,6 +38,8 @@ Oyuncu seçimi + pozisyon + behaviour + rakip tehditleri + üç soruluk maç ank
 ## Motor bağlantı zinciri
 
 `CHPP Data → Position Suitability → XI Optimizer → Behaviour Engine → Regional Rating → Opponent Analysis → Behaviour Optimizer → Final Tactical Optimizer`
+
+Şu anda ilk üç motorun temel sınıfları oluşturulmuştur; Motor 3'ün rating bağlantısı `BehaviourRatingService` üzerinden hazırdır. XI Optimizer'ın canlı analiz zincirine geçirilmesi ve behaviour optimizasyonunun eklenmesi sonraki entegrasyon adımlarıdır.
 
 Her motorun tek bir sorumluluğu vardır. Bir sonraki motor, öncekinin ürettiği yapılandırılmış sonucu girdi olarak kullanır.
 
