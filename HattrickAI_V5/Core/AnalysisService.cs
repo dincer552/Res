@@ -7,6 +7,7 @@ public sealed class AnalysisService
 {
     private readonly ChppV5 _chpp;
     private readonly RegionalRatingEngineFixed _ratingEngine = new();
+    private readonly XIOptimizationService _xiOptimization = new();
     public AnalysisService(ChppV5 chpp) => _chpp = chpp;
 
     public async Task<Analysis> RunAsync(string build, MatchQuestionnaire? questionnaire, CancellationToken ct)
@@ -27,7 +28,7 @@ public sealed class AnalysisService
         var trainingXml = await _chpp.GetXmlAsync("training", new Dictionary<string,string?> { ["version"]="1.1" }, ct);
         var trainingTeam = XmlV5.Root(trainingXml)?.Descendants("Team").FirstOrDefault();
         var selfConfidence = XmlV5.Int(trainingTeam, "SelfConfidence");
-        if (selfConfidence <= 0) selfConfidence = 4; // neutral/decent fallback
+        if (selfConfidence <= 0) selfConfidence = 4;
 
         var ownPlayers = await ReadPlayers(teamId, ct);
         if (ownPlayers.Count < 11) throw new InvalidOperationException("Kullanıcı takımında analiz için yeterli oyuncu verisi yok.");
@@ -80,7 +81,11 @@ public sealed class AnalysisService
         if (lineupNodes.Count != 11)
             throw new InvalidOperationException($"Rakibin seçilen resmi son maçında final saha 11'i belirlenemedi. CHPP final saha oyuncusu: {lineupNodes.Count}.");
 
-        var ownLineup = BuildOwnLineup(teamName, ownPlayers);
+        // Motor 2 is now the live source of the user's XI. It uses Motor 1
+        // position suitability scores and replaces the old greedy selector.
+        const string formation = "3-5-2";
+        var ownLineup = _xiOptimization.BuildBestXI(teamName, ownPlayers, formation);
+
         var opponentHistoricalRating = await ReadDirectHistoricalOpponentRating(lastMatch.MatchId, opponentId, ct);
         var experienceLevel = Math.Clamp(
             XmlV5.Int(lineupRoot?.Descendants("Team").FirstOrDefault(), "ExperienceLevel"),
@@ -253,9 +258,6 @@ public sealed class AnalysisService
             _ => PlayerOrder.Normal
         };
 
-        // PositionCode is a formal 1..11 slot code; with extra-player
-        // behaviours the third central player reuses a formal code. The
-        // behaviour therefore has to be checked before side mapping.
         var map = behaviour switch
         {
             7 => ("DEF-C","Merkez stoper",50d,34d),
@@ -284,11 +286,8 @@ public sealed class AnalysisService
             map.Item3, map.Item4, order, stars);
     }
 
-    private static double ParseStars(string value)
-        => double.TryParse(value, NumberStyles.Float, CultureInfo.InvariantCulture, out var x)
-            ? Math.Clamp(x, 0, 10)
-            : 0;
-
+    // Legacy/reference implementation retained for comparison during migration.
+    // Live analysis no longer calls this method; Motor 2 is the active XI selector.
     private static Lineup BuildOwnLineup(string teamName, List<Player> players)
     {
         var unused = new HashSet<int>(players.Select(p => p.Id));
