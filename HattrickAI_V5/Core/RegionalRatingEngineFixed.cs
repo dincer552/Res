@@ -6,9 +6,10 @@ namespace HattrickAI.V5.Core;
 
 /// <summary>
 /// Corrected V5 regional-rating engine.
-/// Central-position overcrowding is applied to all skills of players in that
-/// central compartment before their position contributions are calculated.
 /// Contribution coefficients follow the researched Hattrick table.
+/// Central-position overcrowding is applied to the contribution affected by
+/// the extra central player: playmaking for central defenders/inner midfielders,
+/// while the documented forward overcrowding remains on forward contributions.
 /// </summary>
 public sealed class RegionalRatingEngineFixed
 {
@@ -28,10 +29,14 @@ public sealed class RegionalRatingEngineFixed
             var formMultiplier = FormFactor(p.Form) / BaselineFormFactor;
             var loyalty = LoyaltyEffect(p.Loyalty);
             var experienceDelta = ExperienceBonus(p.Experience) - BaselineExperienceBonus;
-            var crowding = CrowdingMultiplier(p.Position, cds, ims, fws);
+            var crowding = p.Position == RegionalPosition.Forward
+                ? ForwardCrowding(fws)
+                : 1.0;
 
-            // Hattrick's central overcrowding applies to all skills of players
-            // occupying that central compartment, not just one contribution.
+            // The researched contribution coefficients already contain the
+            // standard form/experience baseline. Apply only the delta here.
+            // Central-defender and inner-midfielder overcrowding is applied to
+            // their playmaking contribution below, not to all skills.
             var k = new EffectiveSkillsFixed(
                 (p.Keeper + loyalty + experienceDelta) * crowding,
                 (p.Defending + loyalty + experienceDelta) * crowding,
@@ -41,7 +46,7 @@ public sealed class RegionalRatingEngineFixed
                 (p.Scoring + loyalty + experienceDelta) * crowding,
                 formMultiplier);
 
-            AddPositionContribution(sectors, p, k);
+            AddPositionContribution(sectors, p, k, cds, ims);
         }
 
         ApplyContext(sectors, context);
@@ -78,17 +83,17 @@ public sealed class RegionalRatingEngineFixed
         RegionalRatingEngine.Display(s[RatingSector.CentralAttack]),
         RegionalRatingEngine.Display(s[RatingSector.RightAttack]));
 
-    private static double CrowdingMultiplier(RegionalPosition position, int cds, int ims, int fws)
-        => position switch
-        {
-            RegionalPosition.CentralDefender => cds == 2 ? .964 : cds >= 3 ? .900 : 1.0,
-            RegionalPosition.InnerMidfielder => ims == 2 ? .935 : ims >= 3 ? .825 : 1.0,
-            RegionalPosition.Forward => fws == 2 ? .945 : fws >= 3 ? .865 : 1.0,
-            _ => 1.0
-        };
+    private static double CentralDefenderCrowding(int count)
+        => count == 2 ? .964 : count >= 3 ? .900 : 1.0;
+
+    private static double InnerMidfielderCrowding(int count)
+        => count == 2 ? .935 : count >= 3 ? .825 : 1.0;
+
+    private static double ForwardCrowding(int count)
+        => count == 2 ? .945 : count >= 3 ? .865 : 1.0;
 
     private static void AddPositionContribution(Dictionary<RatingSector, double> s,
-        RegionalPlayer p, EffectiveSkillsFixed k)
+        RegionalPlayer p, EffectiveSkillsFixed k, int cds, int ims)
     {
         switch (p.Position)
         {
@@ -98,13 +103,13 @@ public sealed class RegionalRatingEngineFixed
                     k.Keeper * .183 + k.Defending * .082, k.FormMultiplier);
                 break;
             case RegionalPosition.CentralDefender:
-                AddCentralDefender(s, p, k);
+                AddCentralDefender(s, p, k, cds);
                 break;
             case RegionalPosition.WingBack:
                 AddWingBack(s, p, k);
                 break;
             case RegionalPosition.InnerMidfielder:
-                AddInnerMidfielder(s, p, k);
+                AddInnerMidfielder(s, p, k, ims);
                 break;
             case RegionalPosition.Winger:
                 AddWinger(s, p, k);
@@ -115,7 +120,7 @@ public sealed class RegionalRatingEngineFixed
         }
     }
 
-    private static void AddCentralDefender(Dictionary<RatingSector, double> s, RegionalPlayer p, EffectiveSkillsFixed k)
+    private static void AddCentralDefender(Dictionary<RatingSector, double> s, RegionalPlayer p, EffectiveSkillsFixed k, int count)
     {
         var central = p.Order switch
         {
@@ -134,7 +139,7 @@ public sealed class RegionalRatingEngineFixed
             PlayerOrder.Offensive => k.Playmaking * .047,
             PlayerOrder.TowardsWing => k.Playmaking * .023,
             _ => k.Playmaking * .035
-        };
+        } * CentralDefenderCrowding(count);
         Add(s, RatingSector.CentralDefence, central, k.FormMultiplier);
         AddSideOnly(s, p.Side, RatingSector.LeftDefence, RatingSector.RightDefence, side, k.FormMultiplier);
         Add(s, RatingSector.Midfield, midfield, k.FormMultiplier);
@@ -157,7 +162,7 @@ public sealed class RegionalRatingEngineFixed
         Add(s, att, k.Winger * sideAttack, k.FormMultiplier);
     }
 
-    private static void AddInnerMidfielder(Dictionary<RatingSector, double> s, RegionalPlayer p, EffectiveSkillsFixed k)
+    private static void AddInnerMidfielder(Dictionary<RatingSector, double> s, RegionalPlayer p, EffectiveSkillsFixed k, int count)
     {
         var v = p.Order switch
         {
@@ -169,7 +174,7 @@ public sealed class RegionalRatingEngineFixed
         Add(s, RatingSector.CentralDefence, k.Defending * v.CentralDefence, k.FormMultiplier);
         AddSideOnly(s, p.Side, RatingSector.LeftDefence, RatingSector.RightDefence,
             k.Defending * v.SideDefence, k.FormMultiplier);
-        Add(s, RatingSector.Midfield, k.Playmaking * v.Midfield, k.FormMultiplier);
+        Add(s, RatingSector.Midfield, k.Playmaking * v.Midfield * InnerMidfielderCrowding(count), k.FormMultiplier);
 
         var sidePass = k.Passing * v.SidePassing;
         if (p.Side == PlayerSide.Center)
