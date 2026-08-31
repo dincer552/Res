@@ -12,8 +12,8 @@ public sealed class AnalysisService
     public async Task<Analysis> RunAsync(string build, MatchQuestionnaire? questionnaire, CancellationToken ct)
     {
         // V5 intentionally asks the user for exactly three match inputs:
-        // coach style, team spirit and match importance. All other parameters
-        // are filled with stable neutral defaults by RatingContext/engine.
+        // coach style, team spirit and match importance. Other live team
+        // psychology data that CHPP exposes is read automatically.
         questionnaire ??= MatchQuestionnaire.Default;
 
         var teamXml = await _chpp.GetXmlAsync("teamdetails", new Dictionary<string,string?> { ["version"]="3.0" }, ct);
@@ -21,6 +21,13 @@ public sealed class AnalysisService
         var teamId = XmlV5.Int(teamNode, "TeamID");
         var teamName = XmlV5.Text(teamNode, "TeamName");
         if (teamId <= 0) throw new InvalidOperationException("Kullanıcı takım bilgisi alınamadı.");
+
+        // Confidence is not a questionnaire item: CHPP provides it directly
+        // through training.asp. It is a live attack-rating modifier.
+        var trainingXml = await _chpp.GetXmlAsync("training", new Dictionary<string,string?> { ["version"]="1.1" }, ct);
+        var trainingTeam = XmlV5.Root(trainingXml)?.Descendants("Team").FirstOrDefault();
+        var selfConfidence = XmlV5.Int(trainingTeam, "SelfConfidence");
+        if (selfConfidence <= 0) selfConfidence = 4; // neutral/decent fallback
 
         var ownPlayers = await ReadPlayers(teamId, ct);
         if (ownPlayers.Count < 11) throw new InvalidOperationException("Kullanıcı takımında analiz için yeterli oyuncu verisi yok.");
@@ -95,6 +102,7 @@ public sealed class AnalysisService
 
         var regionalOwn = _ratingEngine.CalculateLineup(ownLineup, ownPlayers, ownContext);
         var ownRating = QuestionnaireRatingAdjuster.Apply(regionalOwn, questionnaire);
+        ownRating = ConfidenceRatingAdjuster.Apply(ownRating, selfConfidence);
         var opponentRating = opponentHistoricalRating;
 
         var location = next.HomeId == teamId ? "Ev sahibi" : "Deplasman";
@@ -264,8 +272,6 @@ public sealed class AnalysisService
                 7 => ("IM-R","Sağ iç",66d,50d),
                 8 => ("IM-L","Sol iç",34d,50d),
                 9 => ("W-L","Sol kanat",12d,50d),
-                // In CHPP, 10/11 are Forward 1/2 rather than left/right.
-                // Hattrick's standard two-forward ordering is right then left.
                 10 => ("FW-R","Sağ forvet",62d,72d),
                 11 => ("FW-L","Sol forvet",38d,72d),
                 _ => ("IM-C","Merkez",50d,50d)
