@@ -6,9 +6,11 @@ namespace HattrickAI.V5.Core;
 
 /// <summary>
 /// V5 Hattrick regional-rating engine.
-/// The calculation follows the Schum contribution order:
-/// (skill + loyalty) * form * contribution * overcrowding + experience,
-/// then match-context modifiers and the Hattrick quarter-step display scale.
+/// Uses the researched position/skill contribution coefficients, central-line
+/// overcrowding penalties and separate match-context modifiers.
+/// Experience is intentionally NOT added as a second absolute rating layer:
+/// the public contribution coefficients already include a standard experience
+/// component, so experience will only be reintroduced after multi-match calibration.
 /// </summary>
 public sealed class RegionalRatingEngine
 {
@@ -17,9 +19,12 @@ public sealed class RegionalRatingEngine
         context ??= RatingContext.Default;
         var sectors = Empty();
 
-        var centralDefenders = players.Count(p => p.Position == RegionalPosition.CentralDefender && p.Side == PlayerSide.Center);
-        var centralMidfielders = players.Count(p => p.Position == RegionalPosition.InnerMidfielder && p.Side == PlayerSide.Center);
-        var centralForwards = players.Count(p => p.Position == RegionalPosition.Forward && p.Side == PlayerSide.Center);
+        // Hattrick's overcrowding penalties apply to the whole central line:
+        // all central defenders / inner midfielders / forwards count, regardless
+        // of whether the player's final visual side is L/C/R.
+        var centralDefenders = players.Count(p => p.Position == RegionalPosition.CentralDefender);
+        var centralMidfielders = players.Count(p => p.Position == RegionalPosition.InnerMidfielder);
+        var centralForwards = players.Count(p => p.Position == RegionalPosition.Forward);
 
         foreach (var player in players)
         {
@@ -36,7 +41,8 @@ public sealed class RegionalRatingEngine
             AddPositionContribution(sectors, player, effective, centralDefenders, centralMidfielders, centralForwards);
         }
 
-        ApplyExperience(sectors, players);
+        // Do not add a second absolute experience contribution. The published
+        // contribution coefficients already contain a standard experience factor.
         ApplyContext(sectors, context);
         return ToSnapshot(sectors);
     }
@@ -89,7 +95,7 @@ public sealed class RegionalRatingEngine
                 break;
 
             case RegionalPosition.CentralDefender:
-                AddCentralDefender(s, p, k, CentralDefencePenalty(p, centralDefenders));
+                AddCentralDefender(s, p, k, CentralDefencePenalty(centralDefenders));
                 break;
 
             case RegionalPosition.WingBack:
@@ -97,7 +103,7 @@ public sealed class RegionalRatingEngine
                 break;
 
             case RegionalPosition.InnerMidfielder:
-                AddInnerMidfielder(s, p, k, MidfieldPenalty(p, centralMidfielders));
+                AddInnerMidfielder(s, p, k, MidfieldPenalty(centralMidfielders));
                 break;
 
             case RegionalPosition.Winger:
@@ -105,19 +111,19 @@ public sealed class RegionalRatingEngine
                 break;
 
             case RegionalPosition.Forward:
-                AddForward(s, p, k, AttackCentrePenalty(p, centralForwards));
+                AddForward(s, p, k, AttackCentrePenalty(centralForwards));
                 break;
         }
     }
 
-    private static double CentralDefencePenalty(RegionalPlayer p, int count)
-        => p.Side == PlayerSide.Center && count == 2 ? .964 : p.Side == PlayerSide.Center && count >= 3 ? .900 : 1.0;
+    private static double CentralDefencePenalty(int count)
+        => count == 2 ? .964 : count >= 3 ? .900 : 1.0;
 
-    private static double MidfieldPenalty(RegionalPlayer p, int count)
-        => p.Side == PlayerSide.Center && count == 2 ? .935 : p.Side == PlayerSide.Center && count >= 3 ? .825 : 1.0;
+    private static double MidfieldPenalty(int count)
+        => count == 2 ? .935 : count >= 3 ? .825 : 1.0;
 
-    private static double AttackCentrePenalty(RegionalPlayer p, int count)
-        => p.Side == PlayerSide.Center && count == 2 ? .945 : p.Side == PlayerSide.Center && count >= 3 ? .865 : 1.0;
+    private static double AttackCentrePenalty(int count)
+        => count == 2 ? .945 : count >= 3 ? .865 : 1.0;
 
     private static void AddCentralDefender(Dictionary<RatingSector, double> s, RegionalPlayer p, EffectiveSkills k, double penalty)
     {
@@ -244,7 +250,6 @@ public sealed class RegionalRatingEngine
                 }
                 else
                 {
-                    // FTW: scoring/passing feed both side attacks; winger is local.
                     Add(s, side, k.Scoring * .093 + k.Passing * .101 + k.Winger * .044);
                     Add(s, opposite, k.Scoring * .018 + k.Passing * .034);
                 }
@@ -259,7 +264,6 @@ public sealed class RegionalRatingEngine
                 }
                 else
                 {
-                    // DF contributes to both side attacks, with winger local to his side.
                     Add(s, side, k.Scoring * .030 + k.Passing * .033 + k.Winger * .059);
                     Add(s, opposite, k.Scoring * .030 + k.Passing * .033);
                 }
@@ -274,8 +278,6 @@ public sealed class RegionalRatingEngine
                 }
                 else
                 {
-                    // Normal forward: scoring + passing affect ALL three attacks;
-                    // winger affects the side on which the forward is placed.
                     var sideCore = k.Scoring * .058 + k.Passing * .048;
                     Add(s, side, sideCore + k.Winger * .032);
                     Add(s, opposite, sideCore);
@@ -283,84 +285,6 @@ public sealed class RegionalRatingEngine
                 Add(s, RatingSector.CentralAttack, (k.Passing * .178 + k.Scoring * .066) * centrePenalty);
                 break;
         }
-    }
-
-    private static void ApplyExperience(Dictionary<RatingSector, double> s, IReadOnlyList<RegionalPlayer> players)
-    {
-        foreach (var p in players)
-        {
-            var bonus = ExperienceBonus(p.Experience);
-            if (bonus <= 0) continue;
-
-            switch (p.Position)
-            {
-                case RegionalPosition.Goalkeeper:
-                    Add(s, RatingSector.LeftDefence, bonus * .345);
-                    Add(s, RatingSector.CentralDefence, bonus * .480);
-                    Add(s, RatingSector.RightDefence, bonus * .345);
-                    break;
-
-                case RegionalPosition.CentralDefender:
-                    Add(s, RatingSector.CentralDefence, bonus * .480);
-                    AddSideOnly(s, p.Side, RatingSector.LeftDefence, RatingSector.RightDefence, bonus * .345);
-                    if (p.Order == PlayerOrder.TowardsWing && p.Side != PlayerSide.Center)
-                        AddSideOnly(s, p.Side, RatingSector.LeftAttack, RatingSector.RightAttack, bonus * .375);
-                    break;
-
-                case RegionalPosition.WingBack:
-                    Add(s, RatingSector.CentralDefence, bonus * .480);
-                    AddSideOnly(s, p.Side, RatingSector.LeftDefence, RatingSector.RightDefence, bonus * .345);
-                    Add(s, RatingSector.Midfield, bonus * .730);
-                    AddSideOnly(s, p.Side, RatingSector.LeftAttack, RatingSector.RightAttack, bonus * .375);
-                    break;
-
-                case RegionalPosition.InnerMidfielder:
-                    Add(s, RatingSector.CentralDefence, bonus * .480);
-                    Add(s, RatingSector.Midfield, bonus * .730);
-                    Add(s, RatingSector.CentralAttack, bonus * .450);
-                    if (p.Side == PlayerSide.Center)
-                    {
-                        Add(s, RatingSector.LeftDefence, bonus * .345);
-                        Add(s, RatingSector.RightDefence, bonus * .345);
-                        Add(s, RatingSector.LeftAttack, bonus * .375);
-                        Add(s, RatingSector.RightAttack, bonus * .375);
-                    }
-                    else
-                    {
-                        AddSideOnly(s, p.Side, RatingSector.LeftDefence, RatingSector.RightDefence, bonus * .345);
-                        AddSideOnly(s, p.Side, RatingSector.LeftAttack, RatingSector.RightAttack, bonus * .375);
-                    }
-                    break;
-
-                case RegionalPosition.Winger:
-                    Add(s, RatingSector.CentralDefence, bonus * .480);
-                    AddSideOnly(s, p.Side, RatingSector.LeftDefence, RatingSector.RightDefence, bonus * .345);
-                    Add(s, RatingSector.Midfield, bonus * .730);
-                    AddSideOnly(s, p.Side, RatingSector.LeftAttack, RatingSector.RightAttack, bonus * .375);
-                    Add(s, RatingSector.CentralAttack, bonus * .450);
-                    break;
-
-                case RegionalPosition.Forward:
-                    Add(s, RatingSector.Midfield, bonus * .730);
-                    Add(s, RatingSector.CentralAttack, bonus * .450);
-                    // A forward position affects all three attacks, so experience
-                    // follows that same sector reach (order does not alter exp).
-                    Add(s, RatingSector.LeftAttack, bonus * .375);
-                    Add(s, RatingSector.RightAttack, bonus * .375);
-                    break;
-            }
-        }
-    }
-
-    private static double ExperienceBonus(double experience)
-    {
-        var values = new[]
-        {
-            0.00, 0.00, .40, .64, .80, .93, 1.04, 1.13, 1.20, 1.27,
-            1.33, 1.39, 1.44, 1.49, 1.53, 1.57, 1.61, 1.64, 1.67, 1.71, 1.73
-        };
-        var level = Math.Clamp((int)Math.Round(experience), 1, 20);
-        return values[level];
     }
 
     private static void ApplyContext(Dictionary<RatingSector, double> s, RatingContext c)
@@ -431,7 +355,7 @@ public sealed class RegionalRatingEngine
     }
 
     private static double LoyaltyEffect(double loyalty)
-        => loyalty <= 0 ? 0 : Math.Clamp(loyalty / 19.0, 0.0, 1.5);
+        => loyalty <= 0 ? 0 : Math.Clamp(loyalty * .05, 0.0, 1.0);
 
     private static void AddBothSides(Dictionary<RatingSector, double> s, RatingSector left, RatingSector right, double value)
     {
@@ -475,10 +399,6 @@ public sealed class RegionalRatingEngine
         return 1.0;
     }
 
-    /// <summary>
-    /// Hattrick display scale: 0 is shown as 0.75. For any positive raw value,
-    /// a quarter-step is first floored and then the display baseline 1.00 is added.
-    /// </summary>
     public static double Display(double raw)
         => raw <= 0 ? .75 : Math.Floor(raw * 4.0) / 4.0 + 1.0;
 
