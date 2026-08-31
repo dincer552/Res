@@ -6,7 +6,7 @@ namespace HattrickAI.V5.Core;
 public sealed class AnalysisService
 {
     private readonly ChppV5 _chpp;
-    private readonly RegionalRatingEngine _ratingEngine = new();
+    private readonly RegionalRatingEngineFixed _ratingEngine = new();
     public AnalysisService(ChppV5 chpp) => _chpp = chpp;
 
     public async Task<Analysis> RunAsync(string build, MatchQuestionnaire? questionnaire, CancellationToken ct)
@@ -32,7 +32,6 @@ public sealed class AnalysisService
         }, ct);
         var matches = ReadMatches(matchesXml, teamId);
 
-        // Reference/analysis match selection deliberately ignores cup and friendly matches.
         var next = matches
             .Where(x => x.Date > DateTimeOffset.UtcNow && IsCompetitiveMatchType(x.MatchType))
             .OrderBy(x => x.Date)
@@ -50,7 +49,6 @@ public sealed class AnalysisService
         }, ct);
         var opponentMatches = ReadMatches(opponentMatchesXml, opponentId);
 
-        // The historical reference match follows the same rule: never use cup/friendly.
         var lastMatch = opponentMatches
             .Where(x => x.Date != default && x.Date <= DateTimeOffset.UtcNow && IsCompetitiveMatchType(x.MatchType))
             .OrderByDescending(x => x.Date)
@@ -76,8 +74,6 @@ public sealed class AnalysisService
             throw new InvalidOperationException($"Rakibin seçilen resmi son maçında final saha 11'i belirlenemedi. CHPP final saha oyuncusu: {lineupNodes.Count}.");
 
         var ownLineup = BuildOwnLineup(teamName, ownPlayers);
-
-        // Historical opponent player skills are deliberately NOT requested.
         var opponentHistoricalRating = await ReadDirectHistoricalOpponentRating(lastMatch.MatchId, opponentId, ct);
         var experienceLevel = Math.Clamp(
             XmlV5.Int(lineupRoot?.Descendants("Team").FirstOrDefault(), "ExperienceLevel"),
@@ -92,10 +88,6 @@ public sealed class AnalysisService
             Formation(opponentSlots),
             opponentSlots);
 
-        // Questionnaire inputs are applied only to our calculated rating.
-        // Coach style and team spirit are applied by QuestionnaireRatingAdjuster;
-        // match importance is passed through RatingContext. No extra user input
-        // is required. Unknown inputs remain neutral/default inside the engine.
         var ownContext = new RatingContext(
             next.HomeId == teamId ? MatchLocation.Home : MatchLocation.Away,
             questionnaire.MatchImportance,
@@ -253,35 +245,37 @@ public sealed class AnalysisService
             _ => PlayerOrder.Normal
         };
 
-        var map = position switch
+        // PositionCode is a formal 1..11 slot code; with extra-player
+        // behaviours the third central player reuses a formal code. The
+        // behaviour therefore has to be checked before side mapping.
+        var map = behaviour switch
         {
-            1 => ("GK","Kaleci",50d,10d),
-            2 => ("DEF-R","Sağ bek",88d,34d),
-            3 => ("DEF-CR","Sağ stoper",70d,34d),
-            4 => ("DEF-CL","Sol stoper",30d,34d),
-            5 => ("DEF-L","Sol bek",12d,34d),
-            6 => ("W-R","Sağ kanat",88d,50d),
-            7 => ("IM-R","Sağ iç",66d,50d),
-            8 => ("IM-L","Sol iç",34d,50d),
-            9 => ("W-L","Sol kanat",12d,50d),
-            10 => ("FW-L","Sol forvet",38d,72d),
-            11 => ("FW-R","Sağ forvet",62d,72d),
-            _ => ("IM-C","Merkez",50d,50d)
+            7 => ("DEF-C","Merkez stoper",50d,34d),
+            6 => ("IM-C","Merkez iç",50d,50d),
+            5 => ("FW-C","Merkez forvet",50d,72d),
+            _ => position switch
+            {
+                1 => ("GK","Kaleci",50d,10d),
+                2 => ("DEF-R","Sağ bek",88d,34d),
+                3 => ("DEF-CR","Sağ stoper",70d,34d),
+                4 => ("DEF-CL","Sol stoper",30d,34d),
+                5 => ("DEF-L","Sol bek",12d,34d),
+                6 => ("W-R","Sağ kanat",88d,50d),
+                7 => ("IM-R","Sağ iç",66d,50d),
+                8 => ("IM-L","Sol iç",34d,50d),
+                9 => ("W-L","Sol kanat",12d,50d),
+                // In CHPP, 10/11 are Forward 1/2 rather than left/right.
+                // Hattrick's standard two-forward ordering is right then left.
+                10 => ("FW-R","Sağ forvet",62d,72d),
+                11 => ("FW-L","Sol forvet",38d,72d),
+                _ => ("IM-C","Merkez",50d,50d)
+            }
         };
 
         var rating = OpponentRatingEstimator.Estimate(stars, map.Item1, behaviour, teamRating, experienceLevel);
 
-        return new Slot(
-            map.Item1,
-            map.Item2,
-            map.Item2,
-            name,
-            id,
-            rating,
-            map.Item3,
-            map.Item4,
-            order,
-            stars);
+        return new Slot(map.Item1, map.Item2, map.Item2, name, id, rating,
+            map.Item3, map.Item4, order, stars);
     }
 
     private static double ParseStars(string value)
