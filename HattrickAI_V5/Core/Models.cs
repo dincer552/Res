@@ -92,7 +92,8 @@ public sealed record Analysis(
     Lineup Own,
     Lineup Opponent,
     RegionalRatingSnapshot OwnRating,
-    RegionalRatingSnapshot OpponentRating)
+    RegionalRatingSnapshot OpponentRating,
+    MatchQuestionnaire AppliedQuestionnaire)
 {
     public Lineup OwnLineup => Own;
     public Lineup OpponentLineup => Opponent;
