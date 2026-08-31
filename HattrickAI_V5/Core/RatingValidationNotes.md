@@ -14,69 +14,75 @@ ATT-R 9.50
 
 These values are direct Hattrick reference values supplied by copy/paste. Do not infer sector mapping from screenshots.
 
-## V5 test output before the formula correction
+## Known live psychology at capture
 
-DEF-L 7.75
-DEF-C 13.00
-DEF-R 7.75
-MID 7.00
-ATT-L 6.50
-ATT-C 7.50
-ATT-R 6.00
+- Team spirit: composed / Turkish UI `kaynaşık` = level 4
+- Confidence: `biraz abartı` / slightly exaggerated = level 7
+- Coach style: balanced / neutral
+- Match approach: normal
 
-The large gaps in defence and attack triggered a formula audit against the researched Hattrick contribution table.
+The three-question rule remains unchanged. Confidence is not asked from the user because CHPP exposes it automatically.
 
-## Verified formula fixes applied 2026-08-31
+## V5 test output before the latest fixes
 
-1. **Central-defender overcrowding is now applied only to the central defender's Playmaking contribution.**
+DEF-L 9.25
+DEF-C 14.75
+DEF-R 9.25
+MID 8.75
+ATT-L 7.25
+ATT-C 9.75
+ATT-R 6.75
+
+## Formula audit and fixes
+
+1. **Central-defender overcrowding scope corrected.**
    - 2 central defenders: Playmaking contribution × 0.964
    - 3 central defenders: Playmaking contribution × 0.900
-   Defensive contributions themselves are not multiplied by the overcrowding factor.
+   Defensive contributions are no longer multiplied by the central-defender overcrowding factor.
 
-2. **Inner-midfielder overcrowding remains on Playmaking contribution only.**
-   - 2 IM: × 0.935
-   - 3 IM: × 0.825
+2. **Inner-midfielder overcrowding scope corrected.**
+   - 2 IM: Playmaking contribution × 0.935
+   - 3 IM: Playmaking contribution × 0.825
+   Passing, scoring, winger and defending contributions are no longer multiplied by the IM overcrowding factor.
 
-3. **Forward central-attack coefficients are corrected.**
-   Normal forward central attack is:
+3. **Forward overcrowding retained.**
+   - 2 forwards: all forward contributions × 0.945
+   - 3 forwards: all forward contributions × 0.865
+
+4. **Forward central-attack coefficients are the researched values.**
+   Normal forward central attack:
    `Scoring × 0.178 + Passing × 0.066`
-   The previous implementation had these two coefficients swapped.
 
-4. **Forward overcrowding is retained.**
-   The verified table documents central-forward overcrowding:
-   - 2 forwards: × 0.945
-   - 3 forwards: × 0.865
-
-5. **Coach modifiers match the verified Hattrick values.**
+5. **Coach modifiers match the researched Hattrick values.**
    - Offensive coach: attack +8%, defence -11%
    - Defensive coach: defence +14%, attack -8%
-   Neutral has no coach-specific modifier.
+   - Neutral coach: no coach-specific modifier.
 
-6. **Match-attitude midfield modifiers use the verified values.**
+6. **Match-attitude and venue midfield modifiers use the researched values.**
    - Normal: 100%
    - PIC: 83.945%
    - MOTS: 111.49%
-   Home-field midfield: 119.892%.
+   - Home-field midfield: 119.892%
 
 7. **Lead-retreat coefficients use the documented in-match values.**
-   Each additional goal of lead after two goals increases defence by about 7.5% and reduces attack by about 9%, with the documented upper limit represented by the engine cap.
+   Defence increases by about 7.5% and attack decreases by about 9% per goal after the two-goal threshold, capped by the engine.
 
-8. **Experience contribution remains the researched flat bonus.**
-   Experience is converted to the published flat skill-equivalent bonus table before the position contribution coefficients are applied. Loyalty remains capped at +1.0 skill-equivalent.
+8. **Confidence is now read automatically from CHPP training XML.**
+   `SelfConfidence = 4` is used as the neutral/decent baseline. The current V5 calibration applies a conservative empirical +5% attack multiplier per confidence level above 4 (and -5% below 4). This coefficient is explicitly marked empirical; it is not hard-coded to the S4MSUNFC reference result.
 
-## Important calibration rule
+9. **The questionnaire remains exactly three questions.**
+   Coach style, team spirit and match importance are the only user inputs. Confidence is live CHPP data and is not a fourth question.
 
-Compare the **exact same XI**, same positions, same individual orders, same home/away context, same Normal/PIC/MOTS choice, and the same player form/stamina/experience/loyalty values.
+## Next regression test
 
-Do not tune a coefficient from a different XI or from a screenshot whose seven sectors were manually inferred.
+Run the same S4MSUNFC 3-5-2 XI with the same questionnaire choices:
 
-The next test should use the same S4MSUNFC 3-5-2 XI and the user's direct Hattrick copy/paste values as ground truth:
+- Dengeli / neutral coach
+- Kaynaşık / composed team spirit
+- Normal match importance
+
+Ground truth from Hattrick:
 
 `10.25 / 16.50 / 10.25 / 7.25 / 10.50 / 12.00 / 9.50`
 
-Sources:
-- https://wiki.hattrick.org/wiki/Contribution
-- https://wiki.hattrick.org/wiki/Midfield
-- https://wiki.hattrick.org/wiki/Attack_ratings
-- https://wiki.hattrick.org/wiki/Confidence
-- https://wiki.hattrick.org/wiki/Coach
+The next live V5 output should be compared sector-by-sector. Do not tune coefficients again until this exact XI is tested after the new build.
