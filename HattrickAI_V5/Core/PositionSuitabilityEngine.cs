@@ -2,8 +2,8 @@ namespace HattrickAI.V5.Core;
 
 /// <summary>
 /// Motor 1: oyuncunun seçilen pozisyon için temel uygunluğunu hesaplar.
-/// Mevcut V5 seçim ağırlıklarını tek bir yerde toplar. XI optimizasyonu ve
-/// oyuncu davranışı seçimi sonraki motorlarda bu katmanı kullanacaktır.
+/// Bu katman takım ratingi üretmez ve davranış seçmez; XI optimizer için
+/// karşılaştırılabilir pozisyon skorları sağlar.
 /// </summary>
 public sealed class PositionSuitabilityEngine
 {
@@ -19,8 +19,7 @@ public sealed class PositionSuitabilityEngine
             "W-L" or "W-R" => p.Winger + p.Passing * .22 + p.Playmaking * .08,
             "IM-L" or "IM-R" => p.Playmaking + p.Passing * .25 + p.Stamina * .12,
             "IM-C" => p.Playmaking * 1.05 + p.Passing * .25 + p.Stamina * .12 + p.Experience * .04,
-            "FW-L" => p.Scoring + p.Passing * .18 + p.Winger * .08,
-            "FW-R" => p.Scoring * 1.05 + p.Passing * .18 + p.Winger * .08 + p.Experience * .04,
+            "FW-L" or "FW-R" => p.Scoring + p.Passing * .18 + p.Winger * .08 + p.Experience * .02,
             "FW-C" => p.Scoring * 1.05 + p.Passing * .20 + p.Playmaking * .04,
             _ => double.NegativeInfinity
         };
@@ -30,9 +29,9 @@ public sealed class PositionSuitabilityEngine
     {
         var codes = new[]
         {
-            "GK", "DEF-L", "DEF-C", "DEF-R",
+            "GK", "DEF-L", "DEF-CL", "DEF-C", "DEF-CR", "DEF-R",
             "W-L", "IM-L", "IM-C", "IM-R", "W-R",
-            "FW-L", "FW-R"
+            "FW-L", "FW-C", "FW-R"
         };
 
         return codes.ToDictionary(code => code, code => Score(p, code));
