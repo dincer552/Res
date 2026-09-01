@@ -34,7 +34,7 @@ CHPP / Veri
         └─ HAYIR
              ↓
 10. En İyi Maç Planı
-             ↓
+            ↓
 11. Maç Tahmini
 ```
 
@@ -46,9 +46,9 @@ Döngünün amacı tek bir oyuncuyu değil; **oyuncu + pozisyon + davranış + r
 |---|---|---|---|
 | M1 | CHPP Veri Motoru / Veri Katmanı | CHPP veri katmanı | ✅ Çalışıyor |
 | M2 | Rakip Analiz Motoru | `Motor2OpponentAwareRefiner` / rakip profil katmanı | 🟡 Bakım + doğrulama |
-| M3 | Oyuncu Analiz Motoru | `PlayerAnalysisEngine` | 🟡 Kod hazır, offline doğrulama bekliyor |
-| M4 | Aday Diziliş Motoru | `FormationCandidateEngine` | 🟡 İskelet hazır |
-| M5 | Pozisyon Optimizasyon Motoru | `XIOptimizer` / XI optimizasyon katmanı | 🟡 İskelet + entegrasyon doğrulaması |
+| M3 | Oyuncu Analiz Motoru | `PlayerAnalysisEngine` | ✅ Offline test PASS |
+| M4 | Aday Diziliş Motoru | `FormationCandidateEngine` | ✅ Offline test PASS |
+| M5 | Pozisyon Optimizasyon Motoru | `XIOptimizer` / XI optimizasyon katmanı | 🟠 Offline test PARTIAL — düzeltme gerekli |
 | M6 | Davranış Optimizasyon Motoru | `BehaviourOptimizer` | 🟡 İskelet |
 | M7 | Bölgesel Rating Motoru | `RegionalRatingEngineFixed` | ✅ Referans motor |
 | M8 | Maç Eşleşme Motoru | planlanan | ⏳ Sıradaki ana geliştirme |
@@ -141,18 +141,55 @@ Bu iki rating seti birbirine karıştırılmamalıdır: CHPP'den gelen gerçek r
 
 ## Offline test sonucu — 2026-09-01
 
-Şu anki kayıt durumu:
+### M3 — Oyuncu Analiz Motoru — PASS ✅
 
-- M1 veri seti: ✅ mevcut
-- M2 rakip verisi: ✅ test girdisi mevcut / 🟡 motor doğrulaması sürüyor
-- M3 kaynak kodu: ✅ incelendi / 🟡 tam offline PASS bekliyor
-- M4 kaynak kodu: ✅ incelendi / 🟡 tam offline PASS bekliyor
-- M5 kaynak kodu: 🟡 entegrasyon doğrulaması bekliyor
-- M6: 🟡 iskelet
-- M7: ✅ referans motor
-- M8-M11: ⏳ geliştirme bekliyor
+Güncel `PlayerAnalysisEngine` mantığı offline CHPP kadrosuna uygulandı. Pozisyon adayları 14 slot için üretildi; oyuncu uygunluğu `PlayerId > 0 && InjuryLevel != 999` kuralıyla sınırlandı. `Biel Kichute` (`InjuryLevel=999`) aday havuzundan çıkarıldı. M3 yalnızca oyuncu profili üretmeye devam ediyor; XI/diziliş/rakip skoru üretmiyor.
 
-**Önemli:** Tam Motor 1 → Motor 5 regression sonucu henüz `PASS` olarak işaretlenmemiştir. Test dosyasının araç üzerinden tam içeriği tek seferde çalışma ortamına alınamadığı için çalıştırılmamış bir test başarılı kabul edilmemiştir.
+### M4 — Aday Diziliş Motoru — PASS ✅
+
+2026-09-01 CHPP offline verisi üzerinde 6 yasal dizilişin tamamı 11 farklı uygun oyuncuyla doldurulabildi. Structural Score sıralaması:
+
+| Sıra | Diziliş | Structural Score | Sonuç |
+|---|---|---:|---|
+| 1 | **3-5-2** | **17.977** | ✅ |
+| 2 | **3-4-3** | **17.907** | ✅ |
+| 3 | **2-5-3** | **17.701** | ✅ |
+| 4 | **4-5-1** | **17.556** | ✅ |
+| 5 | **4-4-2** | **17.365** | ✅ |
+| 6 | **5-3-2** | **16.035** | ✅ |
+
+Greedy structural scoring ile optimal distinct-player eşleştirmesi arasındaki fark tüm dizilişlerde çok düşük kaldı; en büyük fark 5-3-2'de yaklaşık **0.059** puan oldu.
+
+**Sonuç: M4 PASS.** Mevcut Motor 4 yapısının değiştirilmesine gerek görülmedi.
+
+### M5 — Pozisyon Optimizasyon Motoru — PARTIAL 🟠
+
+M5'in mevcut `XIOptimizer` kodu gerçek bir takım-seviyesi atama yapıyor: 11 slot için dikdörtgen Hungarian algoritması kullanıyor ve aynı oyuncunun aynı XI içinde iki kez seçilmesini engelliyor. Bu nedenle temel optimizasyon mekanizması çalışıyor.
+
+3-5-2 offline testinde 30 uygun oyuncu içinden 11 farklı oyuncu seçildi ve toplam pozisyon uygunluk skoru **197.77** oldu. Rakip-aware ayarlamayla bulunan eşdeğer optimal çözümün toplamı **198.67** oldu; oyuncu atamasında DEF-CL / DEF-C arasında eşit skorlu bir yer değişimi oluştu.
+
+Test çıktısı:
+
+| Slot | Oyuncu | Suitability |
+|---|---|---:|
+| GK | Enzo Bultot | 17.90 |
+| DEF-CL | Dawid Nocoń | 18.72 |
+| DEF-C | Abeiku Takyi | 19.17 |
+| DEF-CR | Cristian Pesalovo | 18.39 |
+| W-L | Felix Gustavsson | 19.00 |
+| IM-L | Francisco Manuel | 17.48 |
+| IM-C | Bertalan Doktor | 21.64 |
+| IM-R | Milen Bozev | 14.97 |
+| W-R | Nándor Dobóvári | 18.94 |
+| FW-L | Adrian Beţa | 16.74 |
+| FW-R | Ersin Akşın | 14.82 |
+
+**Ancak M5 henüz PASS değil. İki kritik eksik bulundu:**
+
+1. `XIOptimizer.FormationSlots()` şu anda yalnızca **3-5-2** destekliyor. M4 ise 3-5-2, 3-4-3, 4-4-2, 4-5-1, 2-5-3 ve 5-3-2 olmak üzere 6 aday üretiyor. Dolayısıyla M4 → M5 entegrasyonu bütün adaylar için çalışmıyor.
+2. `OpponentAdjustment()` mevcut haliyle yalnızca **slot bazlı sabit** bir terim ekliyor; oyuncuya bağlı olmadığı için sabit bir formation içinde Hungarian oyuncu atamasını gerçek anlamda rakibe göre değiştiremiyor. Bu nedenle mevcut kodun “opponent-aware adjustment” iddiası oyuncu seçimi açısından henüz tam karşılanmış sayılmamalı.
+
+**M5 kararı: PARTIAL / FAIL değil, fakat PASS için düzeltme gerekli.** Temel Hungarian optimizasyonu doğrulandı; formation kapsamı ve gerçek rakip-aware oyuncu eşleştirmesi tamamlanmalı.
 
 ## Mimari olarak doğrulanan noktalar
 
@@ -162,8 +199,10 @@ Bu iki rating seti birbirine karıştırılmamalıdır: CHPP'den gelen gerçek r
 4. Gerçek CHPP ratingi ile motor tahmini ayrı tutulur.
 5. Rakip analizi kendi XI seçimimize bağımlı olmamalıdır.
 6. Aynı oyuncu bir aday XI içinde iki slotta kullanılamaz.
-7. Optimizasyon döngüsü yalnızca daha iyi aday bulunduğunda devam etmelidir.
-8. Bir motorun sorumluluğu sonraki motorun işini gizlice üstlenmemelidir.
+7. M4 → M5 geçişinde M5'in tüm M4 formationlarını desteklemesi gerekir.
+8. Rakip adjustment oyuncu-slot eşleşmesini gerçekten etkileyebilecek şekilde tasarlanmalıdır; yalnızca slot sabiti eklemek yeterli değildir.
+9. Optimizasyon döngüsü yalnızca daha iyi aday bulunduğunda devam etmelidir.
+10. Bir motorun sorumluluğu sonraki motorun işini gizlice üstlenmemelidir.
 
 ## Dikkat edilmesi gereken eski yol
 
