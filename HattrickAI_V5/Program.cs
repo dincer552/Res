@@ -1,3 +1,4 @@
+using System.Net.Http.Headers;
 using System.Text.Json;
 using HattrickAI.V5.Core;
 
@@ -45,7 +46,7 @@ app.Use(async (context, next) =>
             var html = await File.ReadAllTextAsync(indexPath, context.RequestAborted);
             const string marker = "</main>";
             const string box = @"
-<section id=""deployLogBox"" style=""margin-top:14px;background:#fff;border-radius:15px;box-shadow:0 2px 9px #0002;overflow:hidden;border:1px solid #dfe5e1""><button id=""deployLogToggle"" type=""button"" style=""width:100%;border:0;background:#fff;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;color:#27322d;font:800 13px Arial;cursor:pointer""><span>🚀 Deploy logları</span><span id=""deployLogArrow"">⌄</span></button><div id=""deployLogBody"" style=""display:none;border-top:1px solid #e5ebe7""><div style=""padding:9px 12px;display:flex;justify-content:space-between;align-items:center;color:#747c76;font:11px Arial""><span id=""deployLogState"">Kontrol ediliyor…</span><button id=""deployLogRefresh"" type=""button"" style=""border:1px solid #d5ddd8;background:#f7f9f7;border-radius:7px;padding:5px 8px;cursor:pointer"">↻ Yenile</button></div><pre id=""deployLogText"" style=""margin:0;background:#0b1517;color:#d7e1dd;padding:12px;font:11px/1.55 Consolas,'Courier New',monospace;white-space:pre-wrap;max-height:320px;overflow:auto"">Deploy kayıtları bekleniyor…</pre></div></section><script>(function(){const t=document.getElementById('deployLogToggle'),b=document.getElementById('deployLogBody'),a=document.getElementById('deployLogArrow'),s=document.getElementById('deployLogState'),p=document.getElementById('deployLogText'),r=document.getElementById('deployLogRefresh');if(!t)return;let open=false,last='';function paint(d){const lines=Array.isArray(d.lines)?d.lines:[];const x=lines.join('\n');if(x!==last){last=x;p.textContent=x||'Henüz deploy kaydı yok.';p.scrollTop=p.scrollHeight}const sep=lines.reduce((i,x,idx)=>/🚀 GitHub deploy başladı/i.test(x)?idx:i,-1);const latest=sep>=0?lines.slice(sep):lines;const bad=latest.some(x=>/DEPLOY FAILED|❌ Container başlamadı|ERROR|HATA/i.test(x));const good=latest.some(x=>/🟢 DEPLOY BAŞARILI/.test(x));s.textContent=bad?'❌ Son deploy hatalı':(good?'🟢 Son deploy başarılı':'⏳ Deploy durumu kontrol ediliyor');s.style.color=bad?'#b33b32':'#267448'}async function load(){try{const q=await fetch('/api/deploy/log?ts='+Date.now(),{cache:'no-store'});if(!q.ok)throw Error('HTTP '+q.status);paint(await q.json())}catch(e){s.textContent='⚠️ Log alınamadı';s.style.color='#b33b32'}}t.onclick=()=>{open=!open;b.style.display=open?'block':'none';a.textContent=open?'⌃':'⌄';if(open)load()};r.onclick=load;setInterval(()=>{if(open)load()},2000)})();</script>";
+<section id=""deployLogBox"" style=""margin-top:14px;background:#fff;border-radius:15px;box-shadow:0 2px 9px #0002;overflow:hidden;border:1px solid #dfe5e1""><button id=""deployLogToggle"" type=""button"" style=""width:100%;border:0;background:#fff;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;color:#27322d;font:800 13px Arial;cursor:pointer""><span>🚀 Deploy logları</span><span id=""deployLogArrow"">⌄</span></button><div id=""deployLogBody"" style=""display:none;border-top:1px solid #e5ebe7""><div style=""padding:9px 12px;display:flex;justify-content:space-between;align-items:center;color:#747c76;font:11px Arial""><span id=""deployLogState"">Kontrol ediliyor…</span><div style=""display:flex;gap:6px""><button id=""deployLogRefresh"" type=""button"" style=""border:1px solid #d5ddd8;background:#f7f9f7;border-radius:7px;padding:5px 8px;cursor:pointer"">↻ Yenile</button><button id=""deployManual"" type=""button"" style=""border:0;background:#2f7d4f;color:#fff;border-radius:7px;padding:6px 10px;cursor:pointer;font-weight:700"">🚀 Manuel Deploy</button></div></div><pre id=""deployLogText"" style=""margin:0;background:#0b1517;color:#d7e1dd;padding:12px;font:11px/1.55 Consolas,'Courier New',monospace;white-space:pre-wrap;max-height:320px;overflow:auto"">Deploy kayıtları bekleniyor…</pre></div></section><script>(function(){const t=document.getElementById('deployLogToggle'),b=document.getElementById('deployLogBody'),a=document.getElementById('deployLogArrow'),s=document.getElementById('deployLogState'),p=document.getElementById('deployLogText'),r=document.getElementById('deployLogRefresh'),m=document.getElementById('deployManual');if(!t)return;let open=false,last='',busy=false;function paint(d){const lines=Array.isArray(d.lines)?d.lines:[];const x=lines.join('\n');if(x!==last){last=x;p.textContent=x||'Henüz deploy kaydı yok.';p.scrollTop=p.scrollHeight}const sep=lines.reduce((i,x,idx)=>/🚀 GitHub deploy başladı/i.test(x)?idx:i,-1);const latest=sep>=0?lines.slice(sep):lines;const bad=latest.some(x=>/DEPLOY FAILED|❌ Container başlamadı|ERROR|HATA/i.test(x));const good=latest.some(x=>/🟢 DEPLOY BAŞARILI/.test(x));s.textContent=bad?'❌ Son deploy hatalı':(good?'🟢 Son deploy başarılı':'⏳ Deploy durumu kontrol ediliyor');s.style.color=bad?'#b33b32':'#267448'}async function load(){try{const q=await fetch('/api/deploy/log?ts='+Date.now(),{cache:'no-store'});if(!q.ok)throw Error('HTTP '+q.status);paint(await q.json())}catch(e){s.textContent='⚠️ Log alınamadı';s.style.color='#b33b32'}}async function manualDeploy(){if(busy)return;if(!confirm('v5 branch için manuel deploy başlatılsın mı?'))return;busy=true;m.disabled=true;m.style.opacity='.6';s.textContent='🚀 Manuel deploy başlatılıyor…';s.style.color='#267448';try{const q=await fetch('/api/deploy/manual',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});const d=await q.json().catch(()=>({}));if(!q.ok)throw Error(d.message||('HTTP '+q.status));s.textContent='🚀 Deploy tetiklendi — loglar izleniyor';await load()}catch(e){s.textContent='❌ Deploy başlatılamadı: '+e.message;s.style.color='#b33b32'}finally{busy=false;m.disabled=false;m.style.opacity='1'}}t.onclick=()=>{open=!open;b.style.display=open?'block':'none';a.textContent=open?'⌃':'⌄';if(open)load()};r.onclick=load;m.onclick=manualDeploy;setInterval(()=>{if(open)load()},2000)})();</script>";
             const string referenceScript = @"<script>(function(){
 function esc(s){return String(s??'').replace(/[&<>]/g,function(m){return({'&':'&amp;','<':'&lt;','>':'&gt;'}[m])})}
 function formatDate(v){const d=new Date(v);if(Number.isNaN(d.getTime()))return String(v||'');return d.toLocaleString('tr-TR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}
@@ -93,6 +94,50 @@ app.MapGet("/api/deploy/log", () =>
 
     var lines = File.ReadLines(logPath).TakeLast(150).ToArray();
     return Results.Ok(new { lines, updated = true });
+});
+
+app.MapPost("/api/deploy/manual", async (HttpContext http, ChppV5 chpp, CancellationToken ct) =>
+{
+    if (!chpp.Connected)
+        return Results.Unauthorized();
+
+    var token = builder.Configuration["GITHUB_ACTIONS_TOKEN"]?.Trim();
+    if (string.IsNullOrWhiteSpace(token))
+        return Results.Problem("GITHUB_ACTIONS_TOKEN Azure Environment Variables içinde tanımlı değil.", statusCode: 503);
+
+    try
+    {
+        using var client = new HttpClient();
+        client.DefaultRequestHeaders.UserAgent.ParseAdd("HattrickAI-V5");
+        client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+        using var content = new StringContent(
+            JsonSerializer.Serialize(new { @ref = "v5" }),
+            System.Text.Encoding.UTF8,
+            "application/json");
+
+        var response = await client.PostAsync(
+            "https://api.github.com/repos/dincer552/ho-ai/actions/workflows/v5-build.yml/dispatches",
+            content,
+            ct);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            var body = await response.Content.ReadAsStringAsync(ct);
+            return Results.Problem($"GitHub workflow_dispatch başarısız ({(int)response.StatusCode}): {body}", statusCode: 502);
+        }
+
+        return Results.Ok(new { ok = true, message = "v5 deploy workflow tetiklendi." });
+    }
+    catch (OperationCanceledException) when (ct.IsCancellationRequested)
+    {
+        return Results.StatusCode(499);
+    }
+    catch (Exception ex)
+    {
+        return Results.Problem(ex.Message, statusCode: 502);
+    }
 });
 
 app.MapPost("/api/v5/questionnaire", (HttpContext http, QuestionnaireRequest request) =>
