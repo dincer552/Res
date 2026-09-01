@@ -15,8 +15,6 @@ public sealed class PositionOptimizationEngine : IPositionOptimizationEngine
     private const int DefaultMaxCandidates = 100;
     private const int BeamWidth = 2500;
 
-    // M3 skoru ana sinyal olmaya devam eder. Natural-role yalnızca birbirine
-    // yakın alternatifleri sıralamak için sınırlı bir etki yapar.
     private const double NaturalRoleTieThreshold = 0.75;
     private const double PrimaryRoleBonus = 0.05;
     private const double SecondaryRoleBonus = 0.02;
@@ -48,22 +46,26 @@ public sealed class PositionOptimizationEngine : IPositionOptimizationEngine
 
         if (eligibleProfiles.Count < 11) return [];
 
+        if (formation.SlotCodes.Any(code => FeasibilityCount(eligibleProfiles, code) == 0))
+            return [];
+
+        if (!double.IsFinite(formation.StructuralScore) || formation.StructuralScore <= 0)
+            return [];
+
         var byId = eligibleProfiles.ToDictionary(x => x.PlayerId);
         var results = new List<PositionAssignmentCandidate>(Math.Min(maxCandidates, BeamWidth));
         var seen = new HashSet<string>(StringComparer.Ordinal);
 
-        // Birinci aday her zaman tüm uygun oyuncu havuzunda exact Hungarian
-        // çözümüyle bulunur. Böylece candidate-pruning birinci kararı etkileyemez.
+        // Exact best assignment is always evaluated on the full eligible pool.
         var exact = BuildExactBestCandidate(formation, eligibleProfiles, byId);
         AddUnique(exact, results, seen);
 
         if (maxCandidates == 1)
             return results;
 
-        // Önceki sürümde slot başına ilk 12 oyuncu kesiliyordu. Bu, düşük ranked
-        // görünen ama başka bir slotu serbest bırakarak toplamda daha iyi olabilecek
-        // oyuncuları alternatif adaylardan çıkarabiliyordu. Artık tüm eligible havuz
-        // kullanılıyor; beam search yalnızca alternatif üretim maliyetini sınırlıyor.
+        // Do not pre-truncate each slot to a small top-N list. A lower-ranked
+        // player may be essential for a scarce slot and therefore part of a
+        // globally stronger alternative XI.
         var slots = formation.SlotCodes
             .Select((code, index) => new SlotDefinition(index, code))
             .OrderBy(x => FeasibilityCount(eligibleProfiles, x.Code))
@@ -85,9 +87,11 @@ public sealed class PositionOptimizationEngine : IPositionOptimizationEngine
                     if (state.UsedPlayerIds.Contains(profile.PlayerId)) continue;
 
                     var raw = Score(profile, slot.Code);
-                    if (raw <= 0) continue;
+                    if (!double.IsFinite(raw) || raw <= 0) continue;
 
                     var adjusted = AdjustedScore(profile, slot.Code);
+                    if (!double.IsFinite(adjusted) || adjusted <= 0) continue;
+
                     var assigned = new List<AssignedSlot>(state.Assigned)
                     {
                         new(profile.PlayerId, slot.Code, raw, adjusted)
@@ -111,7 +115,7 @@ public sealed class PositionOptimizationEngine : IPositionOptimizationEngine
                      .ThenBy(x => AssignmentKey(x.Assigned), StringComparer.Ordinal)
                      .Take(Math.Max(maxCandidates * 4, 200)))
         {
-            var candidate = BuildCandidate(formation.Formation, state.Assigned, state.Score, byId);
+            var candidate = BuildCandidate(formation, state.Assigned, state.Score, byId);
             AddUnique(candidate, results, seen);
         }
 
@@ -135,11 +139,7 @@ public sealed class PositionOptimizationEngine : IPositionOptimizationEngine
             throw new ArgumentOutOfRangeException(nameof(maxCandidatesPerFormation));
 
         return formations.Candidates
-            .SelectMany(formation => GenerateCandidates(
-                context,
-                players,
-                formation,
-                maxCandidatesPerFormation))
+            .SelectMany(formation => GenerateCandidates(context, players, formation, maxCandidatesPerFormation))
             .OrderByDescending(x => x.SuitabilityScore)
             .ThenBy(x => x.Formation, StringComparer.Ordinal)
             .ThenBy(x => AssignmentKey(x), StringComparer.Ordinal)
@@ -173,74 +173,67 @@ public sealed class PositionOptimizationEngine : IPositionOptimizationEngine
         {
             var playerIndex = assignment[row];
             if (playerIndex < 0 || playerIndex >= profiles.Count)
-                throw new InvalidOperationException(
-                    $"Motor 5 '{formation.Formation}' için geçerli bir Hungarian ataması üretemedi.");
+                throw new InvalidOperationException($"Motor 5 '{formation.Formation}' için geçerli bir Hungarian ataması üretemedi.");
 
             var profile = profiles[playerIndex];
             var rawScore = Score(profile, formation.SlotCodes[row]);
             var adjustedScore = AdjustedScore(profile, formation.SlotCodes[row]);
-            if (rawScore <= 0 || !used.Add(profile.PlayerId))
-                throw new InvalidOperationException(
-                    $"Motor 5 '{formation.Formation}' geçersiz oyuncu-slot ataması üretti.");
+            if (!double.IsFinite(rawScore) || !double.IsFinite(adjustedScore) || rawScore <= 0 || !used.Add(profile.PlayerId))
+                throw new InvalidOperationException($"Motor 5 '{formation.Formation}' geçersiz oyuncu-slot ataması üretti.");
 
             assigned.Add(new AssignedSlot(profile.PlayerId, formation.SlotCodes[row], rawScore, adjustedScore));
             total += adjustedScore;
         }
 
-        return BuildCandidate(formation.Formation, assigned, total, byId);
+        return BuildCandidate(formation, assigned, total, byId);
     }
 
     private static PositionAssignmentCandidate BuildCandidate(
-        string formation,
+        FormationCandidate formation,
         IReadOnlyList<AssignedSlot> assigned,
         double score,
         IReadOnlyDictionary<int, PlayerAnalysisProfile> profiles)
     {
+        if (assigned.Count != 11 || assigned.Select(x => x.PlayerId).Distinct().Count() != 11)
+            throw new InvalidOperationException($"Motor 5 '{formation.Formation}' 11 benzersiz oyunculu XI üretemedi.");
+
+        if (!double.IsFinite(score) || score <= 0)
+            throw new InvalidOperationException($"Motor 5 '{formation.Formation}' geçersiz suitability skoru üretti.");
+
         var slots = assigned
             .Select(x => ToSlot(profiles[x.PlayerId], x.Code, x.RawScore))
             .OrderBy(x => SlotOrder(x.Code))
             .ToList();
 
+        if (slots.Count != 11 || slots.Select(x => x.Code).Distinct(StringComparer.Ordinal).Count() != 11)
+            throw new InvalidOperationException($"Motor 5 '{formation.Formation}' geçersiz slot seti üretti.");
+
         return new PositionAssignmentCandidate(
-            formation,
-            new Lineup("Aday XI", formation, slots),
+            formation.Formation,
+            new Lineup("Aday XI", formation.Formation, slots),
             score,
-            assigned
-                .OrderBy(x => SlotOrder(x.Code))
-                .ToDictionary(x => x.PlayerId, x => x.Code));
+            assigned.OrderBy(x => SlotOrder(x.Code)).ToDictionary(x => x.PlayerId, x => x.Code),
+            formation.StructuralScore);
     }
 
-    private static void AddUnique(
-        PositionAssignmentCandidate candidate,
-        List<PositionAssignmentCandidate> results,
-        HashSet<string> seen)
+    private static void AddUnique(PositionAssignmentCandidate candidate, List<PositionAssignmentCandidate> results, HashSet<string> seen)
     {
-        if (seen.Add(AssignmentKey(candidate)))
-            results.Add(candidate);
+        if (seen.Add(AssignmentKey(candidate))) results.Add(candidate);
     }
 
     private static int FeasibilityCount(IReadOnlyList<PlayerAnalysisProfile> profiles, string code)
-        => profiles.Count(p => Score(p, code) > 0);
+        => profiles.Count(p => p.IsEligible && Score(p, code) > 0);
 
     private static void ValidateFormation(FormationCandidate formation)
     {
         if (string.IsNullOrWhiteSpace(formation.Formation))
             throw new ArgumentException("Diziliş adı boş olamaz.", nameof(formation));
-
         if (formation.SlotCodes.Count != 11)
-            throw new ArgumentException(
-                $"Motor 5 için '{formation.Formation}' dizilişi tam 11 slot içermelidir.",
-                nameof(formation));
-
+            throw new ArgumentException($"Motor 5 için '{formation.Formation}' dizilişi tam 11 slot içermelidir.", nameof(formation));
         if (formation.SlotCodes.Any(string.IsNullOrWhiteSpace))
-            throw new ArgumentException(
-                $"'{formation.Formation}' dizilişinde boş slot kodu bulunamaz.",
-                nameof(formation));
-
+            throw new ArgumentException($"'{formation.Formation}' dizilişinde boş slot kodu bulunamaz.", nameof(formation));
         if (formation.SlotCodes.Distinct(StringComparer.Ordinal).Count() != formation.SlotCodes.Count)
-            throw new ArgumentException(
-                $"'{formation.Formation}' dizilişinde tekrar eden slot kodu bulunamaz.",
-                nameof(formation));
+            throw new ArgumentException($"'{formation.Formation}' dizilişinde tekrar eden slot kodu bulunamaz.", nameof(formation));
     }
 
     private static double Score(PlayerAnalysisProfile profile, string code)
@@ -249,61 +242,29 @@ public sealed class PositionOptimizationEngine : IPositionOptimizationEngine
     private static double AdjustedScore(PlayerAnalysisProfile profile, string code)
     {
         var raw = Score(profile, code);
-        if (raw <= 0) return 0;
+        if (!double.IsFinite(raw) || raw <= 0) return 0;
 
-        var best = profile.Positions
-            .Where(x => x.Score > 0)
-            .Select(x => x.Score)
-            .DefaultIfEmpty(0)
-            .Max();
+        var best = profile.Positions.Where(x => x.Score > 0).Select(x => x.Score).DefaultIfEmpty(0).Max();
+        if (best <= 0 || best - raw > NaturalRoleTieThreshold) return raw;
 
-        if (best <= 0 || best - raw > NaturalRoleTieThreshold)
-            return raw;
-
-        // Eğer M3 iki veya daha fazla pozisyonu gerçekten aynı seviyede üretmişse,
-        // primary/secondary etiketi sol/merkez/sağ arasında yapay fark üretmesin.
-        var tiedBestCount = profile.Positions.Count(x =>
-            x.Score > 0 && Math.Abs(x.Score - best) <= RoleTieEpsilon);
-        if (tiedBestCount > 1)
-            return raw;
-
-        if (string.Equals(profile.PrimaryPosition, code, StringComparison.Ordinal))
-            return raw + PrimaryRoleBonus;
-
-        if (string.Equals(profile.SecondaryPosition, code, StringComparison.Ordinal))
-            return raw + SecondaryRoleBonus;
-
+        var tiedBestCount = profile.Positions.Count(x => x.Score > 0 && Math.Abs(x.Score - best) <= RoleTieEpsilon);
+        if (tiedBestCount > 1) return raw;
+        if (string.Equals(profile.PrimaryPosition, code, StringComparison.Ordinal)) return raw + PrimaryRoleBonus;
+        if (string.Equals(profile.SecondaryPosition, code, StringComparison.Ordinal)) return raw + SecondaryRoleBonus;
         return raw;
     }
 
     private static Slot ToSlot(PlayerAnalysisProfile profile, string code, double score)
     {
         var (x, y, label, description) = SlotPresentation(code);
-        return new Slot(
-            code,
-            label,
-            description,
-            profile.PlayerName,
-            profile.PlayerId,
-            score,
-            x,
-            y,
-            PlayerOrder.Normal);
+        return new Slot(code, label, description, profile.PlayerName, profile.PlayerId, score, x, y, PlayerOrder.Normal);
     }
 
     private static string AssignmentKey(PositionAssignmentCandidate candidate)
-        => string.Join(
-            ";",
-            candidate.Lineup.Slots
-                .OrderBy(x => SlotOrder(x.Code))
-                .Select(x => $"{x.Code}:{x.PlayerId}"));
+        => string.Join(";", candidate.Lineup.Slots.OrderBy(x => SlotOrder(x.Code)).Select(x => $"{x.Code}:{x.PlayerId}"));
 
     private static string AssignmentKey(IReadOnlyList<AssignedSlot> assigned)
-        => string.Join(
-            ";",
-            assigned
-                .OrderBy(x => SlotOrder(x.Code))
-                .Select(x => $"{x.Code}:{x.PlayerId}"));
+        => string.Join(";", assigned.OrderBy(x => SlotOrder(x.Code)).Select(x => $"{x.Code}:{x.PlayerId}"));
 
     private static int[] RectangularHungarian(double[,] cost)
     {
@@ -322,66 +283,36 @@ public sealed class PositionOptimizationEngine : IPositionOptimizationEngine
             var j0 = 0;
             var minv = Enumerable.Repeat(double.PositiveInfinity, cols + 1).ToArray();
             var used = new bool[cols + 1];
-
             do
             {
                 used[j0] = true;
                 var i0 = p[j0];
                 var delta = double.PositiveInfinity;
                 var j1 = 0;
-
                 for (var j = 1; j <= cols; j++)
                 {
                     if (used[j]) continue;
                     var cur = cost[i0 - 1, j - 1] - u[i0] - v[j];
-                    if (cur < minv[j])
-                    {
-                        minv[j] = cur;
-                        way[j] = j0;
-                    }
-                    if (minv[j] < delta)
-                    {
-                        delta = minv[j];
-                        j1 = j;
-                    }
+                    if (cur < minv[j]) { minv[j] = cur; way[j] = j0; }
+                    if (minv[j] < delta) { delta = minv[j]; j1 = j; }
                 }
-
                 if (double.IsPositiveInfinity(delta))
                     throw new InvalidOperationException("Motor 5 Hungarian optimizasyonunda geçerli yol bulunamadı.");
-
                 for (var j = 0; j <= cols; j++)
                 {
-                    if (used[j])
-                    {
-                        u[p[j]] += delta;
-                        v[j] -= delta;
-                    }
-                    else
-                    {
-                        minv[j] -= delta;
-                    }
+                    if (used[j]) { u[p[j]] += delta; v[j] -= delta; }
+                    else minv[j] -= delta;
                 }
-
                 j0 = j1;
             }
             while (p[j0] != 0);
 
-            do
-            {
-                var j1 = way[j0];
-                p[j0] = p[j1];
-                j0 = j1;
-            }
+            do { var j1 = way[j0]; p[j0] = p[j1]; j0 = j1; }
             while (j0 != 0);
         }
 
         var assignment = Enumerable.Repeat(-1, rows).ToArray();
-        for (var j = 1; j <= cols; j++)
-        {
-            if (p[j] > 0)
-                assignment[p[j] - 1] = j - 1;
-        }
-
+        for (var j = 1; j <= cols; j++) if (p[j] > 0) assignment[p[j] - 1] = j - 1;
         return assignment;
     }
 
@@ -414,9 +345,6 @@ public sealed class PositionOptimizationEngine : IPositionOptimizationEngine
     };
 
     private sealed record SlotDefinition(int Index, string Code);
-    private sealed record PartialAssignment(
-        IReadOnlyList<AssignedSlot> Assigned,
-        IReadOnlySet<int> UsedPlayerIds,
-        double Score);
+    private sealed record PartialAssignment(IReadOnlyList<AssignedSlot> Assigned, IReadOnlySet<int> UsedPlayerIds, double Score);
     private sealed record AssignedSlot(int PlayerId, string Code, double RawScore, double AdjustedScore);
 }
