@@ -48,7 +48,8 @@ public sealed class PositionOptimizationEngine : IPositionOptimizationEngine
             .ToList();
 
         var results = new List<PositionAssignmentCandidate>();
-        Search(ordered, 0, new HashSet<int>(), new List<AssignedSlot>(), 0d, byId, results, maxCandidates * 4);
+        Search(ordered, 0, new HashSet<int>(), new List<AssignedSlot>(), 0d,
+            byId, results, resultLimit: maxCandidates * 4, formation.Formation);
 
         return results
             .OrderByDescending(x => x.SuitabilityScore)
@@ -64,7 +65,8 @@ public sealed class PositionOptimizationEngine : IPositionOptimizationEngine
         double score,
         IReadOnlyDictionary<int, PlayerAnalysisProfile> profiles,
         List<PositionAssignmentCandidate> results,
-        int resultLimit)
+        int resultLimit,
+        string formation)
     {
         if (results.Count >= resultLimit) return;
 
@@ -76,9 +78,10 @@ public sealed class PositionOptimizationEngine : IPositionOptimizationEngine
                 .ToList();
 
             results.Add(new PositionAssignmentCandidate(
-                pools.Count == 0 ? string.Empty : "",
-                new Lineup("Aday XI", string.Empty, slots),
-                score));
+                formation,
+                new Lineup("Aday XI", formation, slots),
+                score,
+                assigned.ToDictionary(x => x.PlayerId, x => x.Code)));
             return;
         }
 
@@ -89,7 +92,8 @@ public sealed class PositionOptimizationEngine : IPositionOptimizationEngine
 
             used.Add(option.PlayerId);
             assigned.Add(new AssignedSlot(option.PlayerId, pool.Code, option.Score));
-            Search(pools, index + 1, used, assigned, score + option.Score, profiles, results, resultLimit);
+            Search(pools, index + 1, used, assigned, score + option.Score,
+                profiles, results, resultLimit, formation);
             assigned.RemoveAt(assigned.Count - 1);
             used.Remove(option.PlayerId);
 
@@ -103,25 +107,16 @@ public sealed class PositionOptimizationEngine : IPositionOptimizationEngine
     private static Slot ToSlot(PlayerAnalysisProfile profile, string code, double score)
     {
         var (x, y) = Coordinates(code);
-        return new Slot(code, code, code, profile.PlayerName, profile.PlayerId, score, x, y, PlayerOrder.Normal);
+        return new Slot(code, code, code, profile.PlayerName, profile.PlayerId,
+            score, x, y, PlayerOrder.Normal);
     }
 
     private static int SlotOrder(string code) => code switch
     {
         "GK" => 0,
-        "DEF-L" => 10,
-        "DEF-CL" => 11,
-        "DEF-C" => 12,
-        "DEF-CR" => 13,
-        "DEF-R" => 14,
-        "W-L" => 20,
-        "IM-L" => 21,
-        "IM-C" => 22,
-        "IM-R" => 23,
-        "W-R" => 24,
-        "FW-L" => 30,
-        "FW-C" => 31,
-        "FW-R" => 32,
+        "DEF-L" => 10, "DEF-CL" => 11, "DEF-C" => 12, "DEF-CR" => 13, "DEF-R" => 14,
+        "W-L" => 20, "IM-L" => 21, "IM-C" => 22, "IM-R" => 23, "W-R" => 24,
+        "FW-L" => 30, "FW-C" => 31, "FW-R" => 32,
         _ => 99
     };
 
