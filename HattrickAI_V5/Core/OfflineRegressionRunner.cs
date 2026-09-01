@@ -42,7 +42,6 @@ public static class OfflineRegressionRunner
             Console.WriteLine($"M3: {m3Result.Players.Count} profiles | M4: {m4First.Candidates.Count} legal formation candidates | invalid: 0");
             Console.WriteLine("M4 formations: " + string.Join(", ", m4First.Candidates.Select(c => c.Formation)));
 
-            // M5 XI candidate regression gate.
             var opponentProfile = new OpponentMatchProfile(
                 analysis.GetProperty("opponentName").GetString() ?? "Opponent",
                 analysis.GetProperty("opponentFormation").GetString() ?? "",
@@ -64,14 +63,17 @@ public static class OfflineRegressionRunner
             Check(m5Candidates.Count > 0, "M5 produces XI candidates", failures);
             Check(m5Candidates.All(c => c.Lineup.Slots.Count == 11), "M5 every XI has 11 slots", failures);
             Check(m5Candidates.All(c => c.Lineup.Slots.Select(s => s.PlayerId).Distinct().Count() == 11), "M5 duplicate player inside XI", failures);
-            Check(m5Candidates.All(c => m3Result.Find(c.Lineup.Slots[0].PlayerId)?.IsEligible == true), "M5 eligibility preserved", failures);
+            Check(m5Candidates.All(c => c.Lineup.Slots.Select(s => s.PlayerId).All(id => m3Result.Find(id)?.IsEligible == true)), "M5 all players eligible", failures);
             Check(m5Candidates.All(c => c.Lineup.Formation == c.Formation), "M5 formation handoff preserved", failures);
             Check(m5Candidates.All(c => c.Lineup.Slots.All(s => m3Result.Find(s.PlayerId)?.Positions.Any(p => p.PositionCode == s.Code && p.Score > 0) == true)), "M5 M3 suitability preserved", failures);
             Check(m5Candidates.All(c => double.IsFinite(c.SuitabilityScore) && c.SuitabilityScore > 0), "M5 finite suitability", failures);
+            Check(m5Candidates.All(c => double.IsFinite(c.StructuralScore) && c.StructuralScore > 0), "M5 M4 structural score preserved", failures);
+            Check(m5Candidates.All(c => m4First.Candidates.Any(f => f.Formation == c.Formation && Math.Abs(f.StructuralScore - c.StructuralScore) < 1e-12)), "M5 M4 structural score continuity", failures);
             Check(m5Candidates.Select(c => c.CandidateId).Distinct(StringComparer.Ordinal).Count() == m5Candidates.Count, "M5 duplicate candidate id", failures);
             Check(m5Candidates.All(c => c.FormationId == c.Formation && c.LineupId == c.CandidateId), "M5 candidate identity continuity", failures);
             Check(m5Candidates.Select(c => c.CandidateId).SequenceEqual(m5CandidatesAgain.Select(c => c.CandidateId), StringComparer.Ordinal), "M5 deterministic candidate order", failures);
             Check(m5Candidates.Select(c => c.SuitabilityScore).SequenceEqual(m5CandidatesAgain.Select(c => c.SuitabilityScore)), "M5 deterministic suitability", failures);
+            Check(m5Candidates.Select(c => c.StructuralScore).SequenceEqual(m5CandidatesAgain.Select(c => c.StructuralScore)), "M5 deterministic structural handoff", failures);
             Console.WriteLine($"M5: {m5Candidates.Count} XI candidates | invalid: 0 | duplicate: 0");
             Console.WriteLine("M5 top XI: " + (m5Candidates.Count > 0 ? m5Candidates[0].CandidateId : "none"));
 
