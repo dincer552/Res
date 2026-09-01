@@ -7,5 +7,3342 @@
     "credentialsIncluded": false,
     "oauthTokensIncluded": false,
     "sessionCookiesIncluded": false
+  },
+  "purpose": "V5 motorlarını offline/regression test etmek",
+  "match": {
+    "ownTeamId": 1080139,
+    "ownTeam": "S4MSUNFC",
+    "opponentTeamId": 653953,
+    "opponentTeam": "Zeytinburnu Sahil Spor",
+    "nextMatch": {
+      "matchId": 769648177,
+      "date": "2026-09-06T15:00:00+00:00",
+      "homeId": 653953,
+      "awayId": 1080139,
+      "homeName": "Zeytinburnu Sahil Spor",
+      "awayName": "S4MSUNFC",
+      "matchType": 1
+    },
+    "opponentReferenceMatch": {
+      "matchId": 769648173,
+      "date": "2026-08-30T15:00:00+00:00",
+      "homeId": 1708186,
+      "awayId": 653953,
+      "homeName": "bombacı mülayim spor",
+      "awayName": "Zeytinburnu Sahil Spor",
+      "matchType": 1
+    }
+  },
+  "questionnaire": {
+    "coach": 0,
+    "teamSpirit": 3,
+    "matchImportance": 0
+  },
+  "rawChpp": {
+    "teamDetails": "<?xml version=\"1.0\" encoding=\"utf-8\"?>\r\n<HattrickData>\r\n  <FileName>teamdetails.xml</FileName>\r\n  <Version>3.0</Version>\r\n  <UserID>9464954</UserID>\r\n  <FetchedDate>2026-09-01 10:49:54</FetchedDate>\r\n  <User>\r\n    <UserID>9464954</UserID>\r\n    <Language>\r\n      <LanguageID>19</LanguageID>\r\n      <LanguageName>Türkçe</LanguageName>\r\n    </Language>\r\n    <SupporterTier>none</SupporterTier>\r\n    <Loginname>dincer55</Loginname>\r\n    <Name>HIDDEN</Name>\r\n    <ICQ></ICQ>\r\n    <SignupDate>2020-01-26 06:41:05</SignupDate>\r\n    <ActivationDate>2020-01-26 06:41:00</ActivationDate>\r\n    <LastLoginDate>2026-08-31 10:53:49</LastLoginDate>\r\n    <NationalTeamCoach />\r\n  </User>\r\n  <Teams>\r\n    <Team>\r\n      <TeamID>1080139</TeamID>\r\n      <TeamName>S4MSUNFC</TeamName>\r\n      <ShortTeamName>S4MSUNFC</ShortTeamName>\r\n      <IsPrimaryClub>True</IsPrimaryClub>\r\n      <FoundedDate>2020-01-26 06:41:00</FoundedDate>\r\n      <Arena>\r\n        <ArenaID>1076701</ArenaID>\r\n        <ArenaName>19 Mayıs hipodromu</ArenaName>\r\n      </Arena>\r\n      <League>\r\n        <LeagueID>32</LeagueID>\r\n        <LeagueName>Türkiye</LeagueName>\r\n      </League>\r\n      <Region>\r\n        <RegionID>2372</RegionID>\r\n        <RegionName>Samsun</RegionName>\r\n      </Region>\r\n      <Trainer>\r\n        <PlayerID>437860841</PlayerID>\r\n      </Trainer>\r\n      <HomePage></HomePage>\r\n      <DressURI>//res.hattrick.org/kits/1/1/1/1/matchKitSmall.png</DressURI>\r\n      <DressAlternateURI>//res.hattrick.org/kits/1/1/1/2/matchKitSmall.png</DressAlternateURI>\r\n      <LeagueLevelUnit>\r\n        <LeagueLevelUnitID>48931</LeagueLevelUnitID>\r\n        <LeagueLevelUnitName>V.15</LeagueLevelUnitName>\r\n        <LeagueLevel>5</LeagueLevel>\r\n      </LeagueLevelUnit>\r\n      <BotStatus>\r\n        <IsBot>False</IsBot>\r\n      </BotStatus>\r\n      <Cup>\r\n        <StillInCup>True</StillInCup>\r\n        <CupID>541</CupID>\r\n        <CupName>Zümrüt Kupası</CupName>\r\n      </Cup>\r\n      <PowerRating>\r\n        <GlobalRanking>44030</GlobalRanking>\r\n        <LeagueRanking>528</LeagueRanking>\r\n        <RegionRanking>3</RegionRanking>\r\n        <PowerRating>938</PowerRating>\r\n      </PowerRating>\r\n      <FriendlyTeamID>0</FriendlyTeamID>\r\n      <NumberOfVictories>2</NumberOfVictories>\r\n      <NumberOfUndefeated>2</NumberOfUndefeated>\r\n      <TeamRank>862</TeamRank>\r\n      <Fanclub>\r\n        <FanclubID>501436</FanclubID>\r\n        <FanclubName>Az kişiler</FanclubName>\r\n        <FanclubSize>2412</FanclubSize>\r\n      </Fanclub>\r\n      <LogoURL>//res.hattrick.org/teamlogo/11/109/1081/1080139/1080139.png</LogoURL>\r\n      <YouthTeamID>0</YouthTeamID>\r\n      <YouthTeamName></YouthTeamName>\r\n      <NumberOfVisits>10</NumberOfVisits>\r\n      <TrophyList>\r\n        <Trophy>\r\n          <TrophyTypeId>17</TrophyTypeId>\r\n          <TrophySeason>78</TrophySeason>\r\n          <LeagueLevel>5</LeagueLevel>\r\n          <LeagueLevelUnitName>V.18</LeagueLevelUnitName>\r\n          <GainedDate>2025-04-19 04:36:00</GainedDate>\r\n          <ImageUrl>/App_Themes/Standard/Images/Trophies/v.png</ImageUrl>\r\n        </Trophy>\r\n        <Trophy>\r\n          <TrophyTypeId>17</TrophyTypeId>\r\n          <TrophySeason>77</TrophySeason>\r\n          <LeagueLevel>6</LeagueLevel>\r\n          <LeagueLevelUnitName>VI.80</LeagueLevelUnitName>\r\n          <GainedDate>2024-12-28 04:36:00</GainedDate>\r\n          <ImageUrl>/App_Themes/Standard/Images/Trophies/vi.png</ImageUrl>\r\n        </Trophy>\r\n        <Trophy>\r\n          <TrophyTypeId>17</TrophyTypeId>\r\n          <TrophySeason>73</TrophySeason>\r\n          <LeagueLevel>5</LeagueLevel>\r\n          <LeagueLevelUnitName>V.30</LeagueLevelUnitName>\r\n          <GainedDate>2023-10-07 04:38:00</GainedDate>\r\n          <ImageUrl>/App_Themes/Standard/Images/Trophies/v.png</ImageUrl>\r\n        </Trophy>\r\n        <Trophy>\r\n          <TrophyTypeId>17</TrophyTypeId>\r\n          <TrophySeason>69</TrophySeason>\r\n          <LeagueLevel>6</LeagueLevel>\r\n          <LeagueLevelUnitName>VI.550</LeagueLevelUnitName>\r\n          <GainedDate>2022-07-16 04:36:00</GainedDate>\r\n          <ImageUrl>/App_Themes/Standard/Images/Trophies/vi.png</ImageUrl>\r\n        </Trophy>\r\n        <Trophy>\r\n          <TrophyTypeId>17</TrophyTypeId>\r\n          <TrophySeason>67</TrophySeason>\r\n          <LeagueLevel>6</LeagueLevel>\r\n          <LeagueLevelUnitName>VI.673</LeagueLevelUnitName>\r\n          <GainedDate>2021-12-04 04:37:00</GainedDate>\r\n          <ImageUrl>/App_Themes/Standard/Images/Trophies/vi.png</ImageUrl>\r\n        </Trophy>\r\n        <Trophy>\r\n          <TrophyTypeId>17</TrophyTypeId>\r\n          <TrophySeason>63</TrophySeason>\r\n          <LeagueLevel>6</LeagueLevel>\r\n          <LeagueLevelUnitName>VI.459</LeagueLevelUnitName>\r\n          <GainedDate>2020-09-12 04:47:00</GainedDate>\r\n          <ImageUrl>/App_Themes/Standard/Images/Trophies/vi.png</ImageUrl>\r\n        </Trophy>\r\n        <Trophy>\r\n          <TrophyTypeId>17</TrophyTypeId>\r\n          <TrophySeason>62</TrophySeason>\r\n          <LeagueLevel>6</LeagueLevel>\r\n          <LeagueLevelUnitName>VI.459</LeagueLevelUnitName>\r\n          <GainedDate>2020-05-23 05:02:00</GainedDate>\r\n          <ImageUrl>/App_Themes/Standard/Images/Trophies/vi.png</ImageUrl>\r\n        </Trophy>\r\n        <Trophy>\r\n          <TrophyTypeId>17</TrophyTypeId>\r\n          <TrophySeason>61</TrophySeason>\r\n          <LeagueLevel>6</LeagueLevel>\r\n          <LeagueLevelUnitName>VI.459</LeagueLevelUnitName>\r\n          <GainedDate>2020-02-01 04:46:00</GainedDate>\r\n          <ImageUrl>/App_Themes/Standard/Images/Trophies/vi.png</ImageUrl>\r\n        </Trophy>\r\n      </TrophyList>\r\n    </Team>\r\n  </Teams>\r\n</HattrickData>",
+    "training": "<?xml version=\"1.0\" encoding=\"utf-8\"?>\r\n<HattrickData>\r\n  <FileName>training.xml</FileName>\r\n  <Version>1.3</Version>\r\n  <UserID>9464954</UserID>\r\n  <FetchedDate>2026-09-01 10:49:54</FetchedDate>\r\n  <UserIsSupporter>False</UserIsSupporter>\r\n  <UserHasClubHouse>False</UserHasClubHouse>\r\n  <Team>\r\n    <TeamID>1080139</TeamID>\r\n    <TeamName>S4MSUNFC</TeamName>\r\n    <TrainingLevel>100</TrainingLevel>\r\n    <NewTrainingLevel Available=\"False\" />\r\n    <TrainingType>7</TrainingType>\r\n    <StaminaTrainingPart>10</StaminaTrainingPart>\r\n    <Trainer>\r\n      <TrainerID>437860841</TrainerID>\r\n      <TrainerName>Antonín Vašica</TrainerName>\r\n      <ArrivalDate>2024-08-16 22:28:00</ArrivalDate>\r\n    </Trainer>\r\n    <Morale Available=\"True\">3</Morale>\r\n    <SelfConfidence Available=\"True\">7</SelfConfidence>\r\n    <Experience433>3</Experience433>\r\n    <Experience451>3</Experience451>\r\n    <Experience352>3</Experience352>\r\n    <Experience532>3</Experience532>\r\n    <Experience343>10</Experience343>\r\n    <Experience541>3</Experience541>\r\n  </Team>\r\n</HattrickData>",
+    "ownPlayers": "<?xml version=\"1.0\" encoding=\"utf-8\"?>\r\n<HattrickData>\r\n  <FileName>players.xml</FileName>\r\n  <Version>1.4</Version>\r\n  <UserID>9464954</UserID>\r\n  <FetchedDate>2026-09-01 10:49:54</FetchedDate>\r\n  <UserIsSupporter>0</UserIsSupporter>\r\n  <IsYouth>False</IsYouth>\r\n  <UserHasClubHouse>0</UserHasClubHouse>\r\n  <ActionType>view</ActionType>\r\n  <Team>\r\n    <TeamID>1080139</TeamID>\r\n    <TeamName>S4MSUNFC</TeamName>\r\n    <PlayerList>\r\n      <Player>\r\n        <PlayerID>448933569</PlayerID>\r\n        <PlayerName>Uğur Günal</PlayerName>\r\n        <PlayerNumber>1</PlayerNumber>\r\n        <Age>42</Age>\r\n        <AgeDays>94</AgeDays>\r\n        <TSI>0</TSI>\r\n        <PlayerForm>2</PlayerForm>\r\n        <Statement></Statement>\r\n        <Experience>10</Experience>\r\n        <Leadership>6</Leadership>\r\n        <Salary>2500</Salary>\r\n        <IsAbroad>0</IsAbroad>\r\n        <Agreeability>0</Agreeability>\r\n        <Aggressiveness>0</Aggressiveness>\r\n        <Honesty>4</Honesty>\r\n        <LeagueGoals>0</LeagueGoals>\r\n        <CupGoals>0</CupGoals>\r\n        <FriendliesGoals>0</FriendliesGoals>\r\n        <CareerGoals>0</CareerGoals>\r\n        <CareerHattricks>0</CareerHattricks>\r\n        <Specialty>0</Specialty>\r\n        <TransferListed>0</TransferListed>\r\n        <NationalTeamID>0</NationalTeamID>\r\n        <CountryID>31</CountryID>\r\n        <Caps>0</Caps>\r\n        <CapsU20>0</CapsU20>\r\n        <Cards>0</Cards>\r\n        <InjuryLevel>-1</InjuryLevel>\r\n        <StaminaSkill>1</StaminaSkill>\r\n        <KeeperSkill>0</KeeperSkill>\r\n        <PlaymakerSkill>0</PlaymakerSkill>\r\n        <ScorerSkill>0</ScorerSkill>\r\n        <PassingSkill>0</PassingSkill>\r\n        <WingerSkill>0</WingerSkill>\r\n        <DefenderSkill>0</DefenderSkill>\r\n        <SetPiecesSkill>0</SetPiecesSkill>\r\n        <PlayerCategoryId>0</PlayerCategoryId>\r\n      </Player>\r\n      <Player>\r\n        <PlayerID>468363070</PlayerID>\r\n        <PlayerName>Abeiku Takyi</PlayerName>\r\n        <PlayerNumber>100</PlayerNumber>\r\n        <Age>31</Age>\r\n        <AgeDays>48</AgeDays>\r\n        <TSI>81140</TSI>\r\n        <PlayerForm>6</PlayerForm>\r\n        <Statement></Statement>\r\n        <Experience>10</Experience>\r\n        <Leadership>2</Leadership>\r\n        <Salary>472560</Salary>\r\n        <IsAbroad>1</IsAbroad>\r\n        <Agreeability>2</Agreeability>\r\n        <Aggressiveness>4</Aggressiveness>\r\n        <Honesty>2</Honesty>\r\n        <LeagueGoals>1</LeagueGoals>\r\n        <CupGoals>1</CupGoals>\r\n        <FriendliesGoals>0</FriendliesGoals>\r\n        <CareerGoals>38</CareerGoals>\r\n        <CareerHattricks>0</CareerHattricks>\r\n        <Specialty>2</Specialty>\r\n        <TransferListed>0</TransferListed>\r\n        <NationalTeamID>0</NationalTeamID>\r\n        <CountryID>144</CountryID>\r\n        <Caps>0</Caps>\r\n        <CapsU20>2</CapsU20>\r\n        <Cards>0</Cards>\r\n        <InjuryLevel>0</InjuryLevel>\r\n        <StaminaSkill>5</StaminaSkill>\r\n        <KeeperSkill>1</KeeperSkill>\r\n        <PlaymakerSkill>3</PlaymakerSkill>\r\n        <ScorerSkill>7</ScorerSkill>\r\n        <PassingSkill>8</PassingSkill>\r\n        <WingerSkill>4</WingerSkill>\r\n        <DefenderSkill>17</DefenderSkill>\r\n        <SetPiecesSkill>7</SetPiecesSkill>\r\n        <PlayerCategoryId>0</PlayerCategoryId>\r\n      </Player>\r\n      <Player>\r\n        <PlayerID>491743384</PlayerID>\r\n        <PlayerName>Adrian Beţa</PlayerName>\r\n        <PlayerNumber>100</PlayerNumber>\r\n        <Age>21</Age>\r\n        <AgeDays>47</AgeDays>\r\n        <TSI>87770</TSI>\r\n        <PlayerForm>7</PlayerForm>\r\n        <Statement></Statement>\r\n        <Experience>3</Experience>\r\n        <Leadership>4</Leadership>\r\n        <Salary>308880</Salary>\r\n        <IsAbroad>1</IsAbroad>\r\n        <Agreeability>2</Agreeability>\r\n        <Aggressiveness>4</Aggressiveness>\r\n        <Honesty>3</Honesty>\r\n        <LeagueGoals>12</LeagueGoals>\r\n        <CupGoals>0</CupGoals>\r\n        <FriendliesGoals>0</FriendliesGoals>\r\n        <CareerGoals>38</CareerGoals>\r\n        <CareerHattricks>4</CareerHattricks>\r\n        <Specialty>3</Specialty>\r\n        <TransferListed>0</TransferListed>\r\n        <NationalTeamID>0</NationalTeamID>\r\n        <CountryID>36</CountryID>\r\n        <Caps>0</Caps>\r\n        <CapsU20>0</CapsU20>\r\n        <Cards>2</Cards>\r\n        <InjuryLevel>-1</InjuryLevel>\r\n        <StaminaSkill>7</StaminaSkill>\r\n        <KeeperSkill>1</KeeperSkill>\r\n        <PlaymakerSkill>5</PlaymakerSkill>\r\n        <ScorerSkill>15</ScorerSkill>\r\n        <PassingSkill>8</PassingSkill>\r\n        <WingerSkill>3</WingerSkill>\r\n        <DefenderSkill>4</DefenderSkill>\r\n        <SetPiecesSkill>3</SetPiecesSkill>\r\n        <PlayerCategoryId>0</PlayerCategoryId>\r\n      </Player>\r\n      <Player>\r\n        <PlayerID>437630242</PlayerID>\r\n        <PlayerName>Alexey Esin</PlayerName>\r\n        <PlayerNumber>100</PlayerNumber>\r\n        <Age>43</Age>\r\n        <AgeDays>41</AgeDays>\r\n        <TSI>0</TSI>\r\n        <PlayerForm>4</PlayerForm>\r\n        <Statement></Statement>\r\n        <Experience>12</Experience>\r\n        <Leadership>6</Leadership>\r\n        <Salary>3000</Salary>\r\n        <IsAbroad>1</IsAbroad>\r\n        <Agreeability>2</Agreeability>\r\n        <Aggressiveness>4</Aggressiveness>\r\n        <Honesty>2</Honesty>\r\n        <LeagueGoals>0</LeagueGoals>\r\n        <CupGoals>0</CupGoals>\r\n        <FriendliesGoals>0</FriendliesGoals>\r\n        <CareerGoals>45</CareerGoals>\r\n        <CareerHattricks>1</CareerHattricks>\r\n        <Specialty>3</Specialty>\r\n        <TransferListed>0</TransferListed>\r\n        <NationalTeamID>0</NationalTeamID>\r\n        <CountryID>48</CountryID>\r\n        <Caps>0</Caps>\r\n        <CapsU20>0</CapsU20>\r\n        <Cards>0</Cards>\r\n        <InjuryLevel>-1</InjuryLevel>\r\n        <StaminaSkill>1</StaminaSkill>\r\n        <KeeperSkill>0</KeeperSkill>\r\n        <PlaymakerSkill>0</PlaymakerSkill>\r\n        <ScorerSkill>0</ScorerSkill>\r\n        <PassingSkill>0</PassingSkill>\r\n        <WingerSkill>0</WingerSkill>\r\n        <DefenderSkill>2</DefenderSkill>\r\n        <SetPiecesSkill>0</SetPiecesSkill>\r\n        <PlayerCategoryId>0</PlayerCategoryId>\r\n      </Player>\r\n      <Player>\r\n        <PlayerID>495041177</PlayerID>\r\n        <PlayerName>Andres Nahasepp</PlayerName>\r\n        <PlayerNumber>100</PlayerNumber>\r\n        <Age>20</Age>\r\n        <AgeDays>60</AgeDays>\r\n        <TSI>41400</TSI>\r\n        <PlayerForm>7</PlayerForm>\r\n        <Statement></Statement>\r\n        <Experience>3</Experience>\r\n        <Leadership>4</Leadership>\r\n        <Salary>144720</Salary>\r\n        <IsAbroad>1</IsAbroad>\r\n        <Agreeability>1</Agreeability>\r\n        <Aggressiveness>1</Aggressiveness>\r\n        <Honesty>3</Honesty>\r\n        <LeagueGoals>2</LeagueGoals>\r\n        <CupGoals>0</CupGoals>\r\n        <FriendliesGoals>1</FriendliesGoals>\r\n        <CareerGoals>17</CareerGoals>\r\n        <CareerHattricks>0</CareerHattricks>\r\n        <Specialty>4</Specialty>\r\n        <TransferListed>0</TransferListed>\r\n        <NationalTeamID>0</NationalTeamID>\r\n        <CountryID>47</CountryID>\r\n        <Caps>0</Caps>\r\n        <CapsU20>0</CapsU20>\r\n        <Cards>0</Cards>\r\n        <InjuryLevel>-1</InjuryLevel>\r\n        <StaminaSkill>7</StaminaSkill>\r\n        <KeeperSkill>1</KeeperSkill>\r\n        <PlaymakerSkill>6</PlaymakerSkill>\r\n        <ScorerSkill>13</ScorerSkill>\r\n        <PassingSkill>7</PassingSkill>\r\n        <WingerSkill>5</WingerSkill>\r\n        <DefenderSkill>3</DefenderSkill>\r\n        <SetPiecesSkill>3</SetPiecesSkill>\r\n        <PlayerCategoryId>0</PlayerCategoryId>\r\n      </Player>\r\n      <Player>\r\n        <PlayerID>465805392</PlayerID>\r\n        <PlayerName>Bertalan Doktor</PlayerName>\r\n        <PlayerNumber>100</PlayerNumber>\r\n        <Age>31</Age>\r\n        <AgeDays>106</AgeDays>\r\n        <TSI>75180</TSI>\r\n        <PlayerForm>4</PlayerForm>\r\n        <Statement></Statement>\r\n        <Experience>8</Experience>\r\n        <Leadership>4</Leadership>\r\n        <Salary>461520</Salary>\r\n        <IsAbroad>1</IsAbroad>\r\n        <Agreeability>1</Agreeability>\r\n        <Aggressiveness>3</Aggressiveness>\r\n        <Honesty>3</Honesty>\r\n        <LeagueGoals>2</LeagueGoals>\r\n        <CupGoals>0</CupGoals>\r\n        <FriendliesGoals>0</FriendliesGoals>\r\n        <CareerGoals>28</CareerGoals>\r\n        <CareerHattricks>1</CareerHattricks>\r\n        <Specialty>3</Specialty>\r\n        <TransferListed>0</TransferListed>\r\n        <NationalTeamID>0</NationalTeamID>\r\n        <CountryID>44</CountryID>\r\n        <Caps>0</Caps>\r\n        <CapsU20>0</CapsU20>\r\n        <Cards>2</Cards>\r\n        <InjuryLevel>-1</InjuryLevel>\r\n        <StaminaSkill>6</StaminaSkill>\r\n        <KeeperSkill>1</KeeperSkill>\r\n        <PlaymakerSkill>17</PlaymakerSkill>\r\n        <ScorerSkill>6</ScorerSkill>\r\n        <PassingSkill>11</PassingSkill>\r\n        <WingerSkill>6</WingerSkill>\r\n        <DefenderSkill>2</DefenderSkill>\r\n        <SetPiecesSkill>10</SetPiecesSkill>\r\n        <PlayerCategoryId>0</PlayerCategoryId>\r\n      </Player>\r\n      <Player>\r\n        <PlayerID>442645385</PlayerID>\r\n        <PlayerName>Biel Kichute</PlayerName>\r\n        <PlayerNumber>100</PlayerNumber>\r\n        <Age>41</Age>\r\n        <AgeDays>26</AgeDays>\r\n        <TSI>20</TSI>\r\n        <PlayerForm>5</PlayerForm>\r\n        <Statement></Statement>\r\n        <Experience>12</Experience>\r\n        <Leadership>3</Leadership>\r\n        <Salary>3600</Salary>\r\n        <IsAbroad>1</IsAbroad>\r\n        <Agreeability>3</Agreeability>\r\n        <Aggressiveness>2</Aggressiveness>\r\n        <Honesty>2</Honesty>\r\n        <LeagueGoals>0</LeagueGoals>\r\n        <CupGoals>0</CupGoals>\r\n        <FriendliesGoals>0</FriendliesGoals>\r\n        <CareerGoals>69</CareerGoals>\r\n        <CareerHattricks>4</CareerHattricks>\r\n        <Specialty>0</Specialty>\r\n        <TransferListed>0</TransferListed>\r\n        <NationalTeamID>0</NationalTeamID>\r\n        <CountryID>22</CountryID>\r\n        <Caps>0</Caps>\r\n        <CapsU20>0</CapsU20>\r\n        <Cards>0</Cards>\r\n        <InjuryLevel>999</InjuryLevel>\r\n        <StaminaSkill>1</StaminaSkill>\r\n        <KeeperSkill>0</KeeperSkill>\r\n        <PlaymakerSkill>8</PlaymakerSkill>\r\n        <ScorerSkill>1</ScorerSkill>\r\n        <PassingSkill>1</PassingSkill>\r\n        <WingerSkill>0</WingerSkill>\r\n        <DefenderSkill>0</DefenderSkill>\r\n        <SetPiecesSkill>3</SetPiecesSkill>\r\n        <PlayerCategoryId>0</PlayerCategoryId>\r\n      </Player>\r\n      <Player>\r\n        <PlayerID>493851210</PlayerID>\r\n        <PlayerName>Bumin Pehlivanlar</PlayerName>\r\n        <PlayerNumber>100</PlayerNumber>\r\n        <Age>21</Age>\r\n        <AgeDays>59</AgeDays>\r\n        <TSI>2360</TSI>\r\n        <PlayerForm>8</PlayerForm>\r\n        <Statement></Statement>\r\n        <Experience>2</Experience>\r\n        <Leadership>1</Leadership>\r\n        <Salary>3900</Salary>\r\n        <IsAbroad>0</IsAbroad>\r\n        <Agreeability>2</Agreeability>\r\n        <Aggressiveness>4</Aggressiveness>\r\n        <Honesty>1</Honesty>\r\n        <LeagueGoals>0</LeagueGoals>\r\n        <CupGoals>2</CupGoals>\r\n        <FriendliesGoals>0</FriendliesGoals>\r\n        <CareerGoals>2</CareerGoals>\r\n        <CareerHattricks>0</CareerHattricks>\r\n        <Specialty>0</Specialty>\r\n        <TransferListed>0</TransferListed>\r\n        <NationalTeamID>0</NationalTeamID>\r\n        <CountryID>31</CountryID>\r\n        <Caps>0</Caps>\r\n        <CapsU20>0</CapsU20>\r\n        <Cards>0</Cards>\r\n        <InjuryLevel>-1</InjuryLevel>\r\n        <StaminaSkill>5</StaminaSkill>\r\n        <KeeperSkill>2</KeeperSkill>\r\n        <PlaymakerSkill>4</PlaymakerSkill>\r\n        <ScorerSkill>7</ScorerSkill>\r\n        <PassingSkill>7</PassingSkill>\r\n        <WingerSkill>5</WingerSkill>\r\n        <DefenderSkill>4</DefenderSkill>\r\n        <SetPiecesSkill>1</SetPiecesSkill>\r\n        <PlayerCategoryId>0</PlayerCategoryId>\r\n      </Player>\r\n      <Player>\r\n        <PlayerID>497066104</PlayerID>\r\n        <PlayerName>Cevat Durguner</PlayerName>\r\n        <PlayerNumber>100</PlayerNumber>\r\n        <Age>21</Age>\r\n        <AgeDays>43</AgeDays>\r\n        <TSI>3870</TSI>\r\n        <PlayerForm>7</PlayerForm>\r\n        <Statement></Statement>\r\n        <Experience>2</Experience>\r\n        <Leadership>4</Leadership>\r\n        <Salary>7800</Salary>\r\n        <IsAbroad>0</IsAbroad>\r\n        <Agreeability>2</Agreeability>\r\n        <Aggressiveness>3</Aggressiveness>\r\n        <Honesty>2</Honesty>\r\n        <LeagueGoals>0</LeagueGoals>\r\n        <CupGoals>0</CupGoals>\r\n        <FriendliesGoals>0</FriendliesGoals>\r\n        <CareerGoals>1</CareerGoals>\r\n        <CareerHattricks>0</CareerHattricks>\r\n        <Specialty>3</Specialty>\r\n        <TransferListed>0</TransferListed>\r\n        <NationalTeamID>0</NationalTeamID>\r\n        <CountryID>31</CountryID>\r\n        <Caps>0</Caps>\r\n        <CapsU20>0</CapsU20>\r\n        <Cards>0</Cards>\r\n        <InjuryLevel>-1</InjuryLevel>\r\n        <StaminaSkill>6</StaminaSkill>\r\n        <KeeperSkill>2</KeeperSkill>\r\n        <PlaymakerSkill>5</PlaymakerSkill>\r\n        <ScorerSkill>8</ScorerSkill>\r\n        <PassingSkill>6</PassingSkill>\r\n        <WingerSkill>3</WingerSkill>\r\n        <DefenderSkill>4</DefenderSkill>\r\n        <SetPiecesSkill>1</SetPiecesSkill>\r\n        <PlayerCategoryId>0</PlayerCategoryId>\r\n      </Player>\r\n      <Player>\r\n        <PlayerID>476114406</PlayerID>\r\n        <PlayerName>Cristian Pesalovo</PlayerName>\r\n        <PlayerNumber>100</PlayerNumber>\r\n        <Age>28</Age>\r\n        <AgeDays>19</AgeDays>\r\n        <TSI>117640</TSI>\r\n        <PlayerForm>7</PlayerForm>\r\n        <Statement></Statement>\r\n        <Experience>6</Experience>\r\n        <Leadership>5</Leadership>\r\n        <Salary>353400</Salary>\r\n        <IsAbroad>1</IsAbroad>\r\n        <Agreeability>0</Agreeability>\r\n        <Aggressiveness>3</Aggressiveness>\r\n        <Honesty>3</Honesty>\r\n        <LeagueGoals>1</LeagueGoals>\r\n        <CupGoals>0</CupGoals>\r\n        <FriendliesGoals>0</FriendliesGoals>\r\n        <CareerGoals>8</CareerGoals>\r\n        <CareerHattricks>0</CareerHattricks>\r\n        <Specialty>0</Specialty>\r\n        <TransferListed>0</TransferListed>\r\n        <NationalTeamID>0</NationalTeamID>\r\n        <CountryID>40</CountryID>\r\n        <Caps>0</Caps>\r\n        <CapsU20>0</CapsU20>\r\n        <Cards>1</Cards>\r\n        <InjuryLevel>-1</InjuryLevel>\r\n        <StaminaSkill>7</StaminaSkill>\r\n        <KeeperSkill>1</KeeperSkill>\r\n        <PlaymakerSkill>6</PlaymakerSkill>\r\n        <ScorerSkill>6</ScorerSkill>\r\n        <PassingSkill>9</PassingSkill>\r\n        <WingerSkill>3</WingerSkill>\r\n        <DefenderSkill>16</DefenderSkill>\r\n        <SetPiecesSkill>4</SetPiecesSkill>\r\n        <PlayerCategoryId>0</PlayerCategoryId>\r\n      </Player>\r\n      <Player>\r\n        <PlayerID>513040102</PlayerID>\r\n        <PlayerName>Daim Evliya</PlayerName>\r\n        <PlayerNumber>100</PlayerNumber>\r\n        <Age>19</Age>\r\n        <AgeDays>5</AgeDays>\r\n        <TSI>1120</TSI>\r\n        <PlayerForm>4</PlayerForm>\r\n        <Statement></Statement>\r\n        <Experience>2</Experience>\r\n        <Leadership>3</Leadership>\r\n        <Salary>4000</Salary>\r\n        <IsAbroad>0</IsAbroad>\r\n        <Agreeability>1</Agreeability>\r\n        <Aggressiveness>1</Aggressiveness>\r\n        <Honesty>2</Honesty>\r\n        <LeagueGoals>0</LeagueGoals>\r\n        <CupGoals>0</CupGoals>\r\n        <FriendliesGoals>0</FriendliesGoals>\r\n        <CareerGoals>0</CareerGoals>\r\n        <CareerHattricks>0</CareerHattricks>\r\n        <Specialty>1</Specialty>\r\n        <TransferListed>0</TransferListed>\r\n        <NationalTeamID>0</NationalTeamID>\r\n        <CountryID>31</CountryID>\r\n        <Caps>0</Caps>\r\n        <CapsU20>0</CapsU20>\r\n        <Cards>0</Cards>\r\n        <InjuryLevel>-1</InjuryLevel>\r\n        <StaminaSkill>5</StaminaSkill>\r\n        <KeeperSkill>2</KeeperSkill>\r\n        <PlaymakerSkill>5</PlaymakerSkill>\r\n        <ScorerSkill>4</ScorerSkill>\r\n        <PassingSkill>7</PassingSkill>\r\n        <WingerSkill>4</WingerSkill>\r\n        <DefenderSkill>4</DefenderSkill>\r\n        <SetPiecesSkill>1</SetPiecesSkill>\r\n        <PlayerCategoryId>0</PlayerCategoryId>\r\n      </Player>\r\n      <Player>\r\n        <PlayerID>458524225</PlayerID>\r\n        <PlayerName>Dawid Nocoń</PlayerName>\r\n        <PlayerNumber>100</PlayerNumber>\r\n        <Age>35</Age>\r\n        <AgeDays>13</AgeDays>\r\n        <TSI>16650</TSI>\r\n        <PlayerForm>6</PlayerForm>\r\n        <Statement></Statement>\r\n        <Experience>12</Experience>\r\n        <Leadership>4</Leadership>\r\n        <Salary>192840</Salary>\r\n        <IsAbroad>1</IsAbroad>\r\n        <Agreeability>1</Agreeability>\r\n        <Aggressiveness>1</Aggressiveness>\r\n        <Honesty>3</Honesty>\r\n        <LeagueGoals>1</LeagueGoals>\r\n        <CupGoals>2</CupGoals>\r\n        <FriendliesGoals>1</FriendliesGoals>\r\n        <CareerGoals>41</CareerGoals>\r\n        <CareerHattricks>0</CareerHattricks>\r\n        <Specialty>5</Specialty>\r\n        <TransferListed>0</TransferListed>\r\n        <NationalTeamID>0</NationalTeamID>\r\n        <CountryID>26</CountryID>\r\n        <Caps>0</Caps>\r\n        <CapsU20>0</CapsU20>\r\n        <Cards>0</Cards>\r\n        <InjuryLevel>-1</InjuryLevel>\r\n        <StaminaSkill>5</StaminaSkill>\r\n        <KeeperSkill>0</KeeperSkill>\r\n        <PlaymakerSkill>3</PlaymakerSkill>\r\n        <ScorerSkill>7</ScorerSkill>\r\n        <PassingSkill>5</PassingSkill>\r\n        <WingerSkill>4</WingerSkill>\r\n        <DefenderSkill>17</DefenderSkill>\r\n        <SetPiecesSkill>1</SetPiecesSkill>\r\n        <PlayerCategoryId>0</PlayerCategoryId>\r\n      </Player>\r\n      <Player>\r\n        <PlayerID>479235895</PlayerID>\r\n        <PlayerName>Enzo Bultot</PlayerName>\r\n        <PlayerNumber>100</PlayerNumber>\r\n        <Age>28</Age>\r\n        <AgeDays>2</AgeDays>\r\n        <TSI>96910</TSI>\r\n        <PlayerForm>6</PlayerForm>\r\n        <Statement></Statement>\r\n        <Experience>5</Experience>\r\n        <Leadership>5</Leadership>\r\n        <Salary>534120</Salary>\r\n        <IsAbroad>1</IsAbroad>\r\n        <Agreeability>3</Agreeability>\r\n        <Aggressiveness>3</Aggressiveness>\r\n        <Honesty>2</Honesty>\r\n        <LeagueGoals>0</LeagueGoals>\r\n        <CupGoals>0</CupGoals>\r\n        <FriendliesGoals>0</FriendliesGoals>\r\n        <CareerGoals>0</CareerGoals>\r\n        <CareerHattricks>0</CareerHattricks>\r\n        <Specialty>5</Specialty>\r\n        <TransferListed>0</TransferListed>\r\n        <NationalTeamID>0</NationalTeamID>\r\n        <CountryID>38</CountryID>\r\n        <Caps>0</Caps>\r\n        <CapsU20>0</CapsU20>\r\n        <Cards>0</Cards>\r\n        <InjuryLevel>-1</InjuryLevel>\r\n        <StaminaSkill>7</StaminaSkill>\r\n        <KeeperSkill>17</KeeperSkill>\r\n        <PlaymakerSkill>1</PlaymakerSkill>\r\n        <ScorerSkill>4</ScorerSkill>\r\n        <PassingSkill>2</PassingSkill>\r\n        <WingerSkill>1</WingerSkill>\r\n        <DefenderSkill>4</DefenderSkill>\r\n        <SetPiecesSkill>3</SetPiecesSkill>\r\n        <PlayerCategoryId>0</PlayerCategoryId>\r\n      </Player>\r\n      <Player>\r\n        <PlayerID>497641568</PlayerID>\r\n        <PlayerName>Ersin Akşın</PlayerName>\r\n        <PlayerNumber>100</PlayerNumber>\r\n        <Age>19</Age>\r\n        <AgeDays>110</AgeDays>\r\n        <TSI>39930</TSI>\r\n        <PlayerForm>7</PlayerForm>\r\n        <Statement></Statement>\r\n        <Experience>3</Experience>\r\n        <Leadership>4</Leadership>\r\n        <Salary>59900</Salary>\r\n        <IsAbroad>0</IsAbroad>\r\n        <Agreeability>3</Agreeability>\r\n        <Aggressiveness>3</Aggressiveness>\r\n        <Honesty>2</Honesty>\r\n        <LeagueGoals>3</LeagueGoals>\r\n        <CupGoals>0</CupGoals>\r\n        <FriendliesGoals>0</FriendliesGoals>\r\n        <CareerGoals>19</CareerGoals>\r\n        <CareerHattricks>2</CareerHattricks>\r\n        <Specialty>1</Specialty>\r\n        <TransferListed>0</TransferListed>\r\n        <NationalTeamID>0</NationalTeamID>\r\n        <CountryID>31</CountryID>\r\n        <Caps>0</Caps>\r\n        <CapsU20>0</CapsU20>\r\n        <Cards>0</Cards>\r\n        <InjuryLevel>-1</InjuryLevel>\r\n        <StaminaSkill>6</StaminaSkill>\r\n        <KeeperSkill>1</KeeperSkill>\r\n        <PlaymakerSkill>5</PlaymakerSkill>\r\n        <ScorerSkill>13</ScorerSkill>\r\n        <PassingSkill>8</PassingSkill>\r\n        <WingerSkill>4</WingerSkill>\r\n        <DefenderSkill>2</DefenderSkill>\r\n        <SetPiecesSkill>4</SetPiecesSkill>\r\n        <PlayerCategoryId>0</PlayerCategoryId>\r\n      </Player>\r\n      <Player>\r\n        <PlayerID>492052456</PlayerID>\r\n        <PlayerName>Felix Gustavsson</PlayerName>\r\n        <PlayerNumber>100</PlayerNumber>\r\n        <Age>21</Age>\r\n        <AgeDays>22</AgeDays>\r\n        <TSI>106720</TSI>\r\n        <PlayerForm>7</PlayerForm>\r\n        <Statement></Statement>\r\n        <Experience>4</Experience>\r\n        <Leadership>4</Leadership>\r\n        <Salary>366480</Salary>\r\n        <IsAbroad>1</IsAbroad>\r\n        <Agreeability>3</Agreeability>\r\n        <Aggressiveness>3</Aggressiveness>\r\n        <Honesty>2</Honesty>\r\n        <LeagueGoals>1</LeagueGoals>\r\n        <CupGoals>0</CupGoals>\r\n        <FriendliesGoals>1</FriendliesGoals>\r\n        <CareerGoals>11</CareerGoals>\r\n        <CareerHattricks>0</CareerHattricks>\r\n        <Specialty>3</Specialty>\r\n        <TransferListed>0</TransferListed>\r\n        <NationalTeamID>0</NationalTeamID>\r\n        <CountryID>1</CountryID>\r\n        <Caps>0</Caps>\r\n        <CapsU20>0</CapsU20>\r\n        <Cards>0</Cards>\r\n        <InjuryLevel>-1</InjuryLevel>\r\n        <StaminaSkill>7</StaminaSkill>\r\n        <KeeperSkill>1</KeeperSkill>\r\n        <PlaymakerSkill>3</PlaymakerSkill>\r\n        <ScorerSkill>5</ScorerSkill>\r\n        <PassingSkill>8</PassingSkill>\r\n        <WingerSkill>17</WingerSkill>\r\n        <DefenderSkill>3</DefenderSkill>\r\n        <SetPiecesSkill>6</SetPiecesSkill>\r\n        <PlayerCategoryId>0</PlayerCategoryId>\r\n      </Player>\r\n      <Player>\r\n        <PlayerID>454418419</PlayerID>\r\n        <PlayerName>Francisco Manuel</PlayerName>\r\n        <PlayerNumber>100</PlayerNumber>\r\n        <Age>36</Age>\r\n        <AgeDays>84</AgeDays>\r\n        <TSI>8230</TSI>\r\n        <PlayerForm>5</PlayerForm>\r\n        <Statement></Statement>\r\n        <Experience>10</Experience>\r\n        <Leadership>4</Leadership>\r\n        <Salary>107160</Salary>\r\n        <IsAbroad>1</IsAbroad>\r\n        <Agreeability>2</Agreeability>\r\n        <Aggressiveness>2</Aggressiveness>\r\n        <Honesty>3</Honesty>\r\n        <LeagueGoals>0</LeagueGoals>\r\n        <CupGoals>1</CupGoals>\r\n        <FriendliesGoals>0</FriendliesGoals>\r\n        <CareerGoals>66</CareerGoals>\r\n        <CareerHattricks>1</CareerHattricks>\r\n        <Specialty>1</Specialty>\r\n        <TransferListed>0</TransferListed>\r\n        <NationalTeamID>0</NationalTeamID>\r\n        <CountryID>23</CountryID>\r\n        <Caps>0</Caps>\r\n        <CapsU20>0</CapsU20>\r\n        <Cards>0</Cards>\r\n        <InjuryLevel>-1</InjuryLevel>\r\n        <StaminaSkill>4</StaminaSkill>\r\n        <KeeperSkill>0</KeeperSkill>\r\n        <PlaymakerSkill>15</PlaymakerSkill>\r\n        <ScorerSkill>7</ScorerSkill>\r\n        <PassingSkill>8</PassingSkill>\r\n        <WingerSkill>2</WingerSkill>\r\n        <DefenderSkill>2</DefenderSkill>\r\n        <SetPiecesSkill>2</SetPiecesSkill>\r\n        <PlayerCategoryId>0</PlayerCategoryId>\r\n      </Player>\r\n      <Player>\r\n        <PlayerID>445283093</PlayerID>\r\n        <PlayerName>Giacomo Rizzo</PlayerName>\r\n        <PlayerNumber>100</PlayerNumber>\r\n        <Age>39</Age>\r\n        <AgeDays>102</AgeDays>\r\n        <TSI>1260</TSI>\r\n        <PlayerForm>3</PlayerForm>\r\n        <Statement></Statement>\r\n        <Experience>12</Experience>\r\n        <Leadership>3</Leadership>\r\n        <Salary>12000</Salary>\r\n        <IsAbroad>1</IsAbroad>\r\n        <Agreeability>0</Agreeability>\r\n        <Aggressiveness>0</Aggressiveness>\r\n        <Honesty>3</Honesty>\r\n        <LeagueGoals>0</LeagueGoals>\r\n        <CupGoals>0</CupGoals>\r\n        <FriendliesGoals>0</FriendliesGoals>\r\n        <CareerGoals>0</CareerGoals>\r\n        <CareerHattricks>0</CareerHattricks>\r\n        <Specialty>0</Specialty>\r\n        <TransferListed>0</TransferListed>\r\n        <NationalTeamID>0</NationalTeamID>\r\n        <CountryID>4</CountryID>\r\n        <Caps>0</Caps>\r\n        <CapsU20>0</CapsU20>\r\n        <Cards>0</Cards>\r\n        <InjuryLevel>-1</InjuryLevel>\r\n        <StaminaSkill>1</StaminaSkill>\r\n        <KeeperSkill>11</KeeperSkill>\r\n        <PlaymakerSkill>0</PlaymakerSkill>\r\n        <ScorerSkill>1</ScorerSkill>\r\n        <PassingSkill>0</PassingSkill>\r\n        <WingerSkill>0</WingerSkill>\r\n        <DefenderSkill>5</DefenderSkill>\r\n        <SetPiecesSkill>0</SetPiecesSkill>\r\n        <PlayerCategoryId>0</PlayerCategoryId>\r\n      </Player>\r\n      <Player>\r\n        <PlayerID>474962854</PlayerID>\r\n        <PlayerName>Manuel Gobiet</PlayerName>\r\n        <PlayerNumber>100</PlayerNumber>\r\n        <Age>28</Age>\r\n        <AgeDays>55</AgeDays>\r\n        <TSI>129090</TSI>\r\n        <PlayerForm>7</PlayerForm>\r\n        <Statement></Statement>\r\n        <Experience>7</Experience>\r\n        <Leadership>3</Leadership>\r\n        <Salary>180120</Salary>\r\n        <IsAbroad>1</IsAbroad>\r\n        <Agreeability>1</Agreeability>\r\n        <Aggressiveness>2</Aggressiveness>\r\n        <Honesty>1</Honesty>\r\n        <LeagueGoals>4</LeagueGoals>\r\n        <CupGoals>1</CupGoals>\r\n        <FriendliesGoals>0</FriendliesGoals>\r\n        <CareerGoals>44</CareerGoals>\r\n        <CareerHattricks>2</CareerHattricks>\r\n        <Specialty>1</Specialty>\r\n        <TransferListed>0</TransferListed>\r\n        <NationalTeamID>0</NationalTeamID>\r\n        <CountryID>33</CountryID>\r\n        <Caps>0</Caps>\r\n        <CapsU20>0</CapsU20>\r\n        <Cards>1</Cards>\r\n        <InjuryLevel>-1</InjuryLevel>\r\n        <StaminaSkill>6</StaminaSkill>\r\n        <KeeperSkill>1</KeeperSkill>\r\n        <PlaymakerSkill>11</PlaymakerSkill>\r\n        <ScorerSkill>8</ScorerSkill>\r\n        <PassingSkill>8</PassingSkill>\r\n        <WingerSkill>15</WingerSkill>\r\n        <DefenderSkill>9</DefenderSkill>\r\n        <SetPiecesSkill>4</SetPiecesSkill>\r\n        <PlayerCategoryId>0</PlayerCategoryId>\r\n      </Player>\r\n      <Player>\r\n        <PlayerID>498487535</PlayerID>\r\n        <PlayerName>Mikel Thiebault</PlayerName>\r\n        <PlayerNumber>100</PlayerNumber>\r\n        <Age>19</Age>\r\n        <AgeDays>86</AgeDays>\r\n        <TSI>32200</TSI>\r\n        <PlayerForm>7</PlayerForm>\r\n        <Statement></Statement>\r\n        <Experience>2</Experience>\r\n        <Leadership>3</Leadership>\r\n        <Salary>75840</Salary>\r\n        <IsAbroad>1</IsAbroad>\r\n        <Agreeability>1</Agreeability>\r\n        <Aggressiveness>3</Aggressiveness>\r\n        <Honesty>1</Honesty>\r\n        <LeagueGoals>0</LeagueGoals>\r\n        <CupGoals>6</CupGoals>\r\n        <FriendliesGoals>0</FriendliesGoals>\r\n        <CareerGoals>7</CareerGoals>\r\n        <CareerHattricks>0</CareerHattricks>\r\n        <Specialty>1</Specialty>\r\n        <TransferListed>0</TransferListed>\r\n        <NationalTeamID>0</NationalTeamID>\r\n        <CountryID>40</CountryID>\r\n        <Caps>0</Caps>\r\n        <CapsU20>0</CapsU20>\r\n        <Cards>0</Cards>\r\n        <InjuryLevel>-1</InjuryLevel>\r\n        <StaminaSkill>6</StaminaSkill>\r\n        <KeeperSkill>1</KeeperSkill>\r\n        <PlaymakerSkill>5</PlaymakerSkill>\r\n        <ScorerSkill>12</ScorerSkill>\r\n        <PassingSkill>8</PassingSkill>\r\n        <WingerSkill>4</WingerSkill>\r\n        <DefenderSkill>4</DefenderSkill>\r\n        <SetPiecesSkill>3</SetPiecesSkill>\r\n        <PlayerCategoryId>0</PlayerCategoryId>\r\n      </Player>\r\n      <Player>\r\n        <PlayerID>465141092</PlayerID>\r\n        <PlayerName>Milen Bozev</PlayerName>\r\n        <PlayerNumber>100</PlayerNumber>\r\n        <Age>32</Age>\r\n        <AgeDays>50</AgeDays>\r\n        <TSI>45920</TSI>\r\n        <PlayerForm>6</PlayerForm>\r\n        <Statement></Statement>\r\n        <Experience>7</Experience>\r\n        <Leadership>6</Leadership>\r\n        <Salary>127800</Salary>\r\n        <IsAbroad>1</IsAbroad>\r\n        <Agreeability>3</Agreeability>\r\n        <Aggressiveness>2</Aggressiveness>\r\n        <Honesty>1</Honesty>\r\n        <LeagueGoals>0</LeagueGoals>\r\n        <CupGoals>1</CupGoals>\r\n        <FriendliesGoals>0</FriendliesGoals>\r\n        <CareerGoals>24</CareerGoals>\r\n        <CareerHattricks>0</CareerHattricks>\r\n        <Specialty>3</Specialty>\r\n        <TransferListed>0</TransferListed>\r\n        <NationalTeamID>0</NationalTeamID>\r\n        <CountryID>55</CountryID>\r\n        <Caps>0</Caps>\r\n        <CapsU20>0</CapsU20>\r\n        <Cards>0</Cards>\r\n        <InjuryLevel>-1</InjuryLevel>\r\n        <StaminaSkill>6</StaminaSkill>\r\n        <KeeperSkill>1</KeeperSkill>\r\n        <PlaymakerSkill>12</PlaymakerSkill>\r\n        <ScorerSkill>6</ScorerSkill>\r\n        <PassingSkill>9</PassingSkill>\r\n        <WingerSkill>14</WingerSkill>\r\n        <DefenderSkill>5</DefenderSkill>\r\n        <SetPiecesSkill>2</SetPiecesSkill>\r\n        <PlayerCategoryId>0</PlayerCategoryId>\r\n      </Player>\r\n      <Player>\r\n        <PlayerID>502427630</PlayerID>\r\n        <PlayerName>Münir Balkın</PlayerName>\r\n        <PlayerNumber>100</PlayerNumber>\r\n        <Age>20</Age>\r\n        <AgeDays>26</AgeDays>\r\n        <TSI>360</TSI>\r\n        <PlayerForm>5</PlayerForm>\r\n        <Statement></Statement>\r\n        <Experience>2</Experience>\r\n        <Leadership>3</Leadership>\r\n        <Salary>2700</Salary>\r\n        <IsAbroad>0</IsAbroad>\r\n        <Agreeability>1</Agreeability>\r\n        <Aggressiveness>2</Aggressiveness>\r\n        <Honesty>1</Honesty>\r\n        <LeagueGoals>0</LeagueGoals>\r\n        <CupGoals>0</CupGoals>\r\n        <FriendliesGoals>0</FriendliesGoals>\r\n        <CareerGoals>0</CareerGoals>\r\n        <CareerHattricks>0</CareerHattricks>\r\n        <Specialty>0</Specialty>\r\n        <TransferListed>0</TransferListed>\r\n        <NationalTeamID>0</NationalTeamID>\r\n        <CountryID>31</CountryID>\r\n        <Caps>0</Caps>\r\n        <CapsU20>0</CapsU20>\r\n        <Cards>0</Cards>\r\n        <InjuryLevel>-1</InjuryLevel>\r\n        <StaminaSkill>3</StaminaSkill>\r\n        <KeeperSkill>1</KeeperSkill>\r\n        <PlaymakerSkill>5</PlaymakerSkill>\r\n        <ScorerSkill>3</ScorerSkill>\r\n        <PassingSkill>5</PassingSkill>\r\n        <WingerSkill>5</WingerSkill>\r\n        <DefenderSkill>5</DefenderSkill>\r\n        <SetPiecesSkill>2</SetPiecesSkill>\r\n        <PlayerCategoryId>0</PlayerCategoryId>\r\n      </Player>\r\n      <Player>\r\n        <PlayerID>492253331</PlayerID>\r\n        <PlayerName>Nándor Dobóvári</PlayerName>\r\n        <PlayerNumber>100</PlayerNumber>\r\n        <Age>21</Age>\r\n        <AgeDays>51</AgeDays>\r\n        <TSI>85300</TSI>\r\n        <PlayerForm>6</PlayerForm>\r\n        <Statement></Statement>\r\n        <Experience>3</Experience>\r\n        <Leadership>1</Leadership>\r\n        <Salary>331320</Salary>\r\n        <IsAbroad>1</IsAbroad>\r\n        <Agreeability>3</Agreeability>\r\n        <Aggressiveness>1</Aggressiveness>\r\n        <Honesty>2</Honesty>\r\n        <LeagueGoals>1</LeagueGoals>\r\n        <CupGoals>0</CupGoals>\r\n        <FriendliesGoals>0</FriendliesGoals>\r\n        <CareerGoals>8</CareerGoals>\r\n        <CareerHattricks>0</CareerHattricks>\r\n        <Specialty>2</Specialty>\r\n        <TransferListed>0</TransferListed>\r\n        <NationalTeamID>0</NationalTeamID>\r\n        <CountryID>44</CountryID>\r\n        <Caps>0</Caps>\r\n        <CapsU20>0</CapsU20>\r\n        <Cards>0</Cards>\r\n        <InjuryLevel>-1</InjuryLevel>\r\n        <StaminaSkill>7</StaminaSkill>\r\n        <KeeperSkill>2</KeeperSkill>\r\n        <PlaymakerSkill>5</PlaymakerSkill>\r\n        <ScorerSkill>4</ScorerSkill>\r\n        <PassingSkill>7</PassingSkill>\r\n        <WingerSkill>17</WingerSkill>\r\n        <DefenderSkill>3</DefenderSkill>\r\n        <SetPiecesSkill>1</SetPiecesSkill>\r\n        <PlayerCategoryId>0</PlayerCategoryId>\r\n      </Player>\r\n      <Player>\r\n        <PlayerID>501442578</PlayerID>\r\n        <PlayerName>Nelson Ferrante</PlayerName>\r\n        <PlayerNumber>100</PlayerNumber>\r\n        <Age>19</Age>\r\n        <AgeDays>14</AgeDays>\r\n        <TSI>21540</TSI>\r\n        <PlayerForm>7</PlayerForm>\r\n        <Statement></Statement>\r\n        <Experience>2</Experience>\r\n        <Leadership>1</Leadership>\r\n        <Salary>48360</Salary>\r\n        <IsAbroad>1</IsAbroad>\r\n        <Agreeability>3</Agreeability>\r\n        <Aggressiveness>2</Aggressiveness>\r\n        <Honesty>0</Honesty>\r\n        <LeagueGoals>0</LeagueGoals>\r\n        <CupGoals>3</CupGoals>\r\n        <FriendliesGoals>0</FriendliesGoals>\r\n        <CareerGoals>3</CareerGoals>\r\n        <CareerHattricks>0</CareerHattricks>\r\n        <Specialty>1</Specialty>\r\n        <TransferListed>0</TransferListed>\r\n        <NationalTeamID>0</NationalTeamID>\r\n        <CountryID>8</CountryID>\r\n        <Caps>0</Caps>\r\n        <CapsU20>0</CapsU20>\r\n        <Cards>1</Cards>\r\n        <InjuryLevel>-1</InjuryLevel>\r\n        <StaminaSkill>6</StaminaSkill>\r\n        <KeeperSkill>1</KeeperSkill>\r\n        <PlaymakerSkill>6</PlaymakerSkill>\r\n        <ScorerSkill>11</ScorerSkill>\r\n        <PassingSkill>8</PassingSkill>\r\n        <WingerSkill>3</WingerSkill>\r\n        <DefenderSkill>4</DefenderSkill>\r\n        <SetPiecesSkill>4</SetPiecesSkill>\r\n        <PlayerCategoryId>0</PlayerCategoryId>\r\n      </Player>\r\n      <Player>\r\n        <PlayerID>483683238</PlayerID>\r\n        <PlayerName>Nurtaç Armağan</PlayerName>\r\n        <PlayerNumber>100</PlayerNumber>\r\n        <Age>26</Age>\r\n        <AgeDays>3</AgeDays>\r\n        <TSI>260</TSI>\r\n        <PlayerForm>5</PlayerForm>\r\n        <Statement></Statement>\r\n        <Experience>3</Experience>\r\n        <Leadership>5</Leadership>\r\n        <Salary>10100</Salary>\r\n        <IsAbroad>0</IsAbroad>\r\n        <Agreeability>3</Agreeability>\r\n        <Aggressiveness>1</Aggressiveness>\r\n        <Honesty>3</Honesty>\r\n        <LeagueGoals>0</LeagueGoals>\r\n        <CupGoals>0</CupGoals>\r\n        <FriendliesGoals>0</FriendliesGoals>\r\n        <CareerGoals>1</CareerGoals>\r\n        <CareerHattricks>0</CareerHattricks>\r\n        <Specialty>0</Specialty>\r\n        <TransferListed>0</TransferListed>\r\n        <NationalTeamID>0</NationalTeamID>\r\n        <CountryID>31</CountryID>\r\n        <Caps>0</Caps>\r\n        <CapsU20>0</CapsU20>\r\n        <Cards>0</Cards>\r\n        <InjuryLevel>-1</InjuryLevel>\r\n        <StaminaSkill>7</StaminaSkill>\r\n        <KeeperSkill>6</KeeperSkill>\r\n        <PlaymakerSkill>2</PlaymakerSkill>\r\n        <ScorerSkill>6</ScorerSkill>\r\n        <PassingSkill>2</PassingSkill>\r\n        <WingerSkill>2</WingerSkill>\r\n        <DefenderSkill>2</DefenderSkill>\r\n        <SetPiecesSkill>1</SetPiecesSkill>\r\n        <PlayerCategoryId>0</PlayerCategoryId>\r\n      </Player>\r\n      <Player>\r\n        <PlayerID>514089104</PlayerID>\r\n        <PlayerName>Oğuz Can Çıtel</PlayerName>\r\n        <PlayerNumber>100</PlayerNumber>\r\n        <Age>18</Age>\r\n        <AgeDays>95</AgeDays>\r\n        <TSI>860</TSI>\r\n        <PlayerForm>7</PlayerForm>\r\n        <Statement></Statement>\r\n        <Experience>1</Experience>\r\n        <Leadership>3</Leadership>\r\n        <Salary>3100</Salary>\r\n        <IsAbroad>0</IsAbroad>\r\n        <Agreeability>2</Agreeability>\r\n        <Aggressiveness>3</Aggressiveness>\r\n        <Honesty>2</Honesty>\r\n        <LeagueGoals>0</LeagueGoals>\r\n        <CupGoals>0</CupGoals>\r\n        <FriendliesGoals>0</FriendliesGoals>\r\n        <CareerGoals>0</CareerGoals>\r\n        <CareerHattricks>0</CareerHattricks>\r\n        <Specialty>0</Specialty>\r\n        <TransferListed>0</TransferListed>\r\n        <NationalTeamID>0</NationalTeamID>\r\n        <CountryID>31</CountryID>\r\n        <Caps>0</Caps>\r\n        <CapsU20>0</CapsU20>\r\n        <Cards>0</Cards>\r\n        <InjuryLevel>-1</InjuryLevel>\r\n        <StaminaSkill>4</StaminaSkill>\r\n        <KeeperSkill>2</KeeperSkill>\r\n        <PlaymakerSkill>5</PlaymakerSkill>\r\n        <ScorerSkill>4</ScorerSkill>\r\n        <PassingSkill>6</PassingSkill>\r\n        <WingerSkill>5</WingerSkill>\r\n        <DefenderSkill>3</DefenderSkill>\r\n        <SetPiecesSkill>1</SetPiecesSkill>\r\n        <PlayerCategoryId>0</PlayerCategoryId>\r\n      </Player>\r\n      <Player>\r\n        <PlayerID>498557618</PlayerID>\r\n        <PlayerName>Patrik Zarins</PlayerName>\r\n        <PlayerNumber>100</PlayerNumber>\r\n        <Age>19</Age>\r\n        <AgeDays>84</AgeDays>\r\n        <TSI>28940</TSI>\r\n        <PlayerForm>7</PlayerForm>\r\n        <Statement></Statement>\r\n        <Experience>2</Experience>\r\n        <Leadership>4</Leadership>\r\n        <Salary>59280</Salary>\r\n        <IsAbroad>1</IsAbroad>\r\n        <Agreeability>2</Agreeability>\r\n        <Aggressiveness>1</Aggressiveness>\r\n        <Honesty>2</Honesty>\r\n        <LeagueGoals>0</LeagueGoals>\r\n        <CupGoals>3</CupGoals>\r\n        <FriendliesGoals>0</FriendliesGoals>\r\n        <CareerGoals>3</CareerGoals>\r\n        <CareerHattricks>0</CareerHattricks>\r\n        <Specialty>2</Specialty>\r\n        <TransferListed>0</TransferListed>\r\n        <NationalTeamID>0</NationalTeamID>\r\n        <CountryID>40</CountryID>\r\n        <Caps>0</Caps>\r\n        <CapsU20>0</CapsU20>\r\n        <Cards>0</Cards>\r\n        <InjuryLevel>-1</InjuryLevel>\r\n        <StaminaSkill>6</StaminaSkill>\r\n        <KeeperSkill>1</KeeperSkill>\r\n        <PlaymakerSkill>6</PlaymakerSkill>\r\n        <ScorerSkill>12</ScorerSkill>\r\n        <PassingSkill>7</PassingSkill>\r\n        <WingerSkill>2</WingerSkill>\r\n        <DefenderSkill>4</DefenderSkill>\r\n        <SetPiecesSkill>4</SetPiecesSkill>\r\n        <PlayerCategoryId>0</PlayerCategoryId>\r\n      </Player>\r\n      <Player>\r\n        <PlayerID>495027585</PlayerID>\r\n        <PlayerName>Şaban Savlet</PlayerName>\r\n        <PlayerNumber>100</PlayerNumber>\r\n        <Age>21</Age>\r\n        <AgeDays>35</AgeDays>\r\n        <TSI>1980</TSI>\r\n        <PlayerForm>6</PlayerForm>\r\n        <Statement></Statement>\r\n        <Experience>3</Experience>\r\n        <Leadership>2</Leadership>\r\n        <Salary>4000</Salary>\r\n        <IsAbroad>0</IsAbroad>\r\n        <Agreeability>1</Agreeability>\r\n        <Aggressiveness>2</Aggressiveness>\r\n        <Honesty>2</Honesty>\r\n        <LeagueGoals>0</LeagueGoals>\r\n        <CupGoals>2</CupGoals>\r\n        <FriendliesGoals>0</FriendliesGoals>\r\n        <CareerGoals>4</CareerGoals>\r\n        <CareerHattricks>0</CareerHattricks>\r\n        <Specialty>1</Specialty>\r\n        <TransferListed>0</TransferListed>\r\n        <NationalTeamID>0</NationalTeamID>\r\n        <CountryID>31</CountryID>\r\n        <Caps>0</Caps>\r\n        <CapsU20>0</CapsU20>\r\n        <Cards>0</Cards>\r\n        <InjuryLevel>-1</InjuryLevel>\r\n        <StaminaSkill>6</StaminaSkill>\r\n        <KeeperSkill>1</KeeperSkill>\r\n        <PlaymakerSkill>5</PlaymakerSkill>\r\n        <ScorerSkill>7</ScorerSkill>\r\n        <PassingSkill>5</PassingSkill>\r\n        <WingerSkill>5</WingerSkill>\r\n        <DefenderSkill>4</DefenderSkill>\r\n        <SetPiecesSkill>1</SetPiecesSkill>\r\n        <PlayerCategoryId>0</PlayerCategoryId>\r\n      </Player>\r\n      <Player>\r\n        <PlayerID>513885774</PlayerID>\r\n        <PlayerName>Sergen Gözay</PlayerName>\r\n        <PlayerNumber>100</PlayerNumber>\r\n        <Age>18</Age>\r\n        <AgeDays>19</AgeDays>\r\n        <TSI>660</TSI>\r\n        <PlayerForm>3</PlayerForm>\r\n        <Statement></Statement>\r\n        <Experience>2</Experience>\r\n        <Leadership>4</Leadership>\r\n        <Salary>3400</Salary>\r\n        <IsAbroad>0</IsAbroad>\r\n        <Agreeability>2</Agreeability>\r\n        <Aggressiveness>3</Aggressiveness>\r\n        <Honesty>3</Honesty>\r\n        <LeagueGoals>0</LeagueGoals>\r\n        <CupGoals>0</CupGoals>\r\n        <FriendliesGoals>0</FriendliesGoals>\r\n        <CareerGoals>0</CareerGoals>\r\n        <CareerHattricks>0</CareerHattricks>\r\n        <Specialty>4</Specialty>\r\n        <TransferListed>0</TransferListed>\r\n        <NationalTeamID>0</NationalTeamID>\r\n        <CountryID>31</CountryID>\r\n        <Caps>0</Caps>\r\n        <CapsU20>0</CapsU20>\r\n        <Cards>0</Cards>\r\n        <InjuryLevel>-1</InjuryLevel>\r\n        <StaminaSkill>4</StaminaSkill>\r\n        <KeeperSkill>2</KeeperSkill>\r\n        <PlaymakerSkill>5</PlaymakerSkill>\r\n        <ScorerSkill>5</ScorerSkill>\r\n        <PassingSkill>4</PassingSkill>\r\n        <WingerSkill>5</WingerSkill>\r\n        <DefenderSkill>6</DefenderSkill>\r\n        <SetPiecesSkill>1</SetPiecesSkill>\r\n        <PlayerCategoryId>0</PlayerCategoryId>\r\n      </Player>\r\n      <Player>\r\n        <PlayerID>482291700</PlayerID>\r\n        <PlayerName>Utku Hakan Başak</PlayerName>\r\n        <PlayerNumber>100</PlayerNumber>\r\n        <Age>25</Age>\r\n        <AgeDays>74</AgeDays>\r\n        <TSI>3280</TSI>\r\n        <PlayerForm>4</PlayerForm>\r\n        <Statement></Statement>\r\n        <Experience>3</Experience>\r\n        <Leadership>3</Leadership>\r\n        <Salary>6700</Salary>\r\n        <IsAbroad>0</IsAbroad>\r\n        <Agreeability>2</Agreeability>\r\n        <Aggressiveness>3</Aggressiveness>\r\n        <Honesty>1</Honesty>\r\n        <LeagueGoals>0</LeagueGoals>\r\n        <CupGoals>0</CupGoals>\r\n        <FriendliesGoals>0</FriendliesGoals>\r\n        <CareerGoals>2</CareerGoals>\r\n        <CareerHattricks>0</CareerHattricks>\r\n        <Specialty>5</Specialty>\r\n        <TransferListed>0</TransferListed>\r\n        <NationalTeamID>0</NationalTeamID>\r\n        <CountryID>31</CountryID>\r\n        <Caps>0</Caps>\r\n        <CapsU20>0</CapsU20>\r\n        <Cards>0</Cards>\r\n        <InjuryLevel>-1</InjuryLevel>\r\n        <StaminaSkill>6</StaminaSkill>\r\n        <KeeperSkill>1</KeeperSkill>\r\n        <PlaymakerSkill>3</PlaymakerSkill>\r\n        <ScorerSkill>8</ScorerSkill>\r\n        <PassingSkill>5</PassingSkill>\r\n        <WingerSkill>7</WingerSkill>\r\n        <DefenderSkill>4</DefenderSkill>\r\n        <SetPiecesSkill>1</SetPiecesSkill>\r\n        <PlayerCategoryId>0</PlayerCategoryId>\r\n      </Player>\r\n      <Player>\r\n        <PlayerID>512433039</PlayerID>\r\n        <PlayerName>Zübeyir Balaban</PlayerName>\r\n        <PlayerNumber>100</PlayerNumber>\r\n        <Age>18</Age>\r\n        <AgeDays>74</AgeDays>\r\n        <TSI>1580</TSI>\r\n        <PlayerForm>8</PlayerForm>\r\n        <Statement></Statement>\r\n        <Experience>2</Experience>\r\n        <Leadership>3</Leadership>\r\n        <Salary>3500</Salary>\r\n        <IsAbroad>0</IsAbroad>\r\n        <Agreeability>2</Agreeability>\r\n        <Aggressiveness>4</Aggressiveness>\r\n        <Honesty>3</Honesty>\r\n        <LeagueGoals>0</LeagueGoals>\r\n        <CupGoals>1</CupGoals>\r\n        <FriendliesGoals>0</FriendliesGoals>\r\n        <CareerGoals>1</CareerGoals>\r\n        <CareerHattricks>0</CareerHattricks>\r\n        <Specialty>0</Specialty>\r\n        <TransferListed>0</TransferListed>\r\n        <NationalTeamID>0</NationalTeamID>\r\n        <CountryID>31</CountryID>\r\n        <Caps>0</Caps>\r\n        <CapsU20>0</CapsU20>\r\n        <Cards>0</Cards>\r\n        <InjuryLevel>-1</InjuryLevel>\r\n        <StaminaSkill>5</StaminaSkill>\r\n        <KeeperSkill>2</KeeperSkill>\r\n        <PlaymakerSkill>6</PlaymakerSkill>\r\n        <ScorerSkill>5</ScorerSkill>\r\n        <PassingSkill>3</PassingSkill>\r\n        <WingerSkill>5</WingerSkill>\r\n        <DefenderSkill>6</DefenderSkill>\r\n        <SetPiecesSkill>1</SetPiecesSkill>\r\n        <PlayerCategoryId>0</PlayerCategoryId>\r\n      </Player>\r\n      <Player>\r\n        <PlayerID>437860841</PlayerID>\r\n        <PlayerName>Antonín Vašica</PlayerName>\r\n        <PlayerNumber>100</PlayerNumber>\r\n        <Age>43</Age>\r\n        <AgeDays>33</AgeDays>\r\n        <TSI>2280</TSI>\r\n        <PlayerForm>8</PlayerForm>\r\n        <Statement></Statement>\r\n        <Experience>12</Experience>\r\n        <Leadership>4</Leadership>\r\n        <Salary>0</Salary>\r\n        <IsAbroad>1</IsAbroad>\r\n        <Agreeability>1</Agreeability>\r\n        <Aggressiveness>1</Aggressiveness>\r\n        <Honesty>2</Honesty>\r\n        <LeagueGoals>0</LeagueGoals>\r\n        <CupGoals>0</CupGoals>\r\n        <FriendliesGoals>0</FriendliesGoals>\r\n        <CareerGoals>40</CareerGoals>\r\n        <CareerHattricks>1</CareerHattricks>\r\n        <Specialty>4</Specialty>\r\n        <TransferListed>0</TransferListed>\r\n        <NationalTeamID>0</NationalTeamID>\r\n        <CountryID>46</CountryID>\r\n        <Caps>0</Caps>\r\n        <CapsU20>0</CapsU20>\r\n        <Cards>0</Cards>\r\n        <InjuryLevel>-1</InjuryLevel>\r\n        <StaminaSkill>3</StaminaSkill>\r\n        <KeeperSkill>0</KeeperSkill>\r\n        <PlaymakerSkill>12</PlaymakerSkill>\r\n        <ScorerSkill>3</ScorerSkill>\r\n        <PassingSkill>6</PassingSkill>\r\n        <WingerSkill>5</WingerSkill>\r\n        <DefenderSkill>2</DefenderSkill>\r\n        <SetPiecesSkill>2</SetPiecesSkill>\r\n        <PlayerCategoryId>0</PlayerCategoryId>\r\n        <TrainerData>\r\n          <TrainerType>2</TrainerType>\r\n          <TrainerSkill>8</TrainerSkill>\r\n        </TrainerData>\r\n      </Player>\r\n    </PlayerList>\r\n  </Team>\r\n</HattrickData>",
+    "ownMatches": "<?xml version=\"1.0\" encoding=\"utf-8\"?>\r\n<HattrickData>\r\n  <FileName>matches.xml</FileName>\r\n  <Version>2.3</Version>\r\n  <UserID>9464954</UserID>\r\n  <FetchedDate>2026-09-01 10:49:54</FetchedDate>\r\n  <IsYouth>False</IsYouth>\r\n  <Team>\r\n    <TeamID>1080139</TeamID>\r\n    <TeamName>S4MSUNFC</TeamName>\r\n    <MatchList>\r\n      <Match>\r\n        <MatchID>770793636</MatchID>\r\n        <HomeTeam>\r\n          <HomeTeamID>2233734</HomeTeamID>\r\n          <HomeTeamName>Team_Of_Wonders</HomeTeamName>\r\n        </HomeTeam>\r\n        <AwayTeam>\r\n          <AwayTeamID>1080139</AwayTeamID>\r\n          <AwayTeamName>S4MSUNFC</AwayTeamName>\r\n        </AwayTeam>\r\n        <MatchDate>2026-08-05 08:15:00</MatchDate>\r\n        <MatchType>3</MatchType>\r\n        <HomeGoals>0</HomeGoals>\r\n        <AwayGoals>5</AwayGoals>\r\n        <Status>FINISHED</Status>\r\n      </Match>\r\n      <Match>\r\n        <MatchID>769648162</MatchID>\r\n        <HomeTeam>\r\n          <HomeTeamID>1080139</HomeTeamID>\r\n          <HomeTeamName>S4MSUNFC</HomeTeamName>\r\n        </HomeTeam>\r\n        <AwayTeam>\r\n          <AwayTeamID>1708186</AwayTeamID>\r\n          <AwayTeamName>bombacı mülayim spor</AwayTeamName>\r\n        </AwayTeam>\r\n        <MatchDate>2026-08-09 15:00:00</MatchDate>\r\n        <MatchType>1</MatchType>\r\n        <HomeGoals>4</HomeGoals>\r\n        <AwayGoals>1</AwayGoals>\r\n        <Status>FINISHED</Status>\r\n      </Match>\r\n      <Match>\r\n        <MatchID>770971117</MatchID>\r\n        <HomeTeam>\r\n          <HomeTeamID>2363762</HomeTeamID>\r\n          <HomeTeamName>Denizli JK</HomeTeamName>\r\n        </HomeTeam>\r\n        <AwayTeam>\r\n          <AwayTeamID>1080139</AwayTeamID>\r\n          <AwayTeamName>S4MSUNFC</AwayTeamName>\r\n        </AwayTeam>\r\n        <MatchDate>2026-08-12 08:15:00</MatchDate>\r\n        <MatchType>3</MatchType>\r\n        <HomeGoals>0</HomeGoals>\r\n        <AwayGoals>4</AwayGoals>\r\n        <Status>FINISHED</Status>\r\n      </Match>\r\n      <Match>\r\n        <MatchID>769648165</MatchID>\r\n        <HomeTeam>\r\n          <HomeTeamID>1081358</HomeTeamID>\r\n          <HomeTeamName>CAKE TK</HomeTeamName>\r\n        </HomeTeam>\r\n        <AwayTeam>\r\n          <AwayTeamID>1080139</AwayTeamID>\r\n          <AwayTeamName>S4MSUNFC</AwayTeamName>\r\n        </AwayTeam>\r\n        <MatchDate>2026-08-16 15:00:00</MatchDate>\r\n        <MatchType>1</MatchType>\r\n        <HomeGoals>0</HomeGoals>\r\n        <AwayGoals>8</AwayGoals>\r\n        <Status>FINISHED</Status>\r\n      </Match>\r\n      <Match>\r\n        <MatchID>771102732</MatchID>\r\n        <HomeTeam>\r\n          <HomeTeamID>2830601</HomeTeamID>\r\n          <HomeTeamName>Lighthouse CF</HomeTeamName>\r\n        </HomeTeam>\r\n        <AwayTeam>\r\n          <AwayTeamID>1080139</AwayTeamID>\r\n          <AwayTeamName>S4MSUNFC</AwayTeamName>\r\n        </AwayTeam>\r\n        <MatchDate>2026-08-19 08:15:00</MatchDate>\r\n        <MatchType>3</MatchType>\r\n        <HomeGoals>0</HomeGoals>\r\n        <AwayGoals>4</AwayGoals>\r\n        <Status>FINISHED</Status>\r\n      </Match>\r\n      <Match>\r\n        <MatchID>769648171</MatchID>\r\n        <HomeTeam>\r\n          <HomeTeamID>1080139</HomeTeamID>\r\n          <HomeTeamName>S4MSUNFC</HomeTeamName>\r\n        </HomeTeam>\r\n        <AwayTeam>\r\n          <AwayTeamID>1966859</AwayTeamID>\r\n          <AwayTeamName>Kara Spor</AwayTeamName>\r\n        </AwayTeam>\r\n        <MatchDate>2026-08-23 15:00:00</MatchDate>\r\n        <MatchType>1</MatchType>\r\n        <HomeGoals>1</HomeGoals>\r\n        <AwayGoals>2</AwayGoals>\r\n        <Status>FINISHED</Status>\r\n      </Match>\r\n      <Match>\r\n        <MatchID>771205291</MatchID>\r\n        <HomeTeam>\r\n          <HomeTeamID>2857084</HomeTeamID>\r\n          <HomeTeamName>Black Riders FC</HomeTeamName>\r\n        </HomeTeam>\r\n        <AwayTeam>\r\n          <AwayTeamID>1080139</AwayTeamID>\r\n          <AwayTeamName>S4MSUNFC</AwayTeamName>\r\n        </AwayTeam>\r\n        <MatchDate>2026-08-26 08:15:00</MatchDate>\r\n        <MatchType>3</MatchType>\r\n        <HomeGoals>0</HomeGoals>\r\n        <AwayGoals>4</AwayGoals>\r\n        <Status>FINISHED</Status>\r\n      </Match>\r\n      <Match>\r\n        <MatchID>769648175</MatchID>\r\n        <HomeTeam>\r\n          <HomeTeamID>1082568</HomeTeamID>\r\n          <HomeTeamName>KAYMAKSPOR</HomeTeamName>\r\n        </HomeTeam>\r\n        <AwayTeam>\r\n          <AwayTeamID>1080139</AwayTeamID>\r\n          <AwayTeamName>S4MSUNFC</AwayTeamName>\r\n        </AwayTeam>\r\n        <MatchDate>2026-08-30 15:00:00</MatchDate>\r\n        <MatchType>1</MatchType>\r\n        <HomeGoals>0</HomeGoals>\r\n        <AwayGoals>4</AwayGoals>\r\n        <Status>FINISHED</Status>\r\n      </Match>\r\n      <Match>\r\n        <MatchID>771298137</MatchID>\r\n        <HomeTeam>\r\n          <HomeTeamID>1080139</HomeTeamID>\r\n          <HomeTeamName>S4MSUNFC</HomeTeamName>\r\n        </HomeTeam>\r\n        <AwayTeam>\r\n          <AwayTeamID>1707234</AwayTeamID>\r\n          <AwayTeamName>KAYSERİSPOR M.Y.F.C</AwayTeamName>\r\n        </AwayTeam>\r\n        <MatchDate>2026-09-02 08:15:00</MatchDate>\r\n        <MatchType>3</MatchType>\r\n        <OrdersGiven>True</OrdersGiven>\r\n        <Status>UPCOMING</Status>\r\n      </Match>\r\n      <Match>\r\n        <MatchID>769648177</MatchID>\r\n        <HomeTeam>\r\n          <HomeTeamID>653953</HomeTeamID>\r\n          <HomeTeamName>Zeytinburnu Sahil Spor</HomeTeamName>\r\n        </HomeTeam>\r\n        <AwayTeam>\r\n          <AwayTeamID>1080139</AwayTeamID>\r\n          <AwayTeamName>S4MSUNFC</AwayTeamName>\r\n        </AwayTeam>\r\n        <MatchDate>2026-09-06 15:00:00</MatchDate>\r\n        <MatchType>1</MatchType>\r\n        <OrdersGiven>False</OrdersGiven>\r\n        <Status>UPCOMING</Status>\r\n      </Match>\r\n      <Match>\r\n        <MatchID>769648184</MatchID>\r\n        <HomeTeam>\r\n          <HomeTeamID>1080139</HomeTeamID>\r\n          <HomeTeamName>S4MSUNFC</HomeTeamName>\r\n        </HomeTeam>\r\n        <AwayTeam>\r\n          <AwayTeamID>653953</AwayTeamID>\r\n          <AwayTeamName>Zeytinburnu Sahil Spor</AwayTeamName>\r\n        </AwayTeam>\r\n        <MatchDate>2026-09-13 15:00:00</MatchDate>\r\n        <MatchType>1</MatchType>\r\n        <OrdersGiven>False</OrdersGiven>\r\n        <Status>UPCOMING</Status>\r\n      </Match>\r\n      <Match>\r\n        <MatchID>769648187</MatchID>\r\n        <HomeTeam>\r\n          <HomeTeamID>1080139</HomeTeamID>\r\n          <HomeTeamName>S4MSUNFC</HomeTeamName>\r\n        </HomeTeam>\r\n        <AwayTeam>\r\n          <AwayTeamID>1082568</AwayTeamID>\r\n          <AwayTeamName>KAYMAKSPOR</AwayTeamName>\r\n        </AwayTeam>\r\n        <MatchDate>2026-09-20 15:00:00</MatchDate>\r\n        <MatchType>1</MatchType>\r\n        <OrdersGiven>False</OrdersGiven>\r\n        <Status>UPCOMING</Status>\r\n      </Match>\r\n      <Match>\r\n        <MatchID>769648191</MatchID>\r\n        <HomeTeam>\r\n          <HomeTeamID>1966859</HomeTeamID>\r\n          <HomeTeamName>Kara Spor</HomeTeamName>\r\n        </HomeTeam>\r\n        <AwayTeam>\r\n          <AwayTeamID>1080139</AwayTeamID>\r\n          <AwayTeamName>S4MSUNFC</AwayTeamName>\r\n        </AwayTeam>\r\n        <MatchDate>2026-09-27 15:00:00</MatchDate>\r\n        <MatchType>1</MatchType>\r\n        <OrdersGiven>False</OrdersGiven>\r\n        <Status>UPCOMING</Status>\r\n      </Match>\r\n    </MatchList>\r\n  </Team>\r\n</HattrickData>",
+    "opponentMatches": "<?xml version=\"1.0\" encoding=\"utf-8\"?>\r\n<HattrickData>\r\n  <FileName>matches.xml</FileName>\r\n  <Version>2.3</Version>\r\n  <UserID>9464954</UserID>\r\n  <FetchedDate>2026-09-01 10:49:54</FetchedDate>\r\n  <IsYouth>False</IsYouth>\r\n  <Team>\r\n    <TeamID>653953</TeamID>\r\n    <TeamName>Zeytinburnu Sahil Spor</TeamName>\r\n    <MatchList>\r\n      <Match>\r\n        <MatchID>770795352</MatchID>\r\n        <HomeTeam>\r\n          <HomeTeamID>653953</HomeTeamID>\r\n          <HomeTeamName>Zeytinburnu Sahil Spor</HomeTeamName>\r\n        </HomeTeam>\r\n        <AwayTeam>\r\n          <AwayTeamID>1084357</AwayTeamID>\r\n          <AwayTeamName>beccacce</AwayTeamName>\r\n        </AwayTeam>\r\n        <MatchDate>2026-08-05 08:00:00</MatchDate>\r\n        <MatchType>3</MatchType>\r\n        <HomeGoals>5</HomeGoals>\r\n        <AwayGoals>0</AwayGoals>\r\n        <Status>FINISHED</Status>\r\n      </Match>\r\n      <Match>\r\n        <MatchID>769648161</MatchID>\r\n        <HomeTeam>\r\n          <HomeTeamID>653953</HomeTeamID>\r\n          <HomeTeamName>Zeytinburnu Sahil Spor</HomeTeamName>\r\n        </HomeTeam>\r\n        <AwayTeam>\r\n          <AwayTeamID>1966859</AwayTeamID>\r\n          <AwayTeamName>Kara Spor</AwayTeamName>\r\n        </AwayTeam>\r\n        <MatchDate>2026-08-09 15:00:00</MatchDate>\r\n        <MatchType>1</MatchType>\r\n        <HomeGoals>1</HomeGoals>\r\n        <AwayGoals>1</AwayGoals>\r\n        <Status>FINISHED</Status>\r\n      </Match>\r\n      <Match>\r\n        <MatchID>770972300</MatchID>\r\n        <HomeTeam>\r\n          <HomeTeamID>1707111</HomeTeamID>\r\n          <HomeTeamName>Fatsa Spor</HomeTeamName>\r\n        </HomeTeam>\r\n        <AwayTeam>\r\n          <AwayTeamID>653953</AwayTeamID>\r\n          <AwayTeamName>Zeytinburnu Sahil Spor</AwayTeamName>\r\n        </AwayTeam>\r\n        <MatchDate>2026-08-12 08:00:00</MatchDate>\r\n        <MatchType>3</MatchType>\r\n        <HomeGoals>7</HomeGoals>\r\n        <AwayGoals>2</AwayGoals>\r\n        <Status>FINISHED</Status>\r\n      </Match>\r\n      <Match>\r\n        <MatchID>769648166</MatchID>\r\n        <HomeTeam>\r\n          <HomeTeamID>653455</HomeTeamID>\r\n          <HomeTeamName>EGAD</HomeTeamName>\r\n        </HomeTeam>\r\n        <AwayTeam>\r\n          <AwayTeamID>653953</AwayTeamID>\r\n          <AwayTeamName>Zeytinburnu Sahil Spor</AwayTeamName>\r\n        </AwayTeam>\r\n        <MatchDate>2026-08-16 15:00:00</MatchDate>\r\n        <MatchType>1</MatchType>\r\n        <HomeGoals>3</HomeGoals>\r\n        <AwayGoals>2</AwayGoals>\r\n        <Status>FINISHED</Status>\r\n      </Match>\r\n      <Match>\r\n        <MatchID>771103114</MatchID>\r\n        <HomeTeam>\r\n          <HomeTeamID>656160</HomeTeamID>\r\n          <HomeTeamName>Türkoğlu Fc</HomeTeamName>\r\n        </HomeTeam>\r\n        <AwayTeam>\r\n          <AwayTeamID>653953</AwayTeamID>\r\n          <AwayTeamName>Zeytinburnu Sahil Spor</AwayTeamName>\r\n        </AwayTeam>\r\n        <MatchDate>2026-08-19 08:45:00</MatchDate>\r\n        <MatchType>3</MatchType>\r\n        <HomeGoals>2</HomeGoals>\r\n        <AwayGoals>1</AwayGoals>\r\n        <Status>FINISHED</Status>\r\n      </Match>\r\n      <Match>\r\n        <MatchID>769648169</MatchID>\r\n        <HomeTeam>\r\n          <HomeTeamID>653953</HomeTeamID>\r\n          <HomeTeamName>Zeytinburnu Sahil Spor</HomeTeamName>\r\n        </HomeTeam>\r\n        <AwayTeam>\r\n          <AwayTeamID>1082568</AwayTeamID>\r\n          <AwayTeamName>KAYMAKSPOR</AwayTeamName>\r\n        </AwayTeam>\r\n        <MatchDate>2026-08-23 15:00:00</MatchDate>\r\n        <MatchType>1</MatchType>\r\n        <HomeGoals>5</HomeGoals>\r\n        <AwayGoals>2</AwayGoals>\r\n        <Status>FINISHED</Status>\r\n      </Match>\r\n      <Match>\r\n        <MatchID>771206391</MatchID>\r\n        <HomeTeam>\r\n          <HomeTeamID>3245919</HomeTeamID>\r\n          <HomeTeamName>AliSelim SK</HomeTeamName>\r\n        </HomeTeam>\r\n        <AwayTeam>\r\n          <AwayTeamID>653953</AwayTeamID>\r\n          <AwayTeamName>Zeytinburnu Sahil Spor</AwayTeamName>\r\n        </AwayTeam>\r\n        <MatchDate>2026-08-26 08:00:00</MatchDate>\r\n        <MatchType>4</MatchType>\r\n        <HomeGoals>0</HomeGoals>\r\n        <AwayGoals>5</AwayGoals>\r\n        <Status>FINISHED</Status>\r\n      </Match>\r\n      <Match>\r\n        <MatchID>769648173</MatchID>\r\n        <HomeTeam>\r\n          <HomeTeamID>1708186</HomeTeamID>\r\n          <HomeTeamName>bombacı mülayim spor</HomeTeamName>\r\n        </HomeTeam>\r\n        <AwayTeam>\r\n          <AwayTeamID>653953</AwayTeamID>\r\n          <AwayTeamName>Zeytinburnu Sahil Spor</AwayTeamName>\r\n        </AwayTeam>\r\n        <MatchDate>2026-08-30 15:00:00</MatchDate>\r\n        <MatchType>1</MatchType>\r\n        <HomeGoals>3</HomeGoals>\r\n        <AwayGoals>2</AwayGoals>\r\n        <Status>FINISHED</Status>\r\n      </Match>\r\n      <Match>\r\n        <MatchID>771369812</MatchID>\r\n        <HomeTeam>\r\n          <HomeTeamID>653953</HomeTeamID>\r\n          <HomeTeamName>Zeytinburnu Sahil Spor</HomeTeamName>\r\n        </HomeTeam>\r\n        <AwayTeam>\r\n          <AwayTeamID>293282</AwayTeamID>\r\n          <AwayTeamName>ES Boussois</AwayTeamName>\r\n        </AwayTeam>\r\n        <MatchDate>2026-09-02 08:00:00</MatchDate>\r\n        <MatchType>9</MatchType>\r\n        <Status>UPCOMING</Status>\r\n      </Match>\r\n      <Match>\r\n        <MatchID>769648177</MatchID>\r\n        <HomeTeam>\r\n          <HomeTeamID>653953</HomeTeamID>\r\n          <HomeTeamName>Zeytinburnu Sahil Spor</HomeTeamName>\r\n        </HomeTeam>\r\n        <AwayTeam>\r\n          <AwayTeamID>1080139</AwayTeamID>\r\n          <AwayTeamName>S4MSUNFC</AwayTeamName>\r\n        </AwayTeam>\r\n        <MatchDate>2026-09-06 15:00:00</MatchDate>\r\n        <MatchType>1</MatchType>\r\n        <Status>UPCOMING</Status>\r\n      </Match>\r\n      <Match>\r\n        <MatchID>769648184</MatchID>\r\n        <HomeTeam>\r\n          <HomeTeamID>1080139</HomeTeamID>\r\n          <HomeTeamName>S4MSUNFC</HomeTeamName>\r\n        </HomeTeam>\r\n        <AwayTeam>\r\n          <AwayTeamID>653953</AwayTeamID>\r\n          <AwayTeamName>Zeytinburnu Sahil Spor</AwayTeamName>\r\n        </AwayTeam>\r\n        <MatchDate>2026-09-13 15:00:00</MatchDate>\r\n        <MatchType>1</MatchType>\r\n        <Status>UPCOMING</Status>\r\n      </Match>\r\n      <Match>\r\n        <MatchID>769648188</MatchID>\r\n        <HomeTeam>\r\n          <HomeTeamID>653953</HomeTeamID>\r\n          <HomeTeamName>Zeytinburnu Sahil Spor</HomeTeamName>\r\n        </HomeTeam>\r\n        <AwayTeam>\r\n          <AwayTeamID>1708186</AwayTeamID>\r\n          <AwayTeamName>bombacı mülayim spor</AwayTeamName>\r\n        </AwayTeam>\r\n        <MatchDate>2026-09-20 15:00:00</MatchDate>\r\n        <MatchType>1</MatchType>\r\n        <Status>UPCOMING</Status>\r\n      </Match>\r\n      <Match>\r\n        <MatchID>769648192</MatchID>\r\n        <HomeTeam>\r\n          <HomeTeamID>1082568</HomeTeamID>\r\n          <HomeTeamName>KAYMAKSPOR</HomeTeamName>\r\n        </HomeTeam>\r\n        <AwayTeam>\r\n          <AwayTeamID>653953</AwayTeamID>\r\n          <AwayTeamName>Zeytinburnu Sahil Spor</AwayTeamName>\r\n        </AwayTeam>\r\n        <MatchDate>2026-09-27 15:00:00</MatchDate>\r\n        <MatchType>1</MatchType>\r\n        <Status>UPCOMING</Status>\r\n      </Match>\r\n    </MatchList>\r\n  </Team>\r\n</HattrickData>",
+    "opponentLastLineup": "<?xml version=\"1.0\" encoding=\"utf-8\"?>\r\n<HattrickData>\r\n  <FileName>matchlineup.xml</FileName>\r\n  <Version>1.2</Version>\r\n  <UserID>9464954</UserID>\r\n  <FetchedDate>2026-09-01 10:49:54</FetchedDate>\r\n  <MatchID>769648173</MatchID>\r\n  <IsYouth>False</IsYouth>\r\n  <MatchType>1</MatchType>\r\n  <MatchContextId>48931</MatchContextId>\r\n  <MatchDate>2026-08-30 15:00:00</MatchDate>\r\n  <HomeTeam>\r\n    <HomeTeamID>1708186</HomeTeamID>\r\n    <HomeTeamName>bombacı mülayim spor</HomeTeamName>\r\n  </HomeTeam>\r\n  <AwayTeam>\r\n    <AwayTeamID>653953</AwayTeamID>\r\n    <AwayTeamName>Zeytinburnu Sahil Spor</AwayTeamName>\r\n  </AwayTeam>\r\n  <Arena>\r\n    <ArenaID>1704748</ArenaID>\r\n    <ArenaName>hong kong fuı arena</ArenaName>\r\n  </Arena>\r\n  <Team>\r\n    <TeamID>653953</TeamID>\r\n    <TeamName>Zeytinburnu Sahil Spor</TeamName>\r\n    <ExperienceLevel>4</ExperienceLevel>\r\n    <Lineup>\r\n      <Player>\r\n        <PlayerID>479518719</PlayerID>\r\n        <RoleID>1</RoleID>\r\n        <PlayerName>Ignacio Flores de Lizaur</PlayerName>\r\n        <RatingStars>7.5</RatingStars>\r\n        <PositionCode>1</PositionCode>\r\n        <Behaviour>0</Behaviour>\r\n      </Player>\r\n      <Player>\r\n        <PlayerID>475607961</PlayerID>\r\n        <RoleID>3</RoleID>\r\n        <PlayerName>Sotear Dara</PlayerName>\r\n        <RatingStars>7</RatingStars>\r\n        <PositionCode>3</PositionCode>\r\n        <Behaviour>0</Behaviour>\r\n      </Player>\r\n      <Player>\r\n        <PlayerID>485748296</PlayerID>\r\n        <RoleID>4</RoleID>\r\n        <PlayerName>Demirel Orhun</PlayerName>\r\n        <RatingStars>7</RatingStars>\r\n        <PositionCode>4</PositionCode>\r\n        <Behaviour>0</Behaviour>\r\n      </Player>\r\n      <Player>\r\n        <PlayerID>487930575</PlayerID>\r\n        <RoleID>6</RoleID>\r\n        <PlayerName>Yiğit Namdar</PlayerName>\r\n        <RatingStars>6</RatingStars>\r\n        <PositionCode>6</PositionCode>\r\n        <Behaviour>0</Behaviour>\r\n      </Player>\r\n      <Player>\r\n        <PlayerID>488347850</PlayerID>\r\n        <RoleID>7</RoleID>\r\n        <PlayerName>Emre Baykam</PlayerName>\r\n        <RatingStars>7.5</RatingStars>\r\n        <PositionCode>7</PositionCode>\r\n        <Behaviour>0</Behaviour>\r\n      </Player>\r\n      <Player>\r\n        <PlayerID>486501589</PlayerID>\r\n        <RoleID>2</RoleID>\r\n        <PlayerName>Sander Eser</PlayerName>\r\n        <RatingStars>7.5</RatingStars>\r\n        <PositionCode>7</PositionCode>\r\n        <Behaviour>6</Behaviour>\r\n      </Player>\r\n      <Player>\r\n        <PlayerID>488270033</PlayerID>\r\n        <RoleID>8</RoleID>\r\n        <PlayerName>Ekrem Furkan Dilnur</PlayerName>\r\n        <RatingStars>7</RatingStars>\r\n        <PositionCode>8</PositionCode>\r\n        <Behaviour>0</Behaviour>\r\n      </Player>\r\n      <Player>\r\n        <PlayerID>488343938</PlayerID>\r\n        <RoleID>9</RoleID>\r\n        <PlayerName>Egemen Dinçer Saner</PlayerName>\r\n        <RatingStars>6</RatingStars>\r\n        <PositionCode>9</PositionCode>\r\n        <Behaviour>0</Behaviour>\r\n      </Player>\r\n      <Player>\r\n        <PlayerID>497166999</PlayerID>\r\n        <RoleID>10</RoleID>\r\n        <PlayerName>Özgür Sinan Kenan</PlayerName>\r\n        <RatingStars>8.5</RatingStars>\r\n        <PositionCode>10</PositionCode>\r\n        <Behaviour>0</Behaviour>\r\n      </Player>\r\n      <Player>\r\n        <PlayerID>496257138</PlayerID>\r\n        <RoleID>5</RoleID>\r\n        <PlayerName>Tommaso Falsone</PlayerName>\r\n        <RatingStars>7.5</RatingStars>\r\n        <PositionCode>10</PositionCode>\r\n        <Behaviour>5</Behaviour>\r\n      </Player>\r\n      <Player>\r\n        <PlayerID>497557400</PlayerID>\r\n        <RoleID>11</RoleID>\r\n        <PlayerName>Ulisse Roepke</PlayerName>\r\n        <RatingStars>7.5</RatingStars>\r\n        <PositionCode>11</PositionCode>\r\n        <Behaviour>0</Behaviour>\r\n      </Player>\r\n      <Player>\r\n        <PlayerID>453469948</PlayerID>\r\n        <RoleID>13</RoleID>\r\n        <PlayerName>Satılmış Pamukkale</PlayerName>\r\n        <RatingStars>0</RatingStars>\r\n        <PositionCode>13</PositionCode>\r\n        <Behaviour>0</Behaviour>\r\n      </Player>\r\n      <Player>\r\n        <PlayerID>468605078</PlayerID>\r\n        <RoleID>14</RoleID>\r\n        <PlayerName>Yaşar Çavuş</PlayerName>\r\n        <RatingStars>0</RatingStars>\r\n        <PositionCode>14</PositionCode>\r\n        <Behaviour>0</Behaviour>\r\n      </Player>\r\n      <Player>\r\n        <PlayerID>475607961</PlayerID>\r\n        <RoleID>17</RoleID>\r\n        <PlayerName>Sotear Dara</PlayerName>\r\n      </Player>\r\n      <Player>\r\n        <PlayerID>475607961</PlayerID>\r\n        <RoleID>18</RoleID>\r\n        <PlayerName>Sotear Dara</PlayerName>\r\n      </Player>\r\n    </Lineup>\r\n  </Team>\r\n</HattrickData>",
+    "opponentLastMatchDetails": "<?xml version=\"1.0\" encoding=\"utf-8\"?>\r\n<HattrickData>\r\n  <FileName>matchdetails.xml</FileName>\r\n  <Version>1.5</Version>\r\n  <UserID>9464954</UserID>\r\n  <FetchedDate>2026-09-01 10:49:54</FetchedDate>\r\n  <UserIsSupporter>0</UserIsSupporter>\r\n  <UserHasClubHouse>0</UserHasClubHouse>\r\n  <IsYouth>False</IsYouth>\r\n  <Match>\r\n    <MatchID>769648173</MatchID>\r\n    <MatchType>1</MatchType>\r\n    <MatchDate>2026-08-30 15:00:00</MatchDate>\r\n    <FinishedDate>2026-08-30 16:46:00</FinishedDate>\r\n    <HomeTeam>\r\n      <HomeTeamID>1708186</HomeTeamID>\r\n      <HomeTeamName>bombacı mülayim spor</HomeTeamName>\r\n      <Dress>N000000</Dress>\r\n      <HomeGoals>3</HomeGoals>\r\n      <TacticType>0</TacticType>\r\n      <TacticSkill>0</TacticSkill>\r\n      <RatingMidfield>31</RatingMidfield>\r\n      <RatingRightDef>29</RatingRightDef>\r\n      <RatingMidDef>32</RatingMidDef>\r\n      <RatingLeftDef>31</RatingLeftDef>\r\n      <RatingRightAtt>17</RatingRightAtt>\r\n      <RatingMidAtt>31</RatingMidAtt>\r\n      <RatingLeftAtt>23</RatingLeftAtt>\r\n    </HomeTeam>\r\n    <AwayTeam>\r\n      <AwayTeamID>653953</AwayTeamID>\r\n      <AwayTeamName>Zeytinburnu Sahil Spor</AwayTeamName>\r\n      <Dress>N000000</Dress>\r\n      <AwayGoals>2</AwayGoals>\r\n      <TacticType>0</TacticType>\r\n      <TacticSkill>0</TacticSkill>\r\n      <RatingMidfield>28</RatingMidfield>\r\n      <RatingRightDef>25</RatingRightDef>\r\n      <RatingMidDef>38</RatingMidDef>\r\n      <RatingLeftDef>25</RatingLeftDef>\r\n      <RatingRightAtt>34</RatingRightAtt>\r\n      <RatingMidAtt>52</RatingMidAtt>\r\n      <RatingLeftAtt>40</RatingLeftAtt>\r\n    </AwayTeam>\r\n    <Arena>\r\n      <ArenaID>1704748</ArenaID>\r\n      <ArenaName>hong kong fuı arena</ArenaName>\r\n      <WeatherID>1</WeatherID>\r\n      <SoldTotal>41500</SoldTotal>\r\n    </Arena>\r\n    <Scorers>\r\n      <Goal>\r\n        <ScorerPlayerID>470510988</ScorerPlayerID>\r\n        <ScorerPlayerName>Aurel Boess</ScorerPlayerName>\r\n        <ScorerTeamID>1708186</ScorerTeamID>\r\n        <ScorerHomeGoals>1</ScorerHomeGoals>\r\n        <ScorerAwayGoals>0</ScorerAwayGoals>\r\n        <ScorerMinute>14</ScorerMinute>\r\n      </Goal>\r\n      <Goal>\r\n        <ScorerPlayerID>454165093</ScorerPlayerID>\r\n        <ScorerPlayerName>Jędrzej Tyloch</ScorerPlayerName>\r\n        <ScorerTeamID>1708186</ScorerTeamID>\r\n        <ScorerHomeGoals>2</ScorerHomeGoals>\r\n        <ScorerAwayGoals>0</ScorerAwayGoals>\r\n        <ScorerMinute>30</ScorerMinute>\r\n      </Goal>\r\n      <Goal>\r\n        <ScorerPlayerID>469248064</ScorerPlayerID>\r\n        <ScorerPlayerName>Mihai Mema</ScorerPlayerName>\r\n        <ScorerTeamID>1708186</ScorerTeamID>\r\n        <ScorerHomeGoals>3</ScorerHomeGoals>\r\n        <ScorerAwayGoals>0</ScorerAwayGoals>\r\n        <ScorerMinute>53</ScorerMinute>\r\n      </Goal>\r\n      <Goal>\r\n        <ScorerPlayerID>488347850</ScorerPlayerID>\r\n        <ScorerPlayerName>Emre Baykam</ScorerPlayerName>\r\n        <ScorerTeamID>653953</ScorerTeamID>\r\n        <ScorerHomeGoals>3</ScorerHomeGoals>\r\n        <ScorerAwayGoals>1</ScorerAwayGoals>\r\n        <ScorerMinute>60</ScorerMinute>\r\n      </Goal>\r\n      <Goal>\r\n        <ScorerPlayerID>488270033</ScorerPlayerID>\r\n        <ScorerPlayerName>Ekrem Furkan Dilnur</ScorerPlayerName>\r\n        <ScorerTeamID>653953</ScorerTeamID>\r\n        <ScorerHomeGoals>3</ScorerHomeGoals>\r\n        <ScorerAwayGoals>2</ScorerAwayGoals>\r\n        <ScorerMinute>89</ScorerMinute>\r\n      </Goal>\r\n    </Scorers>\r\n    <Bookings>\r\n      <Booking>\r\n        <BookingPlayerID>469248064</BookingPlayerID>\r\n        <BookingPlayerName>Mihai Mema</BookingPlayerName>\r\n        <BookingTeamID>1708186</BookingTeamID>\r\n        <BookingType>1</BookingType>\r\n        <BookingMinute>38</BookingMinute>\r\n      </Booking>\r\n      <Booking>\r\n        <BookingPlayerID>459327718</BookingPlayerID>\r\n        <BookingPlayerName>Alfred Külz</BookingPlayerName>\r\n        <BookingTeamID>1708186</BookingTeamID>\r\n        <BookingType>1</BookingType>\r\n        <BookingMinute>40</BookingMinute>\r\n      </Booking>\r\n    </Bookings>\r\n    <PossessionFirstHalfHome>53</PossessionFirstHalfHome>\r\n    <PossessionFirstHalfAway>47</PossessionFirstHalfAway>\r\n    <PossessionSecondHalfHome>50</PossessionSecondHalfHome>\r\n    <PossessionSecondHalfAway>50</PossessionSecondHalfAway>\r\n  </Match>\r\n</HattrickData>",
+    "opponentPlayers": "<?xml version=\"1.0\" encoding=\"utf-8\"?>\r\n<HattrickData>\r\n  <FileName>players.xml</FileName>\r\n  <Version>1.4</Version>\r\n  <UserID>9464954</UserID>\r\n  <FetchedDate>2026-09-01 10:49:55</FetchedDate>\r\n  <UserIsSupporter>0</UserIsSupporter>\r\n  <IsYouth>False</IsYouth>\r\n  <UserHasClubHouse>0</UserHasClubHouse>\r\n  <ActionType>view</ActionType>\r\n  <Team>\r\n    <TeamID>653953</TeamID>\r\n    <TeamName>Zeytinburnu Sahil Spor</TeamName>\r\n    <PlayerList>\r\n      <Player>\r\n        <PlayerID>453469948</PlayerID>\r\n        <PlayerName>Satılmış Pamukkale</PlayerName>\r\n        <PlayerNumber>2</PlayerNumber>\r\n        <Age>36</Age>\r\n        <AgeDays>108</AgeDays>\r\n        <TSI>3370</TSI>\r\n        <PlayerForm>6</PlayerForm>\r\n        <Statement></Statement>\r\n        <Experience>14</Experience>\r\n        <Leadership>6</Leadership>\r\n        <Salary>35500</Salary>\r\n        <IsAbroad>0</IsAbroad>\r\n        <Agreeability>3</Agreeability>\r\n        <Aggressiveness>1</Aggressiveness>\r\n        <Honesty>2</Honesty>\r\n        <LeagueGoals>0</LeagueGoals>\r\n        <CupGoals>0</CupGoals>\r\n        <FriendliesGoals>0</FriendliesGoals>\r\n        <CareerGoals>34</CareerGoals>\r\n        <CareerHattricks>0</CareerHattricks>\r\n        <Specialty>5</Specialty>\r\n        <TransferListed>0</TransferListed>\r\n        <NationalTeamID>0</NationalTeamID>\r\n        <CountryID>31</CountryID>\r\n        <Caps>0</Caps>\r\n        <CapsU20>0</CapsU20>\r\n        <Cards>0</Cards>\r\n        <InjuryLevel>-1</InjuryLevel>\r\n      </Player>\r\n      <Player>\r\n        <PlayerID>499543739</PlayerID>\r\n        <PlayerName>Béla Deéry</PlayerName>\r\n        <PlayerNumber>100</PlayerNumber>\r\n        <Age>20</Age>\r\n        <AgeDays>41</AgeDays>\r\n        <TSI>34570</TSI>\r\n        <PlayerForm>6</PlayerForm>\r\n        <Statement></Statement>\r\n        <Experience>3</Experience>\r\n        <Leadership>4</Leadership>\r\n        <Salary>89280</Salary>\r\n        <IsAbroad>1</IsAbroad>\r\n        <Agreeability>3</Agreeability>\r\n        <Aggressiveness>3</Aggressiveness>\r\n        <Honesty>2</Honesty>\r\n        <LeagueGoals>2</LeagueGoals>\r\n        <CupGoals>2</CupGoals>\r\n        <FriendliesGoals>0</FriendliesGoals>\r\n        <CareerGoals>7</CareerGoals>\r\n        <CareerHattricks>0</CareerHattricks>\r\n        <Specialty>1</Specialty>\r\n        <TransferListed>0</TransferListed>\r\n        <NationalTeamID>0</NationalTeamID>\r\n        <CountryID>36</CountryID>\r\n        <Caps>0</Caps>\r\n        <CapsU20>0</CapsU20>\r\n        <Cards>1</Cards>\r\n        <InjuryLevel>-1</InjuryLevel>\r\n      </Player>\r\n      <Player>\r\n        <PlayerID>503101536</PlayerID>\r\n        <PlayerName>Cenk Savgın</PlayerName>\r\n        <PlayerNumber>100</PlayerNumber>\r\n        <Age>19</Age>\r\n        <AgeDays>57</AgeDays>\r\n        <TSI>450</TSI>\r\n        <PlayerForm>2</PlayerForm>\r\n        <Statement></Statement>\r\n        <Experience>2</Experience>\r\n        <Leadership>2</Leadership>\r\n        <Salary>3200</Salary>\r\n        <IsAbroad>0</IsAbroad>\r\n        <Agreeability>2</Agreeability>\r\n        <Aggressiveness>3</Aggressiveness>\r\n        <Honesty>4</Honesty>\r\n        <LeagueGoals>0</LeagueGoals>\r\n        <CupGoals>0</CupGoals>\r\n        <FriendliesGoals>0</FriendliesGoals>\r\n        <CareerGoals>4</CareerGoals>\r\n        <CareerHattricks>0</CareerHattricks>\r\n        <Specialty>1</Specialty>\r\n        <TransferListed>0</TransferListed>\r\n        <NationalTeamID>0</NationalTeamID>\r\n        <CountryID>31</CountryID>\r\n        <Caps>0</Caps>\r\n        <CapsU20>0</CapsU20>\r\n        <Cards>0</Cards>\r\n        <InjuryLevel>-1</InjuryLevel>\r\n      </Player>\r\n      <Player>\r\n        <PlayerID>499543851</PlayerID>\r\n        <PlayerName>Daniel Iriza</PlayerName>\r\n        <PlayerNumber>100</PlayerNumber>\r\n        <Age>19</Age>\r\n        <AgeDays>83</AgeDays>\r\n        <TSI>27470</TSI>\r\n        <PlayerForm>7</PlayerForm>\r\n        <Statement></Statement>\r\n        <Experience>3</Experience>\r\n        <Leadership>4</Leadership>\r\n        <Salary>61320</Salary>\r\n        <IsAbroad>1</IsAbroad>\r\n        <Agreeability>3</Agreeability>\r\n        <Aggressiveness>2</Aggressiveness>\r\n        <Honesty>2</Honesty>\r\n        <LeagueGoals>3</LeagueGoals>\r\n        <CupGoals>3</CupGoals>\r\n        <FriendliesGoals>5</FriendliesGoals>\r\n        <CareerGoals>10</CareerGoals>\r\n        <CareerHattricks>1</CareerHattricks>\r\n        <Specialty>5</Specialty>\r\n        <TransferListed>0</TransferListed>\r\n        <NationalTeamID>0</NationalTeamID>\r\n        <CountryID>36</CountryID>\r\n        <Caps>0</Caps>\r\n        <CapsU20>0</CapsU20>\r\n        <Cards>0</Cards>\r\n        <InjuryLevel>-1</InjuryLevel>\r\n      </Player>\r\n      <Player>\r\n        <PlayerID>485748296</PlayerID>\r\n        <PlayerName>Demirel Orhun</PlayerName>\r\n        <PlayerNumber>100</PlayerNumber>\r\n        <Age>23</Age>\r\n        <AgeDays>94</AgeDays>\r\n        <TSI>67420</TSI>\r\n        <PlayerForm>6</PlayerForm>\r\n        <Statement></Statement>\r\n        <Experience>4</Experience>\r\n        <Leadership>3</Leadership>\r\n        <Salary>178300</Salary>\r\n        <IsAbroad>0</IsAbroad>\r\n        <Agreeability>2</Agreeability>\r\n        <Aggressiveness>3</Aggressiveness>\r\n        <Honesty>2</Honesty>\r\n        <LeagueGoals>0</LeagueGoals>\r\n        <CupGoals>0</CupGoals>\r\n        <FriendliesGoals>0</FriendliesGoals>\r\n        <CareerGoals>3</CareerGoals>\r\n        <CareerHattricks>0</CareerHattricks>\r\n        <Specialty>3</Specialty>\r\n        <TransferListed>0</TransferListed>\r\n        <NationalTeamID>0</NationalTeamID>\r\n        <CountryID>31</CountryID>\r\n        <Caps>0</Caps>\r\n        <CapsU20>0</CapsU20>\r\n        <Cards>0</Cards>\r\n        <InjuryLevel>-1</InjuryLevel>\r\n      </Player>\r\n      <Player>\r\n        <PlayerID>488343938</PlayerID>\r\n        <PlayerName>Egemen Dinçer Saner</PlayerName>\r\n        <PlayerNumber>100</PlayerNumber>\r\n        <Age>22</Age>\r\n        <AgeDays>97</AgeDays>\r\n        <TSI>118550</TSI>\r\n        <PlayerForm>6</PlayerForm>\r\n        <Statement></Statement>\r\n        <Experience>4</Experience>\r\n        <Leadership>6</Leadership>\r\n        <Salary>151900</Salary>\r\n        <IsAbroad>0</IsAbroad>\r\n        <Agreeability>1</Agreeability>\r\n        <Aggressiveness>2</Aggressiveness>\r\n        <Honesty>3</Honesty>\r\n        <LeagueGoals>1</LeagueGoals>\r\n        <CupGoals>0</CupGoals>\r\n        <FriendliesGoals>0</FriendliesGoals>\r\n        <CareerGoals>8</CareerGoals>\r\n        <CareerHattricks>0</CareerHattricks>\r\n        <Specialty>4</Specialty>\r\n        <TransferListed>0</TransferListed>\r\n        <NationalTeamID>0</NationalTeamID>\r\n        <CountryID>31</CountryID>\r\n        <Caps>0</Caps>\r\n        <CapsU20>0</CapsU20>\r\n        <Cards>1</Cards>\r\n        <InjuryLevel>-1</InjuryLevel>\r\n      </Player>\r\n      <Player>\r\n        <PlayerID>488270033</PlayerID>\r\n        <PlayerName>Ekrem Furkan Dilnur</PlayerName>\r\n        <PlayerNumber>100</PlayerNumber>\r\n        <Age>23</Age>\r\n        <AgeDays>2</AgeDays>\r\n        <TSI>123910</TSI>\r\n        <PlayerForm>6</PlayerForm>\r\n        <Statement></Statement>\r\n        <Experience>5</Experience>\r\n        <Leadership>4</Leadership>\r\n        <Salary>201400</Salary>\r\n        <IsAbroad>0</IsAbroad>\r\n        <Agreeability>3</Agreeability>\r\n        <Aggressiveness>4</Aggressiveness>\r\n        <Honesty>0</Honesty>\r\n        <LeagueGoals>1</LeagueGoals>\r\n        <CupGoals>0</CupGoals>\r\n        <FriendliesGoals>0</FriendliesGoals>\r\n        <CareerGoals>9</CareerGoals>\r\n        <CareerHattricks>0</CareerHattricks>\r\n        <Specialty>2</Specialty>\r\n        <TransferListed>0</TransferListed>\r\n        <NationalTeamID>0</NationalTeamID>\r\n        <CountryID>31</CountryID>\r\n        <Caps>0</Caps>\r\n        <CapsU20>0</CapsU20>\r\n        <Cards>2</Cards>\r\n        <InjuryLevel>-1</InjuryLevel>\r\n      </Player>\r\n      <Player>\r\n        <PlayerID>488347850</PlayerID>\r\n        <PlayerName>Emre Baykam</PlayerName>\r\n        <PlayerNumber>100</PlayerNumber>\r\n        <Age>24</Age>\r\n        <AgeDays>15</AgeDays>\r\n        <TSI>127970</TSI>\r\n        <PlayerForm>7</PlayerForm>\r\n        <Statement></Statement>\r\n        <Experience>5</Experience>\r\n        <Leadership>3</Leadership>\r\n        <Salary>229000</Salary>\r\n        <IsAbroad>0</IsAbroad>\r\n        <Agreeability>4</Agreeability>\r\n        <Aggressiveness>0</Aggressiveness>\r\n        <Honesty>4</Honesty>\r\n        <LeagueGoals>1</LeagueGoals>\r\n        <CupGoals>0</CupGoals>\r\n        <FriendliesGoals>0</FriendliesGoals>\r\n        <CareerGoals>23</CareerGoals>\r\n        <CareerHattricks>1</CareerHattricks>\r\n        <Specialty>5</Specialty>\r\n        <TransferListed>0</TransferListed>\r\n        <NationalTeamID>0</NationalTeamID>\r\n        <CountryID>31</CountryID>\r\n        <Caps>0</Caps>\r\n        <CapsU20>0</CapsU20>\r\n        <Cards>0</Cards>\r\n        <InjuryLevel>-1</InjuryLevel>\r\n      </Player>\r\n      <Player>\r\n        <PlayerID>502136669</PlayerID>\r\n        <PlayerName>Ercan Bayça</PlayerName>\r\n        <PlayerNumber>100</PlayerNumber>\r\n        <Age>18</Age>\r\n        <AgeDays>110</AgeDays>\r\n        <TSI>490</TSI>\r\n        <PlayerForm>3</PlayerForm>\r\n        <Statement></Statement>\r\n        <Experience>2</Experience>\r\n        <Leadership>6</Leadership>\r\n        <Salary>3200</Salary>\r\n        <IsAbroad>0</IsAbroad>\r\n        <Agreeability>2</Agreeability>\r\n        <Aggressiveness>1</Aggressiveness>\r\n        <Honesty>2</Honesty>\r\n        <LeagueGoals>0</LeagueGoals>\r\n        <CupGoals>0</CupGoals>\r\n        <FriendliesGoals>0</FriendliesGoals>\r\n        <CareerGoals>1</CareerGoals>\r\n        <CareerHattricks>0</CareerHattricks>\r\n        <Specialty>3</Specialty>\r\n        <TransferListed>0</TransferListed>\r\n        <NationalTeamID>0</NationalTeamID>\r\n        <CountryID>31</CountryID>\r\n        <Caps>0</Caps>\r\n        <CapsU20>0</CapsU20>\r\n        <Cards>0</Cards>\r\n        <InjuryLevel>-1</InjuryLevel>\r\n      </Player>\r\n      <Player>\r\n        <PlayerID>502766485</PlayerID>\r\n        <PlayerName>Güz Arpağ</PlayerName>\r\n        <PlayerNumber>100</PlayerNumber>\r\n        <Age>19</Age>\r\n        <AgeDays>76</AgeDays>\r\n        <TSI>360</TSI>\r\n        <PlayerForm>7</PlayerForm>\r\n        <Statement></Statement>\r\n        <Experience>1</Experience>\r\n        <Leadership>2</Leadership>\r\n        <Salary>2900</Salary>\r\n        <IsAbroad>0</IsAbroad>\r\n        <Agreeability>3</Agreeability>\r\n        <Aggressiveness>3</Aggressiveness>\r\n        <Honesty>2</Honesty>\r\n        <LeagueGoals>0</LeagueGoals>\r\n        <CupGoals>0</CupGoals>\r\n        <FriendliesGoals>0</FriendliesGoals>\r\n        <CareerGoals>0</CareerGoals>\r\n        <CareerHattricks>0</CareerHattricks>\r\n        <Specialty>2</Specialty>\r\n        <TransferListed>0</TransferListed>\r\n        <NationalTeamID>0</NationalTeamID>\r\n        <CountryID>31</CountryID>\r\n        <Caps>0</Caps>\r\n        <CapsU20>0</CapsU20>\r\n        <Cards>0</Cards>\r\n        <InjuryLevel>-1</InjuryLevel>\r\n      </Player>\r\n      <Player>\r\n        <PlayerID>515760335</PlayerID>\r\n        <PlayerName>Haluk Çallı</PlayerName>\r\n        <PlayerNumber>100</PlayerNumber>\r\n        <Age>17</Age>\r\n        <AgeDays>27</AgeDays>\r\n        <TSI>590</TSI>\r\n        <PlayerForm>6</PlayerForm>\r\n        <Statement></Statement>\r\n        <Experience>2</Experience>\r\n        <Leadership>3</Leadership>\r\n        <Salary>3200</Salary>\r\n        <IsAbroad>0</IsAbroad>\r\n        <Agreeability>2</Agreeability>\r\n        <Aggressiveness>2</Aggressiveness>\r\n        <Honesty>2</Honesty>\r\n        <LeagueGoals>0</LeagueGoals>\r\n        <CupGoals>0</CupGoals>\r\n        <FriendliesGoals>0</FriendliesGoals>\r\n        <CareerGoals>0</CareerGoals>\r\n        <CareerHattricks>0</CareerHattricks>\r\n        <Specialty>4</Specialty>\r\n        <TransferListed>0</TransferListed>\r\n        <NationalTeamID>0</NationalTeamID>\r\n        <CountryID>31</CountryID>\r\n        <Caps>0</Caps>\r\n        <CapsU20>0</CapsU20>\r\n        <Cards>0</Cards>\r\n        <InjuryLevel>-1</InjuryLevel>\r\n      </Player>\r\n      <Player>\r\n        <PlayerID>479518719</PlayerID>\r\n        <PlayerName>Ignacio Flores de Lizaur</PlayerName>\r\n        <PlayerNumber>100</PlayerNumber>\r\n        <Age>26</Age>\r\n        <AgeDays>57</AgeDays>\r\n        <TSI>59720</TSI>\r\n        <PlayerForm>5</PlayerForm>\r\n        <Statement></Statement>\r\n        <Experience>6</Experience>\r\n        <Leadership>1</Leadership>\r\n        <Salary>315240</Salary>\r\n        <IsAbroad>1</IsAbroad>\r\n        <Agreeability>2</Agreeability>\r\n        <Aggressiveness>2</Aggressiveness>\r\n        <Honesty>2</Honesty>\r\n        <LeagueGoals>0</LeagueGoals>\r\n        <CupGoals>0</CupGoals>\r\n        <FriendliesGoals>0</FriendliesGoals>\r\n        <CareerGoals>2</CareerGoals>\r\n        <CareerHattricks>0</CareerHattricks>\r\n        <Specialty>0</Specialty>\r\n        <TransferListed>0</TransferListed>\r\n        <NationalTeamID>0</NationalTeamID>\r\n        <CountryID>35</CountryID>\r\n        <Caps>0</Caps>\r\n        <CapsU20>0</CapsU20>\r\n        <Cards>0</Cards>\r\n        <InjuryLevel>-1</InjuryLevel>\r\n      </Player>\r\n      <Player>\r\n        <PlayerID>499543737</PlayerID>\r\n        <PlayerName>Mihuţ Izbașa</PlayerName>\r\n        <PlayerNumber>100</PlayerNumber>\r\n        <Age>19</Age>\r\n        <AgeDays>108</AgeDays>\r\n        <TSI>20420</TSI>\r\n        <PlayerForm>6</PlayerForm>\r\n        <Statement></Statement>\r\n        <Experience>2</Experience>\r\n        <Leadership>5</Leadership>\r\n        <Salary>35160</Salary>\r\n        <IsAbroad>1</IsAbroad>\r\n        <Agreeability>1</Agreeability>\r\n        <Aggressiveness>4</Aggressiveness>\r\n        <Honesty>1</Honesty>\r\n        <LeagueGoals>0</LeagueGoals>\r\n        <CupGoals>3</CupGoals>\r\n        <FriendliesGoals>2</FriendliesGoals>\r\n        <CareerGoals>3</CareerGoals>\r\n        <CareerHattricks>0</CareerHattricks>\r\n        <Specialty>1</Specialty>\r\n        <TransferListed>0</TransferListed>\r\n        <NationalTeamID>0</NationalTeamID>\r\n        <CountryID>36</CountryID>\r\n        <Caps>0</Caps>\r\n        <CapsU20>0</CapsU20>\r\n        <Cards>0</Cards>\r\n        <InjuryLevel>-1</InjuryLevel>\r\n      </Player>\r\n      <Player>\r\n        <PlayerID>498873250</PlayerID>\r\n        <PlayerName>Mikail Can</PlayerName>\r\n        <PlayerNumber>100</PlayerNumber>\r\n        <Age>20</Age>\r\n        <AgeDays>34</AgeDays>\r\n        <TSI>1170</TSI>\r\n        <PlayerForm>2</PlayerForm>\r\n        <Statement></Statement>\r\n        <Experience>2</Experience>\r\n        <Leadership>3</Leadership>\r\n        <Salary>3900</Salary>\r\n        <IsAbroad>0</IsAbroad>\r\n        <Agreeability>3</Agreeability>\r\n        <Aggressiveness>0</Aggressiveness>\r\n        <Honesty>2</Honesty>\r\n        <LeagueGoals>0</LeagueGoals>\r\n        <CupGoals>0</CupGoals>\r\n        <FriendliesGoals>0</FriendliesGoals>\r\n        <CareerGoals>1</CareerGoals>\r\n        <CareerHattricks>0</CareerHattricks>\r\n        <Specialty>0</Specialty>\r\n        <TransferListed>0</TransferListed>\r\n        <NationalTeamID>0</NationalTeamID>\r\n        <CountryID>31</CountryID>\r\n        <Caps>0</Caps>\r\n        <CapsU20>0</CapsU20>\r\n        <Cards>0</Cards>\r\n        <InjuryLevel>-1</InjuryLevel>\r\n      </Player>\r\n      <Player>\r\n        <PlayerID>497486996</PlayerID>\r\n        <PlayerName>Onat Arkış</PlayerName>\r\n        <PlayerNumber>100</PlayerNumber>\r\n        <Age>20</Age>\r\n        <AgeDays>36</AgeDays>\r\n        <TSI>1960</TSI>\r\n        <PlayerForm>5</PlayerForm>\r\n        <Statement></Statement>\r\n        <Experience>2</Experience>\r\n        <Leadership>6</Leadership>\r\n        <Salary>3900</Salary>\r\n        <IsAbroad>0</IsAbroad>\r\n        <Agreeability>1</Agreeability>\r\n        <Aggressiveness>0</Aggressiveness>\r\n        <Honesty>2</Honesty>\r\n        <LeagueGoals>0</LeagueGoals>\r\n        <CupGoals>0</CupGoals>\r\n        <FriendliesGoals>0</FriendliesGoals>\r\n        <CareerGoals>0</CareerGoals>\r\n        <CareerHattricks>0</CareerHattricks>\r\n        <Specialty>0</Specialty>\r\n        <TransferListed>0</TransferListed>\r\n        <NationalTeamID>0</NationalTeamID>\r\n        <CountryID>31</CountryID>\r\n        <Caps>0</Caps>\r\n        <CapsU20>0</CapsU20>\r\n        <Cards>0</Cards>\r\n        <InjuryLevel>-1</InjuryLevel>\r\n      </Player>\r\n      <Player>\r\n        <PlayerID>497166999</PlayerID>\r\n        <PlayerName>Özgür Sinan Kenan</PlayerName>\r\n        <PlayerNumber>100</PlayerNumber>\r\n        <Age>20</Age>\r\n        <AgeDays>13</AgeDays>\r\n        <TSI>39340</TSI>\r\n        <PlayerForm>7</PlayerForm>\r\n        <Statement></Statement>\r\n        <Experience>3</Experience>\r\n        <Leadership>2</Leadership>\r\n        <Salary>127700</Salary>\r\n        <IsAbroad>0</IsAbroad>\r\n        <Agreeability>2</Agreeability>\r\n        <Aggressiveness>1</Aggressiveness>\r\n        <Honesty>2</Honesty>\r\n        <LeagueGoals>1</LeagueGoals>\r\n        <CupGoals>1</CupGoals>\r\n        <FriendliesGoals>2</FriendliesGoals>\r\n        <CareerGoals>3</CareerGoals>\r\n        <CareerHattricks>0</CareerHattricks>\r\n        <Specialty>4</Specialty>\r\n        <TransferListed>0</TransferListed>\r\n        <NationalTeamID>0</NationalTeamID>\r\n        <CountryID>31</CountryID>\r\n        <Caps>0</Caps>\r\n        <CapsU20>0</CapsU20>\r\n        <Cards>0</Cards>\r\n        <InjuryLevel>-1</InjuryLevel>\r\n      </Player>\r\n      <Player>\r\n        <PlayerID>486501589</PlayerID>\r\n        <PlayerName>Sander Eser</PlayerName>\r\n        <PlayerNumber>100</PlayerNumber>\r\n        <Age>23</Age>\r\n        <AgeDays>80</AgeDays>\r\n        <TSI>125360</TSI>\r\n        <PlayerForm>6</PlayerForm>\r\n        <Statement></Statement>\r\n        <Experience>4</Experience>\r\n        <Leadership>2</Leadership>\r\n        <Salary>291000</Salary>\r\n        <IsAbroad>0</IsAbroad>\r\n        <Agreeability>1</Agreeability>\r\n        <Aggressiveness>2</Aggressiveness>\r\n        <Honesty>2</Honesty>\r\n        <LeagueGoals>1</LeagueGoals>\r\n        <CupGoals>1</CupGoals>\r\n        <FriendliesGoals>1</FriendliesGoals>\r\n        <CareerGoals>4</CareerGoals>\r\n        <CareerHattricks>0</CareerHattricks>\r\n        <Specialty>1</Specialty>\r\n        <TransferListed>0</TransferListed>\r\n        <NationalTeamID>0</NationalTeamID>\r\n        <CountryID>31</CountryID>\r\n        <Caps>0</Caps>\r\n        <CapsU20>0</CapsU20>\r\n        <Cards>0</Cards>\r\n        <InjuryLevel>-1</InjuryLevel>\r\n      </Player>\r\n      <Player>\r\n        <PlayerID>475607961</PlayerID>\r\n        <PlayerName>Sotear Dara</PlayerName>\r\n        <PlayerNumber>100</PlayerNumber>\r\n        <Age>28</Age>\r\n        <AgeDays>36</AgeDays>\r\n        <TSI>71780</TSI>\r\n        <PlayerForm>6</PlayerForm>\r\n        <Statement></Statement>\r\n        <Experience>7</Experience>\r\n        <Leadership>7</Leadership>\r\n        <Salary>253080</Salary>\r\n        <IsAbroad>1</IsAbroad>\r\n        <Agreeability>4</Agreeability>\r\n        <Aggressiveness>2</Aggressiveness>\r\n        <Honesty>2</Honesty>\r\n        <LeagueGoals>1</LeagueGoals>\r\n        <CupGoals>3</CupGoals>\r\n        <FriendliesGoals>0</FriendliesGoals>\r\n        <CareerGoals>39</CareerGoals>\r\n        <CareerHattricks>2</CareerHattricks>\r\n        <Specialty>4</Specialty>\r\n        <TransferListed>0</TransferListed>\r\n        <NationalTeamID>0</NationalTeamID>\r\n        <CountryID>145</CountryID>\r\n        <Caps>0</Caps>\r\n        <CapsU20>0</CapsU20>\r\n        <Cards>0</Cards>\r\n        <InjuryLevel>-1</InjuryLevel>\r\n      </Player>\r\n      <Player>\r\n        <PlayerID>496257138</PlayerID>\r\n        <PlayerName>Tommaso Falsone</PlayerName>\r\n        <PlayerNumber>100</PlayerNumber>\r\n        <Age>20</Age>\r\n        <AgeDays>33</AgeDays>\r\n        <TSI>28350</TSI>\r\n        <PlayerForm>7</PlayerForm>\r\n        <Statement></Statement>\r\n        <Experience>3</Experience>\r\n        <Leadership>4</Leadership>\r\n        <Salary>73440</Salary>\r\n        <IsAbroad>1</IsAbroad>\r\n        <Agreeability>2</Agreeability>\r\n        <Aggressiveness>3</Aggressiveness>\r\n        <Honesty>2</Honesty>\r\n        <LeagueGoals>0</LeagueGoals>\r\n        <CupGoals>1</CupGoals>\r\n        <FriendliesGoals>1</FriendliesGoals>\r\n        <CareerGoals>3</CareerGoals>\r\n        <CareerHattricks>0</CareerHattricks>\r\n        <Specialty>3</Specialty>\r\n        <TransferListed>0</TransferListed>\r\n        <NationalTeamID>0</NationalTeamID>\r\n        <CountryID>4</CountryID>\r\n        <Caps>0</Caps>\r\n        <CapsU20>0</CapsU20>\r\n        <Cards>1</Cards>\r\n        <InjuryLevel>-1</InjuryLevel>\r\n      </Player>\r\n      <Player>\r\n        <PlayerID>497557400</PlayerID>\r\n        <PlayerName>Ulisse Roepke</PlayerName>\r\n        <PlayerNumber>100</PlayerNumber>\r\n        <Age>20</Age>\r\n        <AgeDays>1</AgeDays>\r\n        <TSI>31250</TSI>\r\n        <PlayerForm>6</PlayerForm>\r\n        <Statement></Statement>\r\n        <Experience>3</Experience>\r\n        <Leadership>1</Leadership>\r\n        <Salary>125520</Salary>\r\n        <IsAbroad>1</IsAbroad>\r\n        <Agreeability>2</Agreeability>\r\n        <Aggressiveness>4</Aggressiveness>\r\n        <Honesty>3</Honesty>\r\n        <LeagueGoals>4</LeagueGoals>\r\n        <CupGoals>1</CupGoals>\r\n        <FriendliesGoals>0</FriendliesGoals>\r\n        <CareerGoals>7</CareerGoals>\r\n        <CareerHattricks>0</CareerHattricks>\r\n        <Specialty>3</Specialty>\r\n        <TransferListed>0</TransferListed>\r\n        <NationalTeamID>0</NationalTeamID>\r\n        <CountryID>40</CountryID>\r\n        <Caps>0</Caps>\r\n        <CapsU20>0</CapsU20>\r\n        <Cards>1</Cards>\r\n        <InjuryLevel>-1</InjuryLevel>\r\n      </Player>\r\n      <Player>\r\n        <PlayerID>468605078</PlayerID>\r\n        <PlayerName>Yaşar Çavuş</PlayerName>\r\n        <PlayerNumber>100</PlayerNumber>\r\n        <Age>31</Age>\r\n        <AgeDays>42</AgeDays>\r\n        <TSI>92410</TSI>\r\n        <PlayerForm>5</PlayerForm>\r\n        <Statement></Statement>\r\n        <Experience>10</Experience>\r\n        <Leadership>7</Leadership>\r\n        <Salary>212700</Salary>\r\n        <IsAbroad>0</IsAbroad>\r\n        <Agreeability>3</Agreeability>\r\n        <Aggressiveness>2</Aggressiveness>\r\n        <Honesty>1</Honesty>\r\n        <LeagueGoals>3</LeagueGoals>\r\n        <CupGoals>1</CupGoals>\r\n        <FriendliesGoals>0</FriendliesGoals>\r\n        <CareerGoals>101</CareerGoals>\r\n        <CareerHattricks>6</CareerHattricks>\r\n        <Specialty>4</Specialty>\r\n        <TransferListed>0</TransferListed>\r\n        <NationalTeamID>0</NationalTeamID>\r\n        <CountryID>31</CountryID>\r\n        <Caps>0</Caps>\r\n        <CapsU20>0</CapsU20>\r\n        <Cards>0</Cards>\r\n        <InjuryLevel>-1</InjuryLevel>\r\n      </Player>\r\n      <Player>\r\n        <PlayerID>487930575</PlayerID>\r\n        <PlayerName>Yiğit Namdar</PlayerName>\r\n        <PlayerNumber>100</PlayerNumber>\r\n        <Age>23</Age>\r\n        <AgeDays>17</AgeDays>\r\n        <TSI>68760</TSI>\r\n        <PlayerForm>5</PlayerForm>\r\n        <Statement></Statement>\r\n        <Experience>4</Experience>\r\n        <Leadership>1</Leadership>\r\n        <Salary>96000</Salary>\r\n        <IsAbroad>0</IsAbroad>\r\n        <Agreeability>2</Agreeability>\r\n        <Aggressiveness>2</Aggressiveness>\r\n        <Honesty>2</Honesty>\r\n        <LeagueGoals>2</LeagueGoals>\r\n        <CupGoals>1</CupGoals>\r\n        <FriendliesGoals>0</FriendliesGoals>\r\n        <CareerGoals>18</CareerGoals>\r\n        <CareerHattricks>0</CareerHattricks>\r\n        <Specialty>3</Specialty>\r\n        <TransferListed>0</TransferListed>\r\n        <NationalTeamID>0</NationalTeamID>\r\n        <CountryID>31</CountryID>\r\n        <Caps>0</Caps>\r\n        <CapsU20>0</CapsU20>\r\n        <Cards>0</Cards>\r\n        <InjuryLevel>-1</InjuryLevel>\r\n      </Player>\r\n      <Player>\r\n        <PlayerID>446234208</PlayerID>\r\n        <PlayerName>Mikail Alara</PlayerName>\r\n        <PlayerNumber>100</PlayerNumber>\r\n        <Age>48</Age>\r\n        <AgeDays>88</AgeDays>\r\n        <TSI>0</TSI>\r\n        <PlayerForm>6</PlayerForm>\r\n        <Statement></Statement>\r\n        <Experience>8</Experience>\r\n        <Leadership>4</Leadership>\r\n        <Salary>0</Salary>\r\n        <IsAbroad>0</IsAbroad>\r\n        <Agreeability>1</Agreeability>\r\n        <Aggressiveness>2</Aggressiveness>\r\n        <Honesty>4</Honesty>\r\n        <LeagueGoals>0</LeagueGoals>\r\n        <CupGoals>0</CupGoals>\r\n        <FriendliesGoals>0</FriendliesGoals>\r\n        <CareerGoals>10</CareerGoals>\r\n        <CareerHattricks>0</CareerHattricks>\r\n        <Specialty>4</Specialty>\r\n        <TransferListed>0</TransferListed>\r\n        <NationalTeamID>0</NationalTeamID>\r\n        <CountryID>31</CountryID>\r\n        <Caps>0</Caps>\r\n        <CapsU20>0</CapsU20>\r\n        <Cards>0</Cards>\r\n        <InjuryLevel>-1</InjuryLevel>\r\n        <TrainerData>\r\n          <TrainerType>1</TrainerType>\r\n          <TrainerSkill>8</TrainerSkill>\r\n        </TrainerData>\r\n      </Player>\r\n    </PlayerList>\r\n  </Team>\r\n</HattrickData>",
+    "opponentPlayersError": null
+  },
+  "normalized": {
+    "ownPlayers": [
+      {
+        "id": 448933569,
+        "name": "Uğur Günal",
+        "keeper": 0,
+        "defending": 0,
+        "playmaking": 0,
+        "passing": 0,
+        "winger": 0,
+        "scoring": 0,
+        "stamina": 1,
+        "form": 2,
+        "experience": 10,
+        "loyalty": 0
+      },
+      {
+        "id": 468363070,
+        "name": "Abeiku Takyi",
+        "keeper": 1,
+        "defending": 17,
+        "playmaking": 3,
+        "passing": 8,
+        "winger": 4,
+        "scoring": 7,
+        "stamina": 5,
+        "form": 6,
+        "experience": 10,
+        "loyalty": 0
+      },
+      {
+        "id": 491743384,
+        "name": "Adrian Beţa",
+        "keeper": 1,
+        "defending": 4,
+        "playmaking": 5,
+        "passing": 8,
+        "winger": 3,
+        "scoring": 15,
+        "stamina": 7,
+        "form": 7,
+        "experience": 3,
+        "loyalty": 0
+      },
+      {
+        "id": 437630242,
+        "name": "Alexey Esin",
+        "keeper": 0,
+        "defending": 2,
+        "playmaking": 0,
+        "passing": 0,
+        "winger": 0,
+        "scoring": 0,
+        "stamina": 1,
+        "form": 4,
+        "experience": 12,
+        "loyalty": 0
+      },
+      {
+        "id": 495041177,
+        "name": "Andres Nahasepp",
+        "keeper": 1,
+        "defending": 3,
+        "playmaking": 6,
+        "passing": 7,
+        "winger": 5,
+        "scoring": 13,
+        "stamina": 7,
+        "form": 7,
+        "experience": 3,
+        "loyalty": 0
+      },
+      {
+        "id": 465805392,
+        "name": "Bertalan Doktor",
+        "keeper": 1,
+        "defending": 2,
+        "playmaking": 17,
+        "passing": 11,
+        "winger": 6,
+        "scoring": 6,
+        "stamina": 6,
+        "form": 4,
+        "experience": 8,
+        "loyalty": 0
+      },
+      {
+        "id": 442645385,
+        "name": "Biel Kichute",
+        "keeper": 0,
+        "defending": 0,
+        "playmaking": 8,
+        "passing": 1,
+        "winger": 0,
+        "scoring": 1,
+        "stamina": 1,
+        "form": 5,
+        "experience": 12,
+        "loyalty": 0
+      },
+      {
+        "id": 493851210,
+        "name": "Bumin Pehlivanlar",
+        "keeper": 2,
+        "defending": 4,
+        "playmaking": 4,
+        "passing": 7,
+        "winger": 5,
+        "scoring": 7,
+        "stamina": 5,
+        "form": 8,
+        "experience": 2,
+        "loyalty": 0
+      },
+      {
+        "id": 497066104,
+        "name": "Cevat Durguner",
+        "keeper": 2,
+        "defending": 4,
+        "playmaking": 5,
+        "passing": 6,
+        "winger": 3,
+        "scoring": 8,
+        "stamina": 6,
+        "form": 7,
+        "experience": 2,
+        "loyalty": 0
+      },
+      {
+        "id": 476114406,
+        "name": "Cristian Pesalovo",
+        "keeper": 1,
+        "defending": 16,
+        "playmaking": 6,
+        "passing": 9,
+        "winger": 3,
+        "scoring": 6,
+        "stamina": 7,
+        "form": 7,
+        "experience": 6,
+        "loyalty": 0
+      },
+      {
+        "id": 513040102,
+        "name": "Daim Evliya",
+        "keeper": 2,
+        "defending": 4,
+        "playmaking": 5,
+        "passing": 7,
+        "winger": 4,
+        "scoring": 4,
+        "stamina": 5,
+        "form": 4,
+        "experience": 2,
+        "loyalty": 0
+      },
+      {
+        "id": 458524225,
+        "name": "Dawid Nocoń",
+        "keeper": 0,
+        "defending": 17,
+        "playmaking": 3,
+        "passing": 5,
+        "winger": 4,
+        "scoring": 7,
+        "stamina": 5,
+        "form": 6,
+        "experience": 12,
+        "loyalty": 0
+      },
+      {
+        "id": 479235895,
+        "name": "Enzo Bultot",
+        "keeper": 17,
+        "defending": 4,
+        "playmaking": 1,
+        "passing": 2,
+        "winger": 1,
+        "scoring": 4,
+        "stamina": 7,
+        "form": 6,
+        "experience": 5,
+        "loyalty": 0
+      },
+      {
+        "id": 497641568,
+        "name": "Ersin Akşın",
+        "keeper": 1,
+        "defending": 2,
+        "playmaking": 5,
+        "passing": 8,
+        "winger": 4,
+        "scoring": 13,
+        "stamina": 6,
+        "form": 7,
+        "experience": 3,
+        "loyalty": 0
+      },
+      {
+        "id": 492052456,
+        "name": "Felix Gustavsson",
+        "keeper": 1,
+        "defending": 3,
+        "playmaking": 3,
+        "passing": 8,
+        "winger": 17,
+        "scoring": 5,
+        "stamina": 7,
+        "form": 7,
+        "experience": 4,
+        "loyalty": 0
+      },
+      {
+        "id": 454418419,
+        "name": "Francisco Manuel",
+        "keeper": 0,
+        "defending": 2,
+        "playmaking": 15,
+        "passing": 8,
+        "winger": 2,
+        "scoring": 7,
+        "stamina": 4,
+        "form": 5,
+        "experience": 10,
+        "loyalty": 0
+      },
+      {
+        "id": 445283093,
+        "name": "Giacomo Rizzo",
+        "keeper": 11,
+        "defending": 5,
+        "playmaking": 0,
+        "passing": 0,
+        "winger": 0,
+        "scoring": 1,
+        "stamina": 1,
+        "form": 3,
+        "experience": 12,
+        "loyalty": 0
+      },
+      {
+        "id": 474962854,
+        "name": "Manuel Gobiet",
+        "keeper": 1,
+        "defending": 9,
+        "playmaking": 11,
+        "passing": 8,
+        "winger": 15,
+        "scoring": 8,
+        "stamina": 6,
+        "form": 7,
+        "experience": 7,
+        "loyalty": 0
+      },
+      {
+        "id": 498487535,
+        "name": "Mikel Thiebault",
+        "keeper": 1,
+        "defending": 4,
+        "playmaking": 5,
+        "passing": 8,
+        "winger": 4,
+        "scoring": 12,
+        "stamina": 6,
+        "form": 7,
+        "experience": 2,
+        "loyalty": 0
+      },
+      {
+        "id": 465141092,
+        "name": "Milen Bozev",
+        "keeper": 1,
+        "defending": 5,
+        "playmaking": 12,
+        "passing": 9,
+        "winger": 14,
+        "scoring": 6,
+        "stamina": 6,
+        "form": 6,
+        "experience": 7,
+        "loyalty": 0
+      },
+      {
+        "id": 502427630,
+        "name": "Münir Balkın",
+        "keeper": 1,
+        "defending": 5,
+        "playmaking": 5,
+        "passing": 5,
+        "winger": 5,
+        "scoring": 3,
+        "stamina": 3,
+        "form": 5,
+        "experience": 2,
+        "loyalty": 0
+      },
+      {
+        "id": 492253331,
+        "name": "Nándor Dobóvári",
+        "keeper": 2,
+        "defending": 3,
+        "playmaking": 5,
+        "passing": 7,
+        "winger": 17,
+        "scoring": 4,
+        "stamina": 7,
+        "form": 6,
+        "experience": 3,
+        "loyalty": 0
+      },
+      {
+        "id": 501442578,
+        "name": "Nelson Ferrante",
+        "keeper": 1,
+        "defending": 4,
+        "playmaking": 6,
+        "passing": 8,
+        "winger": 3,
+        "scoring": 11,
+        "stamina": 6,
+        "form": 7,
+        "experience": 2,
+        "loyalty": 0
+      },
+      {
+        "id": 483683238,
+        "name": "Nurtaç Armağan",
+        "keeper": 6,
+        "defending": 2,
+        "playmaking": 2,
+        "passing": 2,
+        "winger": 2,
+        "scoring": 6,
+        "stamina": 7,
+        "form": 5,
+        "experience": 3,
+        "loyalty": 0
+      },
+      {
+        "id": 514089104,
+        "name": "Oğuz Can Çıtel",
+        "keeper": 2,
+        "defending": 3,
+        "playmaking": 5,
+        "passing": 6,
+        "winger": 5,
+        "scoring": 4,
+        "stamina": 4,
+        "form": 7,
+        "experience": 1,
+        "loyalty": 0
+      },
+      {
+        "id": 498557618,
+        "name": "Patrik Zarins",
+        "keeper": 1,
+        "defending": 4,
+        "playmaking": 6,
+        "passing": 7,
+        "winger": 2,
+        "scoring": 12,
+        "stamina": 6,
+        "form": 7,
+        "experience": 2,
+        "loyalty": 0
+      },
+      {
+        "id": 495027585,
+        "name": "Şaban Savlet",
+        "keeper": 1,
+        "defending": 4,
+        "playmaking": 5,
+        "passing": 5,
+        "winger": 5,
+        "scoring": 7,
+        "stamina": 6,
+        "form": 6,
+        "experience": 3,
+        "loyalty": 0
+      },
+      {
+        "id": 513885774,
+        "name": "Sergen Gözay",
+        "keeper": 2,
+        "defending": 6,
+        "playmaking": 5,
+        "passing": 4,
+        "winger": 5,
+        "scoring": 5,
+        "stamina": 4,
+        "form": 3,
+        "experience": 2,
+        "loyalty": 0
+      },
+      {
+        "id": 482291700,
+        "name": "Utku Hakan Başak",
+        "keeper": 1,
+        "defending": 4,
+        "playmaking": 3,
+        "passing": 5,
+        "winger": 7,
+        "scoring": 8,
+        "stamina": 6,
+        "form": 4,
+        "experience": 3,
+        "loyalty": 0
+      },
+      {
+        "id": 512433039,
+        "name": "Zübeyir Balaban",
+        "keeper": 2,
+        "defending": 6,
+        "playmaking": 6,
+        "passing": 3,
+        "winger": 5,
+        "scoring": 5,
+        "stamina": 5,
+        "form": 8,
+        "experience": 2,
+        "loyalty": 0
+      },
+      {
+        "id": 437860841,
+        "name": "Antonín Vašica",
+        "keeper": 0,
+        "defending": 2,
+        "playmaking": 12,
+        "passing": 6,
+        "winger": 5,
+        "scoring": 3,
+        "stamina": 3,
+        "form": 8,
+        "experience": 12,
+        "loyalty": 0
+      }
+    ],
+    "ownPlayerAnalysis": [
+      {
+        "playerId": 448933569,
+        "playerName": "Uğur Günal",
+        "positions": [
+          {
+            "positionCode": "IM-C",
+            "score": 0.52
+          },
+          {
+            "positionCode": "GK",
+            "score": 0.3
+          },
+          {
+            "positionCode": "FW-L",
+            "score": 0.2
+          },
+          {
+            "positionCode": "FW-R",
+            "score": 0.2
+          },
+          {
+            "positionCode": "IM-L",
+            "score": 0.12
+          },
+          {
+            "positionCode": "IM-R",
+            "score": 0.12
+          },
+          {
+            "positionCode": "DEF-L",
+            "score": 0
+          },
+          {
+            "positionCode": "DEF-CL",
+            "score": 0
+          },
+          {
+            "positionCode": "DEF-C",
+            "score": 0
+          },
+          {
+            "positionCode": "DEF-CR",
+            "score": 0
+          },
+          {
+            "positionCode": "DEF-R",
+            "score": 0
+          },
+          {
+            "positionCode": "W-L",
+            "score": 0
+          },
+          {
+            "positionCode": "W-R",
+            "score": 0
+          },
+          {
+            "positionCode": "FW-C",
+            "score": 0
+          }
+        ],
+        "primaryPosition": "IM-C",
+        "secondaryPosition": "GK",
+        "primaryScore": 0.52,
+        "secondaryScore": 0.3
+      },
+      {
+        "playerId": 468363070,
+        "playerName": "Abeiku Takyi",
+        "positions": [
+          {
+            "positionCode": "DEF-CL",
+            "score": 19.17
+          },
+          {
+            "positionCode": "DEF-C",
+            "score": 19.17
+          },
+          {
+            "positionCode": "DEF-CR",
+            "score": 19.17
+          },
+          {
+            "positionCode": "DEF-L",
+            "score": 18
+          },
+          {
+            "positionCode": "DEF-R",
+            "score": 18
+          },
+          {
+            "positionCode": "FW-C",
+            "score": 9.07
+          },
+          {
+            "positionCode": "FW-L",
+            "score": 8.959999999999999
+          },
+          {
+            "positionCode": "FW-R",
+            "score": 8.959999999999999
+          },
+          {
+            "positionCode": "IM-C",
+            "score": 6.15
+          },
+          {
+            "positionCode": "W-L",
+            "score": 6
+          },
+          {
+            "positionCode": "W-R",
+            "score": 6
+          },
+          {
+            "positionCode": "IM-L",
+            "score": 5.6
+          },
+          {
+            "positionCode": "IM-R",
+            "score": 5.6
+          },
+          {
+            "positionCode": "GK",
+            "score": 1.9
+          }
+        ],
+        "primaryPosition": "DEF-CL",
+        "secondaryPosition": "DEF-C",
+        "primaryScore": 19.17,
+        "secondaryScore": 19.17
+      },
+      {
+        "playerId": 491743384,
+        "playerName": "Adrian Beţa",
+        "positions": [
+          {
+            "positionCode": "FW-C",
+            "score": 17.55
+          },
+          {
+            "positionCode": "FW-L",
+            "score": 16.74
+          },
+          {
+            "positionCode": "FW-R",
+            "score": 16.74
+          },
+          {
+            "positionCode": "IM-C",
+            "score": 8.209999999999999
+          },
+          {
+            "positionCode": "IM-L",
+            "score": 7.84
+          },
+          {
+            "positionCode": "IM-R",
+            "score": 7.84
+          },
+          {
+            "positionCode": "DEF-CL",
+            "score": 5.6000000000000005
+          },
+          {
+            "positionCode": "DEF-C",
+            "score": 5.6000000000000005
+          },
+          {
+            "positionCode": "DEF-CR",
+            "score": 5.6000000000000005
+          },
+          {
+            "positionCode": "W-L",
+            "score": 5.16
+          },
+          {
+            "positionCode": "W-R",
+            "score": 5.16
+          },
+          {
+            "positionCode": "DEF-L",
+            "score": 4.95
+          },
+          {
+            "positionCode": "DEF-R",
+            "score": 4.95
+          },
+          {
+            "positionCode": "GK",
+            "score": 2.05
+          }
+        ],
+        "primaryPosition": "FW-C",
+        "secondaryPosition": "FW-L",
+        "primaryScore": 17.55,
+        "secondaryScore": 16.74
+      },
+      {
+        "playerId": 437630242,
+        "playerName": "Alexey Esin",
+        "positions": [
+          {
+            "positionCode": "DEF-CL",
+            "score": 2.1
+          },
+          {
+            "positionCode": "DEF-C",
+            "score": 2.1
+          },
+          {
+            "positionCode": "DEF-CR",
+            "score": 2.1
+          },
+          {
+            "positionCode": "DEF-L",
+            "score": 2
+          },
+          {
+            "positionCode": "DEF-R",
+            "score": 2
+          },
+          {
+            "positionCode": "GK",
+            "score": 0.6
+          },
+          {
+            "positionCode": "IM-C",
+            "score": 0.6
+          },
+          {
+            "positionCode": "FW-L",
+            "score": 0.24
+          },
+          {
+            "positionCode": "FW-R",
+            "score": 0.24
+          },
+          {
+            "positionCode": "IM-L",
+            "score": 0.12
+          },
+          {
+            "positionCode": "IM-R",
+            "score": 0.12
+          },
+          {
+            "positionCode": "W-L",
+            "score": 0
+          },
+          {
+            "positionCode": "W-R",
+            "score": 0
+          },
+          {
+            "positionCode": "FW-C",
+            "score": 0
+          }
+        ],
+        "primaryPosition": "DEF-CL",
+        "secondaryPosition": "DEF-C",
+        "primaryScore": 2.1,
+        "secondaryScore": 2.1
+      },
+      {
+        "playerId": 495041177,
+        "playerName": "Andres Nahasepp",
+        "positions": [
+          {
+            "positionCode": "FW-C",
+            "score": 15.290000000000001
+          },
+          {
+            "positionCode": "FW-L",
+            "score": 14.72
+          },
+          {
+            "positionCode": "FW-R",
+            "score": 14.72
+          },
+          {
+            "positionCode": "IM-C",
+            "score": 9.01
+          },
+          {
+            "positionCode": "IM-L",
+            "score": 8.59
+          },
+          {
+            "positionCode": "IM-R",
+            "score": 8.59
+          },
+          {
+            "positionCode": "W-L",
+            "score": 7.02
+          },
+          {
+            "positionCode": "W-R",
+            "score": 7.02
+          },
+          {
+            "positionCode": "DEF-CL",
+            "score": 4.44
+          },
+          {
+            "positionCode": "DEF-C",
+            "score": 4.44
+          },
+          {
+            "positionCode": "DEF-CR",
+            "score": 4.44
+          },
+          {
+            "positionCode": "DEF-L",
+            "score": 3.95
+          },
+          {
+            "positionCode": "DEF-R",
+            "score": 3.95
+          },
+          {
+            "positionCode": "GK",
+            "score": 2.05
+          }
+        ],
+        "primaryPosition": "FW-C",
+        "secondaryPosition": "FW-L",
+        "primaryScore": 15.290000000000001,
+        "secondaryScore": 14.72
+      },
+      {
+        "playerId": 465805392,
+        "playerName": "Bertalan Doktor",
+        "positions": [
+          {
+            "positionCode": "IM-C",
+            "score": 21.64
+          },
+          {
+            "positionCode": "IM-L",
+            "score": 20.47
+          },
+          {
+            "positionCode": "IM-R",
+            "score": 20.47
+          },
+          {
+            "positionCode": "W-L",
+            "score": 9.78
+          },
+          {
+            "positionCode": "W-R",
+            "score": 9.78
+          },
+          {
+            "positionCode": "FW-C",
+            "score": 9.18
+          },
+          {
+            "positionCode": "FW-L",
+            "score": 8.620000000000001
+          },
+          {
+            "positionCode": "FW-R",
+            "score": 8.620000000000001
+          },
+          {
+            "positionCode": "DEF-CL",
+            "score": 4.43
+          },
+          {
+            "positionCode": "DEF-C",
+            "score": 4.43
+          },
+          {
+            "positionCode": "DEF-CR",
+            "score": 4.43
+          },
+          {
+            "positionCode": "DEF-L",
+            "score": 3.4000000000000004
+          },
+          {
+            "positionCode": "DEF-R",
+            "score": 3.4000000000000004
+          },
+          {
+            "positionCode": "GK",
+            "score": 1.6
+          }
+        ],
+        "primaryPosition": "IM-C",
+        "secondaryPosition": "IM-L",
+        "primaryScore": 21.64,
+        "secondaryScore": 20.47
+      },
+      {
+        "playerId": 442645385,
+        "playerName": "Biel Kichute",
+        "positions": [
+          {
+            "positionCode": "IM-C",
+            "score": 9.25
+          },
+          {
+            "positionCode": "IM-L",
+            "score": 8.37
+          },
+          {
+            "positionCode": "IM-R",
+            "score": 8.37
+          },
+          {
+            "positionCode": "FW-C",
+            "score": 1.57
+          },
+          {
+            "positionCode": "FW-L",
+            "score": 1.42
+          },
+          {
+            "positionCode": "FW-R",
+            "score": 1.42
+          },
+          {
+            "positionCode": "W-L",
+            "score": 0.86
+          },
+          {
+            "positionCode": "W-R",
+            "score": 0.86
+          },
+          {
+            "positionCode": "GK",
+            "score": 0.75
+          },
+          {
+            "positionCode": "DEF-CL",
+            "score": 0.47
+          },
+          {
+            "positionCode": "DEF-C",
+            "score": 0.47
+          },
+          {
+            "positionCode": "DEF-CR",
+            "score": 0.47
+          },
+          {
+            "positionCode": "DEF-L",
+            "score": 0.1
+          },
+          {
+            "positionCode": "DEF-R",
+            "score": 0.1
+          }
+        ],
+        "primaryPosition": "IM-C",
+        "secondaryPosition": "IM-L",
+        "primaryScore": 9.25,
+        "secondaryScore": 8.37
+      },
+      {
+        "playerId": 493851210,
+        "playerName": "Bumin Pehlivanlar",
+        "positions": [
+          {
+            "positionCode": "FW-C",
+            "score": 8.91
+          },
+          {
+            "positionCode": "FW-L",
+            "score": 8.7
+          },
+          {
+            "positionCode": "FW-R",
+            "score": 8.7
+          },
+          {
+            "positionCode": "W-L",
+            "score": 6.86
+          },
+          {
+            "positionCode": "W-R",
+            "score": 6.86
+          },
+          {
+            "positionCode": "IM-C",
+            "score": 6.63
+          },
+          {
+            "positionCode": "IM-L",
+            "score": 6.35
+          },
+          {
+            "positionCode": "IM-R",
+            "score": 6.35
+          },
+          {
+            "positionCode": "DEF-CL",
+            "score": 5.41
+          },
+          {
+            "positionCode": "DEF-C",
+            "score": 5.41
+          },
+          {
+            "positionCode": "DEF-CR",
+            "score": 5.41
+          },
+          {
+            "positionCode": "DEF-L",
+            "score": 4.95
+          },
+          {
+            "positionCode": "DEF-R",
+            "score": 4.95
+          },
+          {
+            "positionCode": "GK",
+            "score": 3.2
+          }
+        ],
+        "primaryPosition": "FW-C",
+        "secondaryPosition": "FW-L",
+        "primaryScore": 8.91,
+        "secondaryScore": 8.7
+      },
+      {
+        "playerId": 497066104,
+        "playerName": "Cevat Durguner",
+        "positions": [
+          {
+            "positionCode": "FW-C",
+            "score": 9.8
+          },
+          {
+            "positionCode": "FW-L",
+            "score": 9.36
+          },
+          {
+            "positionCode": "FW-R",
+            "score": 9.36
+          },
+          {
+            "positionCode": "IM-C",
+            "score": 7.55
+          },
+          {
+            "positionCode": "IM-L",
+            "score": 7.22
+          },
+          {
+            "positionCode": "IM-R",
+            "score": 7.22
+          },
+          {
+            "positionCode": "DEF-CL",
+            "score": 5.3
+          },
+          {
+            "positionCode": "DEF-C",
+            "score": 5.3
+          },
+          {
+            "positionCode": "DEF-CR",
+            "score": 5.3
+          },
+          {
+            "positionCode": "DEF-L",
+            "score": 4.75
+          },
+          {
+            "positionCode": "DEF-R",
+            "score": 4.75
+          },
+          {
+            "positionCode": "W-L",
+            "score": 4.720000000000001
+          },
+          {
+            "positionCode": "W-R",
+            "score": 4.720000000000001
+          },
+          {
+            "positionCode": "GK",
+            "score": 3.05
+          }
+        ],
+        "primaryPosition": "FW-C",
+        "secondaryPosition": "FW-L",
+        "primaryScore": 9.8,
+        "secondaryScore": 9.36
+      },
+      {
+        "playerId": 476114406,
+        "playerName": "Cristian Pesalovo",
+        "positions": [
+          {
+            "positionCode": "DEF-CL",
+            "score": 18.39
+          },
+          {
+            "positionCode": "DEF-C",
+            "score": 18.39
+          },
+          {
+            "positionCode": "DEF-CR",
+            "score": 18.39
+          },
+          {
+            "positionCode": "DEF-L",
+            "score": 17.049999999999997
+          },
+          {
+            "positionCode": "DEF-R",
+            "score": 17.049999999999997
+          },
+          {
+            "positionCode": "IM-C",
+            "score": 9.63
+          },
+          {
+            "positionCode": "IM-L",
+            "score": 9.09
+          },
+          {
+            "positionCode": "IM-R",
+            "score": 9.09
+          },
+          {
+            "positionCode": "FW-C",
+            "score": 8.340000000000002
+          },
+          {
+            "positionCode": "FW-L",
+            "score": 7.98
+          },
+          {
+            "positionCode": "FW-R",
+            "score": 7.98
+          },
+          {
+            "positionCode": "W-L",
+            "score": 5.460000000000001
+          },
+          {
+            "positionCode": "W-R",
+            "score": 5.460000000000001
+          },
+          {
+            "positionCode": "GK",
+            "score": 2.05
+          }
+        ],
+        "primaryPosition": "DEF-CL",
+        "secondaryPosition": "DEF-C",
+        "primaryScore": 18.39,
+        "secondaryScore": 18.39
+      },
+      {
+        "playerId": 513040102,
+        "playerName": "Daim Evliya",
+        "positions": [
+          {
+            "positionCode": "IM-C",
+            "score": 7.68
+          },
+          {
+            "positionCode": "IM-L",
+            "score": 7.35
+          },
+          {
+            "positionCode": "IM-R",
+            "score": 7.35
+          },
+          {
+            "positionCode": "W-L",
+            "score": 5.94
+          },
+          {
+            "positionCode": "W-R",
+            "score": 5.94
+          },
+          {
+            "positionCode": "FW-C",
+            "score": 5.800000000000001
+          },
+          {
+            "positionCode": "FW-L",
+            "score": 5.62
+          },
+          {
+            "positionCode": "FW-R",
+            "score": 5.62
+          },
+          {
+            "positionCode": "DEF-CL",
+            "score": 5.45
+          },
+          {
+            "positionCode": "DEF-C",
+            "score": 5.45
+          },
+          {
+            "positionCode": "DEF-CR",
+            "score": 5.45
+          },
+          {
+            "positionCode": "DEF-L",
+            "score": 4.9
+          },
+          {
+            "positionCode": "DEF-R",
+            "score": 4.9
+          },
+          {
+            "positionCode": "GK",
+            "score": 2.6
+          }
+        ],
+        "primaryPosition": "IM-C",
+        "secondaryPosition": "IM-L",
+        "primaryScore": 7.68,
+        "secondaryScore": 7.35
+      },
+      {
+        "playerId": 458524225,
+        "playerName": "Dawid Nocoń",
+        "positions": [
+          {
+            "positionCode": "DEF-CL",
+            "score": 18.720000000000002
+          },
+          {
+            "positionCode": "DEF-C",
+            "score": 18.720000000000002
+          },
+          {
+            "positionCode": "DEF-CR",
+            "score": 18.720000000000002
+          },
+          {
+            "positionCode": "DEF-L",
+            "score": 17.7
+          },
+          {
+            "positionCode": "DEF-R",
+            "score": 17.7
+          },
+          {
+            "positionCode": "FW-C",
+            "score": 8.47
+          },
+          {
+            "positionCode": "FW-L",
+            "score": 8.46
+          },
+          {
+            "positionCode": "FW-R",
+            "score": 8.46
+          },
+          {
+            "positionCode": "IM-C",
+            "score": 5.48
+          },
+          {
+            "positionCode": "W-L",
+            "score": 5.34
+          },
+          {
+            "positionCode": "W-R",
+            "score": 5.34
+          },
+          {
+            "positionCode": "IM-L",
+            "score": 4.85
+          },
+          {
+            "positionCode": "IM-R",
+            "score": 4.85
+          },
+          {
+            "positionCode": "GK",
+            "score": 0.8999999999999999
+          }
+        ],
+        "primaryPosition": "DEF-CL",
+        "secondaryPosition": "DEF-C",
+        "primaryScore": 18.720000000000002,
+        "secondaryScore": 18.720000000000002
+      },
+      {
+        "playerId": 479235895,
+        "playerName": "Enzo Bultot",
+        "positions": [
+          {
+            "positionCode": "GK",
+            "score": 17.9
+          },
+          {
+            "positionCode": "FW-C",
+            "score": 4.640000000000001
+          },
+          {
+            "positionCode": "DEF-CL",
+            "score": 4.54
+          },
+          {
+            "positionCode": "DEF-C",
+            "score": 4.54
+          },
+          {
+            "positionCode": "DEF-CR",
+            "score": 4.54
+          },
+          {
+            "positionCode": "FW-L",
+            "score": 4.54
+          },
+          {
+            "positionCode": "FW-R",
+            "score": 4.54
+          },
+          {
+            "positionCode": "DEF-L",
+            "score": 4.25
+          },
+          {
+            "positionCode": "DEF-R",
+            "score": 4.25
+          },
+          {
+            "positionCode": "IM-C",
+            "score": 2.5900000000000003
+          },
+          {
+            "positionCode": "IM-L",
+            "score": 2.34
+          },
+          {
+            "positionCode": "IM-R",
+            "score": 2.34
+          },
+          {
+            "positionCode": "W-L",
+            "score": 1.52
+          },
+          {
+            "positionCode": "W-R",
+            "score": 1.52
+          }
+        ],
+        "primaryPosition": "GK",
+        "secondaryPosition": "FW-C",
+        "primaryScore": 17.9,
+        "secondaryScore": 4.640000000000001
+      },
+      {
+        "playerId": 497641568,
+        "playerName": "Ersin Akşın",
+        "positions": [
+          {
+            "positionCode": "FW-C",
+            "score": 15.45
+          },
+          {
+            "positionCode": "FW-L",
+            "score": 14.82
+          },
+          {
+            "positionCode": "FW-R",
+            "score": 14.82
+          },
+          {
+            "positionCode": "IM-C",
+            "score": 8.09
+          },
+          {
+            "positionCode": "IM-L",
+            "score": 7.72
+          },
+          {
+            "positionCode": "IM-R",
+            "score": 7.72
+          },
+          {
+            "positionCode": "W-L",
+            "score": 6.16
+          },
+          {
+            "positionCode": "W-R",
+            "score": 6.16
+          },
+          {
+            "positionCode": "DEF-CL",
+            "score": 3.5
+          },
+          {
+            "positionCode": "DEF-C",
+            "score": 3.5
+          },
+          {
+            "positionCode": "DEF-CR",
+            "score": 3.5
+          },
+          {
+            "positionCode": "DEF-L",
+            "score": 3
+          },
+          {
+            "positionCode": "DEF-R",
+            "score": 3
+          },
+          {
+            "positionCode": "GK",
+            "score": 2.05
+          }
+        ],
+        "primaryPosition": "FW-C",
+        "secondaryPosition": "FW-L",
+        "primaryScore": 15.45,
+        "secondaryScore": 14.82
+      },
+      {
+        "playerId": 492052456,
+        "playerName": "Felix Gustavsson",
+        "positions": [
+          {
+            "positionCode": "W-L",
+            "score": 19
+          },
+          {
+            "positionCode": "W-R",
+            "score": 19
+          },
+          {
+            "positionCode": "FW-L",
+            "score": 7.88
+          },
+          {
+            "positionCode": "FW-R",
+            "score": 7.88
+          },
+          {
+            "positionCode": "FW-C",
+            "score": 6.97
+          },
+          {
+            "positionCode": "IM-C",
+            "score": 6.15
+          },
+          {
+            "positionCode": "IM-L",
+            "score": 5.84
+          },
+          {
+            "positionCode": "IM-R",
+            "score": 5.84
+          },
+          {
+            "positionCode": "DEF-L",
+            "score": 4.65
+          },
+          {
+            "positionCode": "DEF-R",
+            "score": 4.65
+          },
+          {
+            "positionCode": "DEF-CL",
+            "score": 4.470000000000001
+          },
+          {
+            "positionCode": "DEF-C",
+            "score": 4.470000000000001
+          },
+          {
+            "positionCode": "DEF-CR",
+            "score": 4.470000000000001
+          },
+          {
+            "positionCode": "GK",
+            "score": 2.05
+          }
+        ],
+        "primaryPosition": "W-L",
+        "secondaryPosition": "W-R",
+        "primaryScore": 19,
+        "secondaryScore": 19
+      },
+      {
+        "playerId": 454418419,
+        "playerName": "Francisco Manuel",
+        "positions": [
+          {
+            "positionCode": "IM-C",
+            "score": 18.63
+          },
+          {
+            "positionCode": "IM-L",
+            "score": 17.48
+          },
+          {
+            "positionCode": "IM-R",
+            "score": 17.48
+          },
+          {
+            "positionCode": "FW-C",
+            "score": 9.55
+          },
+          {
+            "positionCode": "FW-L",
+            "score": 8.799999999999999
+          },
+          {
+            "positionCode": "FW-R",
+            "score": 8.799999999999999
+          },
+          {
+            "positionCode": "W-L",
+            "score": 4.96
+          },
+          {
+            "positionCode": "W-R",
+            "score": 4.96
+          },
+          {
+            "positionCode": "DEF-CL",
+            "score": 3.9
+          },
+          {
+            "positionCode": "DEF-C",
+            "score": 3.9
+          },
+          {
+            "positionCode": "DEF-CR",
+            "score": 3.9
+          },
+          {
+            "positionCode": "DEF-L",
+            "score": 2.9
+          },
+          {
+            "positionCode": "DEF-R",
+            "score": 2.9
+          },
+          {
+            "positionCode": "GK",
+            "score": 0.75
+          }
+        ],
+        "primaryPosition": "IM-C",
+        "secondaryPosition": "IM-L",
+        "primaryScore": 18.63,
+        "secondaryScore": 17.48
+      },
+      {
+        "playerId": 445283093,
+        "playerName": "Giacomo Rizzo",
+        "positions": [
+          {
+            "positionCode": "GK",
+            "score": 11.45
+          },
+          {
+            "positionCode": "DEF-CL",
+            "score": 5.25
+          },
+          {
+            "positionCode": "DEF-C",
+            "score": 5.25
+          },
+          {
+            "positionCode": "DEF-CR",
+            "score": 5.25
+          },
+          {
+            "positionCode": "DEF-L",
+            "score": 5
+          },
+          {
+            "positionCode": "DEF-R",
+            "score": 5
+          },
+          {
+            "positionCode": "FW-L",
+            "score": 1.24
+          },
+          {
+            "positionCode": "FW-R",
+            "score": 1.24
+          },
+          {
+            "positionCode": "FW-C",
+            "score": 1.05
+          },
+          {
+            "positionCode": "IM-C",
+            "score": 0.6
+          },
+          {
+            "positionCode": "IM-L",
+            "score": 0.12
+          },
+          {
+            "positionCode": "IM-R",
+            "score": 0.12
+          },
+          {
+            "positionCode": "W-L",
+            "score": 0
+          },
+          {
+            "positionCode": "W-R",
+            "score": 0
+          }
+        ],
+        "primaryPosition": "GK",
+        "secondaryPosition": "DEF-CL",
+        "primaryScore": 11.45,
+        "secondaryScore": 5.25
+      },
+      {
+        "playerId": 474962854,
+        "playerName": "Manuel Gobiet",
+        "positions": [
+          {
+            "positionCode": "W-L",
+            "score": 17.64
+          },
+          {
+            "positionCode": "W-R",
+            "score": 17.64
+          },
+          {
+            "positionCode": "IM-C",
+            "score": 14.55
+          },
+          {
+            "positionCode": "IM-L",
+            "score": 13.72
+          },
+          {
+            "positionCode": "IM-R",
+            "score": 13.72
+          },
+          {
+            "positionCode": "DEF-CL",
+            "score": 11.09
+          },
+          {
+            "positionCode": "DEF-C",
+            "score": 11.09
+          },
+          {
+            "positionCode": "DEF-CR",
+            "score": 11.09
+          },
+          {
+            "positionCode": "FW-L",
+            "score": 10.78
+          },
+          {
+            "positionCode": "FW-R",
+            "score": 10.78
+          },
+          {
+            "positionCode": "DEF-L",
+            "score": 10.55
+          },
+          {
+            "positionCode": "DEF-R",
+            "score": 10.55
+          },
+          {
+            "positionCode": "FW-C",
+            "score": 10.44
+          },
+          {
+            "positionCode": "GK",
+            "score": 2.05
+          }
+        ],
+        "primaryPosition": "W-L",
+        "secondaryPosition": "W-R",
+        "primaryScore": 17.64,
+        "secondaryScore": 17.64
+      },
+      {
+        "playerId": 498487535,
+        "playerName": "Mikel Thiebault",
+        "positions": [
+          {
+            "positionCode": "FW-C",
+            "score": 14.4
+          },
+          {
+            "positionCode": "FW-L",
+            "score": 13.799999999999999
+          },
+          {
+            "positionCode": "FW-R",
+            "score": 13.799999999999999
+          },
+          {
+            "positionCode": "IM-C",
+            "score": 8.049999999999999
+          },
+          {
+            "positionCode": "IM-L",
+            "score": 7.72
+          },
+          {
+            "positionCode": "IM-R",
+            "score": 7.72
+          },
+          {
+            "positionCode": "W-L",
+            "score": 6.16
+          },
+          {
+            "positionCode": "W-R",
+            "score": 6.16
+          },
+          {
+            "positionCode": "DEF-CL",
+            "score": 5.6000000000000005
+          },
+          {
+            "positionCode": "DEF-C",
+            "score": 5.6000000000000005
+          },
+          {
+            "positionCode": "DEF-CR",
+            "score": 5.6000000000000005
+          },
+          {
+            "positionCode": "DEF-L",
+            "score": 5
+          },
+          {
+            "positionCode": "DEF-R",
+            "score": 5
+          },
+          {
+            "positionCode": "GK",
+            "score": 2.05
+          }
+        ],
+        "primaryPosition": "FW-C",
+        "secondaryPosition": "FW-L",
+        "primaryScore": 14.4,
+        "secondaryScore": 13.799999999999999
+      },
+      {
+        "playerId": 465141092,
+        "playerName": "Milen Bozev",
+        "positions": [
+          {
+            "positionCode": "W-L",
+            "score": 16.94
+          },
+          {
+            "positionCode": "W-R",
+            "score": 16.94
+          },
+          {
+            "positionCode": "IM-C",
+            "score": 15.850000000000001
+          },
+          {
+            "positionCode": "IM-L",
+            "score": 14.97
+          },
+          {
+            "positionCode": "IM-R",
+            "score": 14.97
+          },
+          {
+            "positionCode": "FW-L",
+            "score": 8.88
+          },
+          {
+            "positionCode": "FW-R",
+            "score": 8.88
+          },
+          {
+            "positionCode": "FW-C",
+            "score": 8.580000000000002
+          },
+          {
+            "positionCode": "DEF-CL",
+            "score": 7.08
+          },
+          {
+            "positionCode": "DEF-C",
+            "score": 7.08
+          },
+          {
+            "positionCode": "DEF-CR",
+            "score": 7.08
+          },
+          {
+            "positionCode": "DEF-L",
+            "score": 6.6000000000000005
+          },
+          {
+            "positionCode": "DEF-R",
+            "score": 6.6000000000000005
+          },
+          {
+            "positionCode": "GK",
+            "score": 1.9
+          }
+        ],
+        "primaryPosition": "W-L",
+        "secondaryPosition": "W-R",
+        "primaryScore": 16.94,
+        "secondaryScore": 16.94
+      },
+      {
+        "playerId": 502427630,
+        "playerName": "Münir Balkın",
+        "positions": [
+          {
+            "positionCode": "IM-C",
+            "score": 6.94
+          },
+          {
+            "positionCode": "IM-L",
+            "score": 6.61
+          },
+          {
+            "positionCode": "IM-R",
+            "score": 6.61
+          },
+          {
+            "positionCode": "W-L",
+            "score": 6.5
+          },
+          {
+            "positionCode": "W-R",
+            "score": 6.5
+          },
+          {
+            "positionCode": "DEF-CL",
+            "score": 6.2
+          },
+          {
+            "positionCode": "DEF-C",
+            "score": 6.2
+          },
+          {
+            "positionCode": "DEF-CR",
+            "score": 6.2
+          },
+          {
+            "positionCode": "DEF-L",
+            "score": 5.75
+          },
+          {
+            "positionCode": "DEF-R",
+            "score": 5.75
+          },
+          {
+            "positionCode": "FW-C",
+            "score": 4.3500000000000005
+          },
+          {
+            "positionCode": "FW-L",
+            "score": 4.34
+          },
+          {
+            "positionCode": "FW-R",
+            "score": 4.34
+          },
+          {
+            "positionCode": "GK",
+            "score": 1.75
+          }
+        ],
+        "primaryPosition": "IM-C",
+        "secondaryPosition": "IM-L",
+        "primaryScore": 6.94,
+        "secondaryScore": 6.61
+      },
+      {
+        "playerId": 492253331,
+        "playerName": "Nándor Dobóvári",
+        "positions": [
+          {
+            "positionCode": "W-L",
+            "score": 18.939999999999998
+          },
+          {
+            "positionCode": "W-R",
+            "score": 18.939999999999998
+          },
+          {
+            "positionCode": "IM-C",
+            "score": 7.96
+          },
+          {
+            "positionCode": "IM-L",
+            "score": 7.59
+          },
+          {
+            "positionCode": "IM-R",
+            "score": 7.59
+          },
+          {
+            "positionCode": "FW-L",
+            "score": 6.68
+          },
+          {
+            "positionCode": "FW-R",
+            "score": 6.68
+          },
+          {
+            "positionCode": "FW-C",
+            "score": 5.800000000000001
+          },
+          {
+            "positionCode": "DEF-L",
+            "score": 4.550000000000001
+          },
+          {
+            "positionCode": "DEF-R",
+            "score": 4.550000000000001
+          },
+          {
+            "positionCode": "DEF-CL",
+            "score": 4.4
+          },
+          {
+            "positionCode": "DEF-C",
+            "score": 4.4
+          },
+          {
+            "positionCode": "DEF-CR",
+            "score": 4.4
+          },
+          {
+            "positionCode": "GK",
+            "score": 2.9
+          }
+        ],
+        "primaryPosition": "W-L",
+        "secondaryPosition": "W-R",
+        "primaryScore": 18.939999999999998,
+        "secondaryScore": 18.939999999999998
+      },
+      {
+        "playerId": 501442578,
+        "playerName": "Nelson Ferrante",
+        "positions": [
+          {
+            "positionCode": "FW-C",
+            "score": 13.39
+          },
+          {
+            "positionCode": "FW-L",
+            "score": 12.719999999999999
+          },
+          {
+            "positionCode": "FW-R",
+            "score": 12.719999999999999
+          },
+          {
+            "positionCode": "IM-C",
+            "score": 9.100000000000001
+          },
+          {
+            "positionCode": "IM-L",
+            "score": 8.72
+          },
+          {
+            "positionCode": "IM-R",
+            "score": 8.72
+          },
+          {
+            "positionCode": "DEF-CL",
+            "score": 5.640000000000001
+          },
+          {
+            "positionCode": "DEF-C",
+            "score": 5.640000000000001
+          },
+          {
+            "positionCode": "DEF-CR",
+            "score": 5.640000000000001
+          },
+          {
+            "positionCode": "W-L",
+            "score": 5.24
+          },
+          {
+            "positionCode": "W-R",
+            "score": 5.24
+          },
+          {
+            "positionCode": "DEF-L",
+            "score": 4.95
+          },
+          {
+            "positionCode": "DEF-R",
+            "score": 4.95
+          },
+          {
+            "positionCode": "GK",
+            "score": 2.05
+          }
+        ],
+        "primaryPosition": "FW-C",
+        "secondaryPosition": "FW-L",
+        "primaryScore": 13.39,
+        "secondaryScore": 12.719999999999999
+      },
+      {
+        "playerId": 483683238,
+        "playerName": "Nurtaç Armağan",
+        "positions": [
+          {
+            "positionCode": "FW-C",
+            "score": 6.780000000000001
+          },
+          {
+            "positionCode": "GK",
+            "score": 6.75
+          },
+          {
+            "positionCode": "FW-L",
+            "score": 6.58
+          },
+          {
+            "positionCode": "FW-R",
+            "score": 6.58
+          },
+          {
+            "positionCode": "IM-C",
+            "score": 3.56
+          },
+          {
+            "positionCode": "IM-L",
+            "score": 3.34
+          },
+          {
+            "positionCode": "IM-R",
+            "score": 3.34
+          },
+          {
+            "positionCode": "W-L",
+            "score": 2.6
+          },
+          {
+            "positionCode": "W-R",
+            "score": 2.6
+          },
+          {
+            "positionCode": "DEF-CL",
+            "score": 2.48
+          },
+          {
+            "positionCode": "DEF-C",
+            "score": 2.48
+          },
+          {
+            "positionCode": "DEF-CR",
+            "score": 2.48
+          },
+          {
+            "positionCode": "DEF-L",
+            "score": 2.3000000000000003
+          },
+          {
+            "positionCode": "DEF-R",
+            "score": 2.3000000000000003
+          }
+        ],
+        "primaryPosition": "FW-C",
+        "secondaryPosition": "GK",
+        "primaryScore": 6.780000000000001,
+        "secondaryScore": 6.75
+      },
+      {
+        "playerId": 514089104,
+        "playerName": "Oğuz Can Çıtel",
+        "positions": [
+          {
+            "positionCode": "IM-C",
+            "score": 7.2700000000000005
+          },
+          {
+            "positionCode": "IM-L",
+            "score": 6.98
+          },
+          {
+            "positionCode": "IM-R",
+            "score": 6.98
+          },
+          {
+            "positionCode": "W-L",
+            "score": 6.720000000000001
+          },
+          {
+            "positionCode": "W-R",
+            "score": 6.720000000000001
+          },
+          {
+            "positionCode": "FW-C",
+            "score": 5.6000000000000005
+          },
+          {
+            "positionCode": "FW-L",
+            "score": 5.5
+          },
+          {
+            "positionCode": "FW-R",
+            "score": 5.5
+          },
+          {
+            "positionCode": "DEF-CL",
+            "score": 4.250000000000001
+          },
+          {
+            "positionCode": "DEF-C",
+            "score": 4.250000000000001
+          },
+          {
+            "positionCode": "DEF-CR",
+            "score": 4.250000000000001
+          },
+          {
+            "positionCode": "DEF-L",
+            "score": 3.85
+          },
+          {
+            "positionCode": "DEF-R",
+            "score": 3.85
+          },
+          {
+            "positionCode": "GK",
+            "score": 3.05
+          }
+        ],
+        "primaryPosition": "IM-C",
+        "secondaryPosition": "IM-L",
+        "primaryScore": 7.2700000000000005,
+        "secondaryScore": 6.98
+      },
+      {
+        "playerId": 498557618,
+        "playerName": "Patrik Zarins",
+        "positions": [
+          {
+            "positionCode": "FW-C",
+            "score": 14.240000000000002
+          },
+          {
+            "positionCode": "FW-L",
+            "score": 13.459999999999999
+          },
+          {
+            "positionCode": "FW-R",
+            "score": 13.459999999999999
+          },
+          {
+            "positionCode": "IM-C",
+            "score": 8.850000000000001
+          },
+          {
+            "positionCode": "IM-L",
+            "score": 8.47
+          },
+          {
+            "positionCode": "IM-R",
+            "score": 8.47
+          },
+          {
+            "positionCode": "DEF-CL",
+            "score": 5.49
+          },
+          {
+            "positionCode": "DEF-C",
+            "score": 5.49
+          },
+          {
+            "positionCode": "DEF-CR",
+            "score": 5.49
+          },
+          {
+            "positionCode": "DEF-L",
+            "score": 4.8
+          },
+          {
+            "positionCode": "DEF-R",
+            "score": 4.8
+          },
+          {
+            "positionCode": "W-L",
+            "score": 4.02
+          },
+          {
+            "positionCode": "W-R",
+            "score": 4.02
+          },
+          {
+            "positionCode": "GK",
+            "score": 2.05
+          }
+        ],
+        "primaryPosition": "FW-C",
+        "secondaryPosition": "FW-L",
+        "primaryScore": 14.240000000000002,
+        "secondaryScore": 13.459999999999999
+      },
+      {
+        "playerId": 495027585,
+        "playerName": "Şaban Savlet",
+        "positions": [
+          {
+            "positionCode": "FW-C",
+            "score": 8.55
+          },
+          {
+            "positionCode": "FW-L",
+            "score": 8.360000000000001
+          },
+          {
+            "positionCode": "FW-R",
+            "score": 8.360000000000001
+          },
+          {
+            "positionCode": "IM-C",
+            "score": 7.34
+          },
+          {
+            "positionCode": "IM-L",
+            "score": 6.97
+          },
+          {
+            "positionCode": "IM-R",
+            "score": 6.97
+          },
+          {
+            "positionCode": "W-L",
+            "score": 6.5
+          },
+          {
+            "positionCode": "W-R",
+            "score": 6.5
+          },
+          {
+            "positionCode": "DEF-CL",
+            "score": 5.15
+          },
+          {
+            "positionCode": "DEF-C",
+            "score": 5.15
+          },
+          {
+            "positionCode": "DEF-CR",
+            "score": 5.15
+          },
+          {
+            "positionCode": "DEF-L",
+            "score": 4.75
+          },
+          {
+            "positionCode": "DEF-R",
+            "score": 4.75
+          },
+          {
+            "positionCode": "GK",
+            "score": 1.9
+          }
+        ],
+        "primaryPosition": "FW-C",
+        "secondaryPosition": "FW-L",
+        "primaryScore": 8.55,
+        "secondaryScore": 8.360000000000001
+      },
+      {
+        "playerId": 513885774,
+        "playerName": "Sergen Gözay",
+        "positions": [
+          {
+            "positionCode": "DEF-CL",
+            "score": 7.1000000000000005
+          },
+          {
+            "positionCode": "DEF-C",
+            "score": 7.1000000000000005
+          },
+          {
+            "positionCode": "DEF-CR",
+            "score": 7.1000000000000005
+          },
+          {
+            "positionCode": "IM-C",
+            "score": 6.8100000000000005
+          },
+          {
+            "positionCode": "DEF-L",
+            "score": 6.65
+          },
+          {
+            "positionCode": "DEF-R",
+            "score": 6.65
+          },
+          {
+            "positionCode": "IM-L",
+            "score": 6.48
+          },
+          {
+            "positionCode": "IM-R",
+            "score": 6.48
+          },
+          {
+            "positionCode": "W-L",
+            "score": 6.28
+          },
+          {
+            "positionCode": "W-R",
+            "score": 6.28
+          },
+          {
+            "positionCode": "FW-C",
+            "score": 6.25
+          },
+          {
+            "positionCode": "FW-L",
+            "score": 6.16
+          },
+          {
+            "positionCode": "FW-R",
+            "score": 6.16
+          },
+          {
+            "positionCode": "GK",
+            "score": 2.45
+          }
+        ],
+        "primaryPosition": "DEF-CL",
+        "secondaryPosition": "DEF-C",
+        "primaryScore": 7.1000000000000005,
+        "secondaryScore": 7.1000000000000005
+      },
+      {
+        "playerId": 482291700,
+        "playerName": "Utku Hakan Başak",
+        "positions": [
+          {
+            "positionCode": "FW-L",
+            "score": 9.520000000000001
+          },
+          {
+            "positionCode": "FW-R",
+            "score": 9.520000000000001
+          },
+          {
+            "positionCode": "FW-C",
+            "score": 9.52
+          },
+          {
+            "positionCode": "W-L",
+            "score": 8.34
+          },
+          {
+            "positionCode": "W-R",
+            "score": 8.34
+          },
+          {
+            "positionCode": "IM-C",
+            "score": 5.24
+          },
+          {
+            "positionCode": "DEF-CL",
+            "score": 5.07
+          },
+          {
+            "positionCode": "DEF-C",
+            "score": 5.07
+          },
+          {
+            "positionCode": "DEF-CR",
+            "score": 5.07
+          },
+          {
+            "positionCode": "IM-L",
+            "score": 4.97
+          },
+          {
+            "positionCode": "IM-R",
+            "score": 4.97
+          },
+          {
+            "positionCode": "DEF-L",
+            "score": 4.85
+          },
+          {
+            "positionCode": "DEF-R",
+            "score": 4.85
+          },
+          {
+            "positionCode": "GK",
+            "score": 1.6
+          }
+        ],
+        "primaryPosition": "FW-L",
+        "secondaryPosition": "FW-R",
+        "primaryScore": 9.520000000000001,
+        "secondaryScore": 9.520000000000001
+      },
+      {
+        "playerId": 512433039,
+        "playerName": "Zübeyir Balaban",
+        "positions": [
+          {
+            "positionCode": "IM-C",
+            "score": 7.73
+          },
+          {
+            "positionCode": "IM-L",
+            "score": 7.35
+          },
+          {
+            "positionCode": "IM-R",
+            "score": 7.35
+          },
+          {
+            "positionCode": "DEF-CL",
+            "score": 6.990000000000001
+          },
+          {
+            "positionCode": "DEF-C",
+            "score": 6.990000000000001
+          },
+          {
+            "positionCode": "DEF-CR",
+            "score": 6.990000000000001
+          },
+          {
+            "positionCode": "DEF-L",
+            "score": 6.55
+          },
+          {
+            "positionCode": "DEF-R",
+            "score": 6.55
+          },
+          {
+            "positionCode": "W-L",
+            "score": 6.140000000000001
+          },
+          {
+            "positionCode": "W-R",
+            "score": 6.140000000000001
+          },
+          {
+            "positionCode": "FW-C",
+            "score": 6.09
+          },
+          {
+            "positionCode": "FW-L",
+            "score": 5.98
+          },
+          {
+            "positionCode": "FW-R",
+            "score": 5.98
+          },
+          {
+            "positionCode": "GK",
+            "score": 3.2
+          }
+        ],
+        "primaryPosition": "IM-C",
+        "secondaryPosition": "IM-L",
+        "primaryScore": 7.73,
+        "secondaryScore": 7.35
+      },
+      {
+        "playerId": 437860841,
+        "playerName": "Antonín Vašica",
+        "positions": [
+          {
+            "positionCode": "IM-C",
+            "score": 14.940000000000001
+          },
+          {
+            "positionCode": "IM-L",
+            "score": 13.86
+          },
+          {
+            "positionCode": "IM-R",
+            "score": 13.86
+          },
+          {
+            "positionCode": "W-L",
+            "score": 7.28
+          },
+          {
+            "positionCode": "W-R",
+            "score": 7.28
+          },
+          {
+            "positionCode": "FW-C",
+            "score": 4.83
+          },
+          {
+            "positionCode": "FW-L",
+            "score": 4.720000000000001
+          },
+          {
+            "positionCode": "FW-R",
+            "score": 4.720000000000001
+          },
+          {
+            "positionCode": "DEF-CL",
+            "score": 3.48
+          },
+          {
+            "positionCode": "DEF-C",
+            "score": 3.48
+          },
+          {
+            "positionCode": "DEF-CR",
+            "score": 3.48
+          },
+          {
+            "positionCode": "DEF-L",
+            "score": 2.85
+          },
+          {
+            "positionCode": "DEF-R",
+            "score": 2.85
+          },
+          {
+            "positionCode": "GK",
+            "score": 1.2
+          }
+        ],
+        "primaryPosition": "IM-C",
+        "secondaryPosition": "IM-L",
+        "primaryScore": 14.940000000000001,
+        "secondaryScore": 13.86
+      }
+    ],
+    "opponentLastLineup": {
+      "matchId": 769648173,
+      "teamId": 653953,
+      "players": [
+        {
+          "playerId": 479518719,
+          "playerName": "Ignacio Flores de Lizaur",
+          "positionCode": 1,
+          "roleId": 1,
+          "behaviour": 0,
+          "ratingStars": "7.5"
+        },
+        {
+          "playerId": 475607961,
+          "playerName": "Sotear Dara",
+          "positionCode": 3,
+          "roleId": 3,
+          "behaviour": 0,
+          "ratingStars": "7"
+        },
+        {
+          "playerId": 485748296,
+          "playerName": "Demirel Orhun",
+          "positionCode": 4,
+          "roleId": 4,
+          "behaviour": 0,
+          "ratingStars": "7"
+        },
+        {
+          "playerId": 487930575,
+          "playerName": "Yiğit Namdar",
+          "positionCode": 6,
+          "roleId": 6,
+          "behaviour": 0,
+          "ratingStars": "6"
+        },
+        {
+          "playerId": 488347850,
+          "playerName": "Emre Baykam",
+          "positionCode": 7,
+          "roleId": 7,
+          "behaviour": 0,
+          "ratingStars": "7.5"
+        },
+        {
+          "playerId": 486501589,
+          "playerName": "Sander Eser",
+          "positionCode": 7,
+          "roleId": 2,
+          "behaviour": 6,
+          "ratingStars": "7.5"
+        },
+        {
+          "playerId": 488270033,
+          "playerName": "Ekrem Furkan Dilnur",
+          "positionCode": 8,
+          "roleId": 8,
+          "behaviour": 0,
+          "ratingStars": "7"
+        },
+        {
+          "playerId": 488343938,
+          "playerName": "Egemen Dinçer Saner",
+          "positionCode": 9,
+          "roleId": 9,
+          "behaviour": 0,
+          "ratingStars": "6"
+        },
+        {
+          "playerId": 497166999,
+          "playerName": "Özgür Sinan Kenan",
+          "positionCode": 10,
+          "roleId": 10,
+          "behaviour": 0,
+          "ratingStars": "8.5"
+        },
+        {
+          "playerId": 496257138,
+          "playerName": "Tommaso Falsone",
+          "positionCode": 10,
+          "roleId": 5,
+          "behaviour": 5,
+          "ratingStars": "7.5"
+        },
+        {
+          "playerId": 497557400,
+          "playerName": "Ulisse Roepke",
+          "positionCode": 11,
+          "roleId": 11,
+          "behaviour": 0,
+          "ratingStars": "7.5"
+        },
+        {
+          "playerId": 453469948,
+          "playerName": "Satılmış Pamukkale",
+          "positionCode": 13,
+          "roleId": 13,
+          "behaviour": 0,
+          "ratingStars": "0"
+        },
+        {
+          "playerId": 468605078,
+          "playerName": "Yaşar Çavuş",
+          "positionCode": 14,
+          "roleId": 14,
+          "behaviour": 0,
+          "ratingStars": "0"
+        },
+        {
+          "playerId": 475607961,
+          "playerName": "Sotear Dara",
+          "positionCode": 0,
+          "roleId": 17,
+          "behaviour": 0,
+          "ratingStars": ""
+        },
+        {
+          "playerId": 475607961,
+          "playerName": "Sotear Dara",
+          "positionCode": 0,
+          "roleId": 18,
+          "behaviour": 0,
+          "ratingStars": ""
+        }
+      ]
+    },
+    "opponentLastMatchRatings": {
+      "available": true,
+      "leftDefence": 6.25,
+      "centralDefence": 9.5,
+      "rightDefence": 6.25,
+      "midfield": 7,
+      "leftAttack": 10,
+      "centralAttack": 13,
+      "rightAttack": 8.5
+    }
+  },
+  "v5Analysis": {
+    "build": "dev",
+    "teamName": "S4MSUNFC",
+    "opponentName": "Zeytinburnu Sahil Spor",
+    "matchTitle": "06.09.2026 15:00 • Zeytinburnu Sahil Spor • Deplasman",
+    "own": {
+      "teamName": "S4MSUNFC",
+      "formation": "3-5-2",
+      "slots": [
+        {
+          "code": "GK",
+          "label": "GK",
+          "description": "Kaleci",
+          "playerName": "Enzo Bultot",
+          "playerId": 479235895,
+          "rating": 17.9,
+          "x": 50,
+          "y": 10,
+          "order": 0,
+          "historicalStars": null
+        },
+        {
+          "code": "DEF-CL",
+          "label": "DEF-CL",
+          "description": "Sol stoper",
+          "playerName": "Abeiku Takyi",
+          "playerId": 468363070,
+          "rating": 19.17,
+          "x": 30,
+          "y": 34,
+          "order": 0,
+          "historicalStars": null
+        },
+        {
+          "code": "DEF-C",
+          "label": "DEF-C",
+          "description": "Merkez stoper",
+          "playerName": "Dawid Nocoń",
+          "playerId": 458524225,
+          "rating": 18.720000000000002,
+          "x": 50,
+          "y": 34,
+          "order": 0,
+          "historicalStars": null
+        },
+        {
+          "code": "DEF-CR",
+          "label": "DEF-CR",
+          "description": "Sağ stoper",
+          "playerName": "Cristian Pesalovo",
+          "playerId": 476114406,
+          "rating": 18.39,
+          "x": 70,
+          "y": 34,
+          "order": 0,
+          "historicalStars": null
+        },
+        {
+          "code": "W-L",
+          "label": "W-L",
+          "description": "Sol kanat",
+          "playerName": "Felix Gustavsson",
+          "playerId": 492052456,
+          "rating": 19,
+          "x": 12,
+          "y": 50,
+          "order": 0,
+          "historicalStars": null
+        },
+        {
+          "code": "IM-L",
+          "label": "IM-L",
+          "description": "Sol iç",
+          "playerName": "Francisco Manuel",
+          "playerId": 454418419,
+          "rating": 17.48,
+          "x": 34,
+          "y": 50,
+          "order": 0,
+          "historicalStars": null
+        },
+        {
+          "code": "IM-C",
+          "label": "IM-C",
+          "description": "Merkez",
+          "playerName": "Milen Bozev",
+          "playerId": 465141092,
+          "rating": 15.850000000000001,
+          "x": 50,
+          "y": 50,
+          "order": 0,
+          "historicalStars": null
+        },
+        {
+          "code": "IM-R",
+          "label": "IM-R",
+          "description": "Sağ iç",
+          "playerName": "Bertalan Doktor",
+          "playerId": 465805392,
+          "rating": 20.47,
+          "x": 66,
+          "y": 50,
+          "order": 0,
+          "historicalStars": null
+        },
+        {
+          "code": "W-R",
+          "label": "W-R",
+          "description": "Sağ kanat",
+          "playerName": "Nándor Dobóvári",
+          "playerId": 492253331,
+          "rating": 18.939999999999998,
+          "x": 88,
+          "y": 50,
+          "order": 0,
+          "historicalStars": null
+        },
+        {
+          "code": "FW-L",
+          "label": "FW-L",
+          "description": "Sol forvet",
+          "playerName": "Adrian Beţa",
+          "playerId": 491743384,
+          "rating": 16.74,
+          "x": 38,
+          "y": 72,
+          "order": 0,
+          "historicalStars": null
+        },
+        {
+          "code": "FW-R",
+          "label": "FW-R",
+          "description": "Sağ forvet",
+          "playerName": "Ersin Akşın",
+          "playerId": 497641568,
+          "rating": 14.82,
+          "x": 62,
+          "y": 72,
+          "order": 0,
+          "historicalStars": null
+        }
+      ]
+    },
+    "opponent": {
+      "teamName": "Zeytinburnu Sahil Spor",
+      "formation": "2-5-3",
+      "slots": [
+        {
+          "code": "GK",
+          "label": "Kaleci",
+          "description": "Kaleci",
+          "playerName": "Ignacio Flores de Lizaur",
+          "playerId": 479518719,
+          "rating": 19.94,
+          "x": 50,
+          "y": 10,
+          "order": 0,
+          "historicalStars": 75
+        },
+        {
+          "code": "DEF-CR",
+          "label": "Sağ stoper",
+          "description": "Sağ stoper",
+          "playerName": "Sotear Dara",
+          "playerId": 475607961,
+          "rating": 14,
+          "x": 70,
+          "y": 34,
+          "order": 0,
+          "historicalStars": 7
+        },
+        {
+          "code": "DEF-CL",
+          "label": "Sol stoper",
+          "description": "Sol stoper",
+          "playerName": "Demirel Orhun",
+          "playerId": 485748296,
+          "rating": 14,
+          "x": 30,
+          "y": 34,
+          "order": 0,
+          "historicalStars": 7
+        },
+        {
+          "code": "W-R",
+          "label": "Sağ kanat",
+          "description": "Sağ kanat",
+          "playerName": "Yiğit Namdar",
+          "playerId": 487930575,
+          "rating": 11.99,
+          "x": 88,
+          "y": 50,
+          "order": 0,
+          "historicalStars": 6
+        },
+        {
+          "code": "IM-R",
+          "label": "Sağ iç",
+          "description": "Sağ iç",
+          "playerName": "Emre Baykam",
+          "playerId": 488347850,
+          "rating": 19.92,
+          "x": 66,
+          "y": 50,
+          "order": 0,
+          "historicalStars": 75
+        },
+        {
+          "code": "IM-C",
+          "label": "Merkez iç",
+          "description": "Merkez iç",
+          "playerName": "Sander Eser",
+          "playerId": 486501589,
+          "rating": 20,
+          "x": 50,
+          "y": 50,
+          "order": 0,
+          "historicalStars": 75
+        },
+        {
+          "code": "IM-L",
+          "label": "Sol iç",
+          "description": "Sol iç",
+          "playerName": "Ekrem Furkan Dilnur",
+          "playerId": 488270033,
+          "rating": 13.99,
+          "x": 34,
+          "y": 50,
+          "order": 0,
+          "historicalStars": 7
+        },
+        {
+          "code": "W-L",
+          "label": "Sol kanat",
+          "description": "Sol kanat",
+          "playerName": "Egemen Dinçer Saner",
+          "playerId": 488343938,
+          "rating": 12.07,
+          "x": 12,
+          "y": 50,
+          "order": 0,
+          "historicalStars": 6
+        },
+        {
+          "code": "FW-R",
+          "label": "Sağ forvet",
+          "description": "Sağ forvet",
+          "playerName": "Özgür Sinan Kenan",
+          "playerId": 497166999,
+          "rating": 20,
+          "x": 62,
+          "y": 72,
+          "order": 0,
+          "historicalStars": 85
+        },
+        {
+          "code": "FW-C",
+          "label": "Merkez forvet",
+          "description": "Merkez forvet",
+          "playerName": "Tommaso Falsone",
+          "playerId": 496257138,
+          "rating": 20,
+          "x": 50,
+          "y": 72,
+          "order": 0,
+          "historicalStars": 75
+        },
+        {
+          "code": "FW-L",
+          "label": "Sol forvet",
+          "description": "Sol forvet",
+          "playerName": "Ulisse Roepke",
+          "playerId": 497557400,
+          "rating": 20,
+          "x": 38,
+          "y": 72,
+          "order": 0,
+          "historicalStars": 75
+        }
+      ]
+    },
+    "ownRating": {
+      "rawLeftDefence": 8.814876331125825,
+      "rawCentralDefence": 15.131275059602647,
+      "rawRightDefence": 8.755167139072846,
+      "rawMidfield": 5.3073582240775785,
+      "rawLeftAttack": 9.3881423692354,
+      "rawCentralAttack": 10.733139483443706,
+      "rawRightAttack": 8.34554898438368,
+      "leftDefence": 9.75,
+      "centralDefence": 16,
+      "rightDefence": 9.75,
+      "midfield": 6.25,
+      "leftAttack": 10.25,
+      "centralAttack": 11.5,
+      "rightAttack": 9.25,
+      "totalDefence": 35.5,
+      "totalAttack": 31
+    },
+    "opponentRating": {
+      "rawLeftDefence": 6.25,
+      "rawCentralDefence": 9.5,
+      "rawRightDefence": 6.25,
+      "rawMidfield": 7,
+      "rawLeftAttack": 10,
+      "rawCentralAttack": 13,
+      "rawRightAttack": 8.5,
+      "leftDefence": 6.25,
+      "centralDefence": 9.5,
+      "rightDefence": 6.25,
+      "midfield": 7,
+      "leftAttack": 10,
+      "centralAttack": 13,
+      "rightAttack": 8.5,
+      "totalDefence": 22,
+      "totalAttack": 31.5
+    },
+    "appliedQuestionnaire": {
+      "coach": 0,
+      "teamSpirit": 3,
+      "matchImportance": 0
+    },
+    "ownLineup": {
+      "teamName": "S4MSUNFC",
+      "formation": "3-5-2",
+      "slots": [
+        {
+          "code": "GK",
+          "label": "GK",
+          "description": "Kaleci",
+          "playerName": "Enzo Bultot",
+          "playerId": 479235895,
+          "rating": 17.9,
+          "x": 50,
+          "y": 10,
+          "order": 0,
+          "historicalStars": null
+        },
+        {
+          "code": "DEF-CL",
+          "label": "DEF-CL",
+          "description": "Sol stoper",
+          "playerName": "Abeiku Takyi",
+          "playerId": 468363070,
+          "rating": 19.17,
+          "x": 30,
+          "y": 34,
+          "order": 0,
+          "historicalStars": null
+        },
+        {
+          "code": "DEF-C",
+          "label": "DEF-C",
+          "description": "Merkez stoper",
+          "playerName": "Dawid Nocoń",
+          "playerId": 458524225,
+          "rating": 18.720000000000002,
+          "x": 50,
+          "y": 34,
+          "order": 0,
+          "historicalStars": null
+        },
+        {
+          "code": "DEF-CR",
+          "label": "DEF-CR",
+          "description": "Sağ stoper",
+          "playerName": "Cristian Pesalovo",
+          "playerId": 476114406,
+          "rating": 18.39,
+          "x": 70,
+          "y": 34,
+          "order": 0,
+          "historicalStars": null
+        },
+        {
+          "code": "W-L",
+          "label": "W-L",
+          "description": "Sol kanat",
+          "playerName": "Felix Gustavsson",
+          "playerId": 492052456,
+          "rating": 19,
+          "x": 12,
+          "y": 50,
+          "order": 0,
+          "historicalStars": null
+        },
+        {
+          "code": "IM-L",
+          "label": "IM-L",
+          "description": "Sol iç",
+          "playerName": "Francisco Manuel",
+          "playerId": 454418419,
+          "rating": 17.48,
+          "x": 34,
+          "y": 50,
+          "order": 0,
+          "historicalStars": null
+        },
+        {
+          "code": "IM-C",
+          "label": "IM-C",
+          "description": "Merkez",
+          "playerName": "Milen Bozev",
+          "playerId": 465141092,
+          "rating": 15.850000000000001,
+          "x": 50,
+          "y": 50,
+          "order": 0,
+          "historicalStars": null
+        },
+        {
+          "code": "IM-R",
+          "label": "IM-R",
+          "description": "Sağ iç",
+          "playerName": "Bertalan Doktor",
+          "playerId": 465805392,
+          "rating": 20.47,
+          "x": 66,
+          "y": 50,
+          "order": 0,
+          "historicalStars": null
+        },
+        {
+          "code": "W-R",
+          "label": "W-R",
+          "description": "Sağ kanat",
+          "playerName": "Nándor Dobóvári",
+          "playerId": 492253331,
+          "rating": 18.939999999999998,
+          "x": 88,
+          "y": 50,
+          "order": 0,
+          "historicalStars": null
+        },
+        {
+          "code": "FW-L",
+          "label": "FW-L",
+          "description": "Sol forvet",
+          "playerName": "Adrian Beţa",
+          "playerId": 491743384,
+          "rating": 16.74,
+          "x": 38,
+          "y": 72,
+          "order": 0,
+          "historicalStars": null
+        },
+        {
+          "code": "FW-R",
+          "label": "FW-R",
+          "description": "Sağ forvet",
+          "playerName": "Ersin Akşın",
+          "playerId": 497641568,
+          "rating": 14.82,
+          "x": 62,
+          "y": 72,
+          "order": 0,
+          "historicalStars": null
+        }
+      ]
+    },
+    "opponentLineup": {
+      "teamName": "Zeytinburnu Sahil Spor",
+      "formation": "2-5-3",
+      "slots": [
+        {
+          "code": "GK",
+          "label": "Kaleci",
+          "description": "Kaleci",
+          "playerName": "Ignacio Flores de Lizaur",
+          "playerId": 479518719,
+          "rating": 19.94,
+          "x": 50,
+          "y": 10,
+          "order": 0,
+          "historicalStars": 75
+        },
+        {
+          "code": "DEF-CR",
+          "label": "Sağ stoper",
+          "description": "Sağ stoper",
+          "playerName": "Sotear Dara",
+          "playerId": 475607961,
+          "rating": 14,
+          "x": 70,
+          "y": 34,
+          "order": 0,
+          "historicalStars": 7
+        },
+        {
+          "code": "DEF-CL",
+          "label": "Sol stoper",
+          "description": "Sol stoper",
+          "playerName": "Demirel Orhun",
+          "playerId": 485748296,
+          "rating": 14,
+          "x": 30,
+          "y": 34,
+          "order": 0,
+          "historicalStars": 7
+        },
+        {
+          "code": "W-R",
+          "label": "Sağ kanat",
+          "description": "Sağ kanat",
+          "playerName": "Yiğit Namdar",
+          "playerId": 487930575,
+          "rating": 11.99,
+          "x": 88,
+          "y": 50,
+          "order": 0,
+          "historicalStars": 6
+        },
+        {
+          "code": "IM-R",
+          "label": "Sağ iç",
+          "description": "Sağ iç",
+          "playerName": "Emre Baykam",
+          "playerId": 488347850,
+          "rating": 19.92,
+          "x": 66,
+          "y": 50,
+          "order": 0,
+          "historicalStars": 75
+        },
+        {
+          "code": "IM-C",
+          "label": "Merkez iç",
+          "description": "Merkez iç",
+          "playerName": "Sander Eser",
+          "playerId": 486501589,
+          "rating": 20,
+          "x": 50,
+          "y": 50,
+          "order": 0,
+          "historicalStars": 75
+        },
+        {
+          "code": "IM-L",
+          "label": "Sol iç",
+          "description": "Sol iç",
+          "playerName": "Ekrem Furkan Dilnur",
+          "playerId": 488270033,
+          "rating": 13.99,
+          "x": 34,
+          "y": 50,
+          "order": 0,
+          "historicalStars": 7
+        },
+        {
+          "code": "W-L",
+          "label": "Sol kanat",
+          "description": "Sol kanat",
+          "playerName": "Egemen Dinçer Saner",
+          "playerId": 488343938,
+          "rating": 12.07,
+          "x": 12,
+          "y": 50,
+          "order": 0,
+          "historicalStars": 6
+        },
+        {
+          "code": "FW-R",
+          "label": "Sağ forvet",
+          "description": "Sağ forvet",
+          "playerName": "Özgür Sinan Kenan",
+          "playerId": 497166999,
+          "rating": 20,
+          "x": 62,
+          "y": 72,
+          "order": 0,
+          "historicalStars": 85
+        },
+        {
+          "code": "FW-C",
+          "label": "Merkez forvet",
+          "description": "Merkez forvet",
+          "playerName": "Tommaso Falsone",
+          "playerId": 496257138,
+          "rating": 20,
+          "x": 50,
+          "y": 72,
+          "order": 0,
+          "historicalStars": 75
+        },
+        {
+          "code": "FW-L",
+          "label": "Sol forvet",
+          "description": "Sol forvet",
+          "playerName": "Ulisse Roepke",
+          "playerId": 497557400,
+          "rating": 20,
+          "x": 38,
+          "y": 72,
+          "order": 0,
+          "historicalStars": 75
+        }
+      ]
+    },
+    "ownFormation": "3-5-2",
+    "opponentFormation": "2-5-3",
+    "regionalRatings": {
+      "own": {
+        "rawLeftDefence": 8.814876331125825,
+        "rawCentralDefence": 15.131275059602647,
+        "rawRightDefence": 8.755167139072846,
+        "rawMidfield": 5.3073582240775785,
+        "rawLeftAttack": 9.3881423692354,
+        "rawCentralAttack": 10.733139483443706,
+        "rawRightAttack": 8.34554898438368,
+        "leftDefence": 9.75,
+        "centralDefence": 16,
+        "rightDefence": 9.75,
+        "midfield": 6.25,
+        "leftAttack": 10.25,
+        "centralAttack": 11.5,
+        "rightAttack": 9.25,
+        "totalDefence": 35.5,
+        "totalAttack": 31
+      },
+      "opponent": {
+        "rawLeftDefence": 6.25,
+        "rawCentralDefence": 9.5,
+        "rawRightDefence": 6.25,
+        "rawMidfield": 7,
+        "rawLeftAttack": 10,
+        "rawCentralAttack": 13,
+        "rawRightAttack": 8.5,
+        "leftDefence": 6.25,
+        "centralDefence": 9.5,
+        "rightDefence": 6.25,
+        "midfield": 7,
+        "leftAttack": 10,
+        "centralAttack": 13,
+        "rightAttack": 8.5,
+        "totalDefence": 22,
+        "totalAttack": 31.5
+      },
+      "ownSeven": [
+        9.75,
+        16,
+        9.75,
+        6.25,
+        10.25,
+        11.5,
+        9.25
+      ],
+      "opponentSeven": [
+        6.25,
+        9.5,
+        6.25,
+        7,
+        10,
+        13,
+        8.5
+      ]
+    },
+    "opponentThreat": {
+      "leftThreat": 10,
+      "centerThreat": 13,
+      "rightThreat": 8.5,
+      "midfieldPressure": 7,
+      "leftDefenceBarrier": 6.25,
+      "centerDefenceBarrier": 9.5,
+      "rightDefenceBarrier": 6.25,
+      "maxAttackThreat": 13,
+      "totalAttackThreat": 31.5,
+      "threatToOurLeftDefence": 8.5,
+      "threatToOurCentreDefence": 13,
+      "threatToOurRightDefence": 10,
+      "opportunityForOurLeftAttack": 6.25,
+      "opportunityForOurCentreAttack": 9.5,
+      "opportunityForOurRightAttack": 6.25
+    }
   }
 }
