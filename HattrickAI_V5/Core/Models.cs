@@ -14,7 +14,8 @@ public sealed record Player(
     int Stamina,
     int Form,
     int Experience,
-    int Loyalty = 0);
+    int Loyalty = 0,
+    int InjuryLevel = -1);
 
 public sealed record Slot(
     string Code,
@@ -89,11 +90,5 @@ public sealed record Analysis(
     public string OwnFormation => Own.Formation;
     public string OpponentFormation => Opponent.Formation;
     public RegionalRatingPair RegionalRatings => new(OwnRating, OpponentRating);
-
-    /// <summary>
-    /// Compatibility view for the Rakip Analiz Motoru.
-    /// The threat map is derived from the opponent's seven regional ratings.
-    /// It is not a separate decision stage.
-    /// </summary>
     public OpponentThreatMap OpponentThreat => new OpponentThreatEngine().Analyze(OpponentRating);
 }
