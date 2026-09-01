@@ -7,7 +7,7 @@
       {"id":437630242,"name":"Alexey Esin","keeper":0,"defending":2,"playmaking":0,"passing":0,"winger":0,"scoring":0,"stamina":1,"form":4,"experience":12,"loyalty":0},
       {"id":495041177,"name":"Andres Nahasepp","keeper":1,"defending":3,"playmaking":6,"passing":7,"winger":5,"scoring":13,"stamina":7,"form":7,"experience":3,"loyalty":0},
       {"id":465805392,"name":"Bertalan Doktor","keeper":1,"defending":2,"playmaking":17,"passing":11,"winger":6,"scoring":6,"stamina":6,"form":4,"experience":8,"loyalty":0},
-      {"id":442645385,"name":"Biel Kichute","keeper":0,"defending":0,"playmaking":8,"passing":1,"winger":0,"scoring":1,"stamina":1,"form":5,"experience":12,"loyalty":0},
+      {"id":442645385,"name":"Biel Kichute","keeper":0,"defending":0,"playmaking":8,"passing":1,"winger":0,"scoring":1,"stamina":1,"form":5,"experience":12,"loyalty":0,"injuryLevel":999},
       {"id":493851210,"name":"Bumin Pehlivanlar","keeper":2,"defending":4,"playmaking":4,"passing":7,"winger":5,"scoring":7,"stamina":5,"form":8,"experience":2,"loyalty":0},
       {"id":497066104,"name":"Cevat Durguner","keeper":2,"defending":4,"playmaking":5,"passing":6,"winger":3,"scoring":8,"stamina":6,"form":7,"experience":2,"loyalty":0},
       {"id":476114406,"name":"Cristian Pesalovo","keeper":1,"defending":16,"playmaking":6,"passing":9,"winger":3,"scoring":6,"stamina":7,"form":7,"experience":6,"loyalty":0},
