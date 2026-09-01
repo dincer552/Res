@@ -5,7 +5,7 @@ using System.Linq;
 namespace HattrickAI.V5.Core;
 
 /// <summary>
-/// V5.2 / M7.2 tactical metadata layer.
+/// V5.1 M7.2 tactical metadata layer.
 /// It deliberately does not mutate the seven regional ratings. Instead it
 /// computes tactic-specific inputs and conservative, explainable effects that
 /// M8/M9 can consume later. Exact tactic calibration remains a separate step
@@ -30,35 +30,26 @@ public sealed class AdvancedTacticalScenarioEngine
         var totalStamina = outfield.Sum(p => Math.Max(0, p.Stamina));
         var totalExperience = outfield.Sum(p => Math.Max(0, p.Experience));
 
-        var tacticSkill = state.TeamTactic switch
-        {
-            TeamTactic.AttackMiddle => totalPassing,
-            TeamTactic.AttackWings => totalPassing,
-            TeamTactic.CounterAttack => totalDefending + (2.0 * totalPassing),
-            TeamTactic.Creative => (4.0 * totalPassing) + totalExperience,
-            TeamTactic.LongShots => totalScoring + totalPassing,
-            TeamTactic.Pressing => totalDefending + totalStamina,
-            _ => 0d
-        };
-
-        var level = TacticalLevel.FromAggregate(state.TeamTactic, tacticSkill, opponentAverageMainSkill);
-        var distribution = ChanceDistribution.For(state.TeamTactic, level);
-        var pressure = state.TeamTactic == TeamTactic.Pressing
+        var tactic = Map(state.TeamTactic);
+        var tacticSkill = CalculateTacticSkill(tactic, totalPassing, totalDefending, totalScoring, totalStamina, totalExperience);
+        var level = TacticalLevel.FromAggregate(tactic, tacticSkill, opponentAverageMainSkill);
+        var distribution = ChanceDistribution.For(tactic, level);
+        var pressure = tactic == AdvancedTactic.Pressing
             ? new TacticalPressureProfile(totalDefending, totalStamina, level.Value)
             : null;
-        var counter = state.TeamTactic == TeamTactic.CounterAttack
+        var counter = tactic == AdvancedTactic.CounterAttack
             ? new CounterAttackProfile(totalDefending, totalPassing, level.Value)
             : null;
-        var longShots = state.TeamTactic == TeamTactic.LongShots
+        var longShots = tactic == AdvancedTactic.LongShots
             ? new LongShotsProfile(totalScoring, totalPassing, level.Value)
             : null;
-        var creative = state.TeamTactic == TeamTactic.Creative
+        var creative = tactic == AdvancedTactic.Creative
             ? new CreativeProfile(totalPassing, totalExperience, level.Value)
             : null;
 
         return new AdvancedTacticalScenarioResult(
             state.CandidateId,
-            state.TeamTactic,
+            tactic,
             tacticSkill,
             level,
             new TacticalInputTotals(totalPassing, totalDefending, totalPlaymaking, totalScoring, totalWinger, totalStamina, totalExperience),
@@ -70,11 +61,52 @@ public sealed class AdvancedTacticalScenarioEngine
             opponentAverageMainSkill,
             CalibrationStatus.ResearchBackedStructureNeedsMatchCalibration);
     }
+
+    private static double CalculateTacticSkill(
+        AdvancedTactic tactic,
+        double passing,
+        double defending,
+        double scoring,
+        double stamina,
+        double experience)
+    {
+        return tactic switch
+        {
+            AdvancedTactic.AttackMiddle => passing,
+            AdvancedTactic.AttackWings => passing,
+            AdvancedTactic.CounterAttack => defending + (2.0 * passing),
+            AdvancedTactic.Creative => (4.0 * passing) + experience,
+            AdvancedTactic.LongShots => scoring + passing,
+            AdvancedTactic.Pressing => defending + stamina,
+            _ => 0d
+        };
+    }
+
+    private static AdvancedTactic Map(TeamTactic tactic) => tactic switch
+    {
+        TeamTactic.CounterAttack => AdvancedTactic.CounterAttack,
+        TeamTactic.LongShots => AdvancedTactic.LongShots,
+        TeamTactic.AttackMiddle => AdvancedTactic.AttackMiddle,
+        TeamTactic.AttackWings => AdvancedTactic.AttackWings,
+        TeamTactic.Creative => AdvancedTactic.Creative,
+        _ => AdvancedTactic.Normal
+    };
+}
+
+public enum AdvancedTactic
+{
+    Normal,
+    Pressing,
+    CounterAttack,
+    AttackMiddle,
+    AttackWings,
+    LongShots,
+    Creative
 }
 
 public sealed record AdvancedTacticalScenarioResult(
     string CandidateId,
-    TeamTactic Tactic,
+    AdvancedTactic Tactic,
     double TacticalSkillAggregate,
     TacticalLevel Level,
     TacticalInputTotals Inputs,
@@ -101,9 +133,9 @@ public sealed record TacticalInputTotals(
 /// </summary>
 public sealed record TacticalLevel(string Name, double Value)
 {
-    public static TacticalLevel FromAggregate(TeamTactic tactic, double aggregate, double opponentAverageMainSkill)
+    public static TacticalLevel FromAggregate(AdvancedTactic tactic, double aggregate, double opponentAverageMainSkill)
     {
-        if (tactic == TeamTactic.Normal || aggregate <= 0)
+        if (tactic == AdvancedTactic.Normal || aggregate <= 0)
             return new TacticalLevel("None", 0);
 
         // Conservative internal normalization. This is not presented as an
@@ -111,11 +143,11 @@ public sealed record TacticalLevel(string Name, double Value)
         // comparable until historical CHPP calibration is available.
         var scale = tactic switch
         {
-            TeamTactic.AttackMiddle or TeamTactic.AttackWings => 7.5,
-            TeamTactic.CounterAttack => 10.0,
-            TeamTactic.Pressing => 10.0,
-            TeamTactic.Creative => 25.0,
-            TeamTactic.LongShots => 10.0,
+            AdvancedTactic.AttackMiddle or AdvancedTactic.AttackWings => 7.5,
+            AdvancedTactic.CounterAttack => 10.0,
+            AdvancedTactic.Pressing => 10.0,
+            AdvancedTactic.Creative => 25.0,
+            AdvancedTactic.LongShots => 10.0,
             _ => 10.0
         };
 
@@ -144,23 +176,22 @@ public sealed record ChanceDistributionEffect(
     double SetPieceShare,
     string Mechanism)
 {
-    public static ChanceDistributionEffect For(TeamTactic tactic, TacticalLevel level)
+    public static ChanceDistributionEffect For(AdvancedTactic tactic, TacticalLevel level)
     {
-        // Regular-chance baseline commonly used in the current reference
-        // material: centre 35%, each wing 25%; set pieces are tracked separately.
-        // For AIM/AOW we expose a bounded *directional* shift rather than a
-        // fabricated exact game-engine formula. The shift is intended for M8/M9.
+        // Common reference baseline: centre 35%, each wing 25%, set pieces 15%.
+        // AIM/AOW are represented as bounded directional shifts only; the
+        // exact engine conversion remains deliberately uncalibrated.
         var shift = Math.Clamp(0.15 + (0.30 - 0.15) * (level.Value / 10.0), 0.15, 0.30);
 
         return tactic switch
         {
-            TeamTactic.AttackMiddle => new ChanceDistributionEffect(
+            AdvancedTactic.AttackMiddle => new ChanceDistributionEffect(
                 0.25 - (0.25 * shift),
                 0.35 + (0.50 * shift),
                 0.25 - (0.25 * shift),
                 0.15,
                 "AIM shifts regular chances from wings towards centre; exact conversion awaits calibration."),
-            TeamTactic.AttackWings => new ChanceDistributionEffect(
+            AdvancedTactic.AttackWings => new ChanceDistributionEffect(
                 0.25 + (0.25 * shift),
                 0.35 - (0.50 * shift),
                 0.25 + (0.25 * shift),
