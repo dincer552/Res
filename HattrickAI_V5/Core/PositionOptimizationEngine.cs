@@ -6,17 +6,17 @@ namespace HattrickAI.V5.Core;
 
 /// <summary>
 /// Motor 5 - Pozisyon Optimizasyon Motoru.
-/// Motor 4'ten gelen herhangi bir yasal dizilişi, Motor 3'ün oyuncu-pozisyon
-/// skorlarıyla doldurur. Her oyuncu aday XI içinde en fazla bir kez kullanılır.
-/// Rakip/taktik değerlendirme ve bireysel emir seçimi bu motorun sorumluluğu değildir.
+/// M4'ün verdiği yasal dizilişte, M3 oyuncu-pozisyon profillerinden en iyi
+/// oyuncu-slot eşleşmelerini üretir. Rakip, taktik ve bireysel davranış seçimi
+/// M5'in işi değildir; bunlar sonraki motorlarda değerlendirilir.
 /// </summary>
 public sealed class PositionOptimizationEngine : IPositionOptimizationEngine
 {
     private const int DefaultMaxCandidates = 100;
-    private const int PlayerPoolPerSlot = 12;
+    private const int BeamWidth = 2500;
 
-    // M5, M3'ün pozisyon skorunu ezmez. Natural-role yalnızca birbirine çok
-    // yakın seçeneklerde küçük bir tie-breaker olarak kullanılır.
+    // M3 skoru ana sinyal olmaya devam eder. Natural-role yalnızca birbirine
+    // yakın alternatifleri sıralamak için sınırlı bir etki yapar.
     private const double NaturalRoleTieThreshold = 0.75;
     private const double PrimaryRoleBonus = 0.05;
     private const double SecondaryRoleBonus = 0.02;
@@ -49,47 +49,71 @@ public sealed class PositionOptimizationEngine : IPositionOptimizationEngine
         if (eligibleProfiles.Count < 11) return [];
 
         var byId = eligibleProfiles.ToDictionary(x => x.PlayerId);
-        var results = new List<PositionAssignmentCandidate>();
+        var results = new List<PositionAssignmentCandidate>(Math.Min(maxCandidates, BeamWidth));
         var seen = new HashSet<string>(StringComparer.Ordinal);
 
-        // Exact çözüm hâlâ tüm uygun oyuncu havuzunda yapılır. M5'in aday
-        // havuzu kesmesi birinci çözümü değiştiremez.
+        // Birinci aday her zaman tüm uygun oyuncu havuzunda exact Hungarian
+        // çözümüyle bulunur. Böylece candidate-pruning birinci kararı etkileyemez.
         var exact = BuildExactBestCandidate(formation, eligibleProfiles, byId);
         AddUnique(exact, results, seen);
 
         if (maxCandidates == 1)
             return results;
 
-        var candidatePools = formation.SlotCodes
-            .Select(code => new SlotPool(
-                code,
-                eligibleProfiles
-                    .Select(p => new PlayerSlotScore(p.PlayerId, Score(p, code)))
-                    .Where(x => x.Score > 0)
-                    .OrderByDescending(x => x.Score)
-                    .ThenBy(x => x.PlayerId)
-                    .Take(PlayerPoolPerSlot)
-                    .ToList()))
+        // Önceki sürümde slot başına ilk 12 oyuncu kesiliyordu. Bu, düşük ranked
+        // görünen ama başka bir slotu serbest bırakarak toplamda daha iyi olabilecek
+        // oyuncuları alternatif adaylardan çıkarabiliyordu. Artık tüm eligible havuz
+        // kullanılıyor; beam search yalnızca alternatif üretim maliyetini sınırlıyor.
+        var slots = formation.SlotCodes
+            .Select((code, index) => new SlotDefinition(index, code))
+            .OrderBy(x => FeasibilityCount(eligibleProfiles, x.Code))
+            .ThenByDescending(x => eligibleProfiles.Max(p => Score(p, x.Code)))
             .ToList();
 
-        if (candidatePools.Any(x => x.Players.Count == 0)) return results;
+        var beam = new List<PartialAssignment>
+        {
+            new([], new HashSet<int>(), 0d)
+        };
 
-        var ordered = candidatePools
-            .OrderBy(x => x.Players.Count)
-            .ThenByDescending(x => x.Players.Max(y => y.Score))
-            .ToList();
+        foreach (var slot in slots)
+        {
+            var next = new List<PartialAssignment>();
+            foreach (var state in beam)
+            {
+                foreach (var profile in eligibleProfiles)
+                {
+                    if (state.UsedPlayerIds.Contains(profile.PlayerId)) continue;
 
-        Search(
-            ordered,
-            0,
-            new HashSet<int>(),
-            new List<AssignedSlot>(),
-            0d,
-            byId,
-            results,
-            resultLimit: Math.Max(maxCandidates * 8, 100),
-            formation.Formation,
-            seen);
+                    var raw = Score(profile, slot.Code);
+                    if (raw <= 0) continue;
+
+                    var adjusted = AdjustedScore(profile, slot.Code);
+                    var assigned = new List<AssignedSlot>(state.Assigned)
+                    {
+                        new(profile.PlayerId, slot.Code, raw, adjusted)
+                    };
+                    var used = new HashSet<int>(state.UsedPlayerIds) { profile.PlayerId };
+                    next.Add(new PartialAssignment(assigned, used, state.Score + adjusted));
+                }
+            }
+
+            beam = next
+                .OrderByDescending(x => x.Score)
+                .ThenBy(x => AssignmentKey(x.Assigned), StringComparer.Ordinal)
+                .Take(BeamWidth)
+                .ToList();
+
+            if (beam.Count == 0) return results;
+        }
+
+        foreach (var state in beam
+                     .OrderByDescending(x => x.Score)
+                     .ThenBy(x => AssignmentKey(x.Assigned), StringComparer.Ordinal)
+                     .Take(Math.Max(maxCandidates * 4, 200)))
+        {
+            var candidate = BuildCandidate(formation.Formation, state.Assigned, state.Score, byId);
+            AddUnique(candidate, results, seen);
+        }
 
         return results
             .OrderByDescending(x => x.SuitabilityScore)
@@ -104,6 +128,8 @@ public sealed class PositionOptimizationEngine : IPositionOptimizationEngine
         FormationCandidateSet formations,
         int maxCandidatesPerFormation = DefaultMaxCandidates)
     {
+        ArgumentNullException.ThrowIfNull(context);
+        ArgumentNullException.ThrowIfNull(players);
         ArgumentNullException.ThrowIfNull(formations);
         if (maxCandidatesPerFormation < 1)
             throw new ArgumentOutOfRangeException(nameof(maxCandidatesPerFormation));
@@ -164,61 +190,6 @@ public sealed class PositionOptimizationEngine : IPositionOptimizationEngine
         return BuildCandidate(formation.Formation, assigned, total, byId);
     }
 
-    private static void Search(
-        IReadOnlyList<SlotPool> pools,
-        int index,
-        HashSet<int> used,
-        List<AssignedSlot> assigned,
-        double score,
-        IReadOnlyDictionary<int, PlayerAnalysisProfile> profiles,
-        List<PositionAssignmentCandidate> results,
-        int resultLimit,
-        string formation,
-        HashSet<string> seen)
-    {
-        if (results.Count >= resultLimit) return;
-
-        if (index == pools.Count)
-        {
-            var candidate = BuildCandidate(formation, assigned, score, profiles);
-            AddUnique(candidate, results, seen);
-            return;
-        }
-
-        var pool = pools[index];
-        foreach (var option in pool.Players
-                     .OrderByDescending(x => AdjustedScore(profiles[x.PlayerId], pool.Code))
-                     .ThenBy(x => x.PlayerId))
-        {
-            if (used.Contains(option.PlayerId)) continue;
-
-            var adjusted = AdjustedScore(profiles[option.PlayerId], pool.Code);
-            if (adjusted <= 0) continue;
-
-            used.Add(option.PlayerId);
-            assigned.Add(new AssignedSlot(
-                option.PlayerId,
-                pool.Code,
-                option.Score,
-                adjusted));
-            Search(
-                pools,
-                index + 1,
-                used,
-                assigned,
-                score + adjusted,
-                profiles,
-                results,
-                resultLimit,
-                formation,
-                seen);
-            assigned.RemoveAt(assigned.Count - 1);
-            used.Remove(option.PlayerId);
-
-            if (results.Count >= resultLimit) return;
-        }
-    }
-
     private static PositionAssignmentCandidate BuildCandidate(
         string formation,
         IReadOnlyList<AssignedSlot> assigned,
@@ -247,6 +218,9 @@ public sealed class PositionOptimizationEngine : IPositionOptimizationEngine
         if (seen.Add(AssignmentKey(candidate)))
             results.Add(candidate);
     }
+
+    private static int FeasibilityCount(IReadOnlyList<PlayerAnalysisProfile> profiles, string code)
+        => profiles.Count(p => Score(p, code) > 0);
 
     private static void ValidateFormation(FormationCandidate formation)
     {
@@ -277,14 +251,17 @@ public sealed class PositionOptimizationEngine : IPositionOptimizationEngine
         var raw = Score(profile, code);
         if (raw <= 0) return 0;
 
-        // M3'ün skoru açık ara en güçlü sinyal olarak kalır. Natural-role
-        // yalnızca oyuncunun en iyi pozisyonlarına yakın seçeneklerde devreye girer.
-        var best = profile.Positions.Max(x => x.Score);
-        if (best - raw > NaturalRoleTieThreshold)
+        var best = profile.Positions
+            .Where(x => x.Score > 0)
+            .Select(x => x.Score)
+            .DefaultIfEmpty(0)
+            .Max();
+
+        if (best <= 0 || best - raw > NaturalRoleTieThreshold)
             return raw;
 
-        // Birden fazla pozisyon aynı güçteyse primary/secondary bilgisi yapay
-        // bir sol/merkez/sağ tercihi yaratmamalı.
+        // Eğer M3 iki veya daha fazla pozisyonu gerçekten aynı seviyede üretmişse,
+        // primary/secondary etiketi sol/merkez/sağ arasında yapay fark üretmesin.
         var tiedBestCount = profile.Positions.Count(x =>
             x.Score > 0 && Math.Abs(x.Score - best) <= RoleTieEpsilon);
         if (tiedBestCount > 1)
@@ -318,6 +295,13 @@ public sealed class PositionOptimizationEngine : IPositionOptimizationEngine
         => string.Join(
             ";",
             candidate.Lineup.Slots
+                .OrderBy(x => SlotOrder(x.Code))
+                .Select(x => $"{x.Code}:{x.PlayerId}"));
+
+    private static string AssignmentKey(IReadOnlyList<AssignedSlot> assigned)
+        => string.Join(
+            ";",
+            assigned
                 .OrderBy(x => SlotOrder(x.Code))
                 .Select(x => $"{x.Code}:{x.PlayerId}"));
 
@@ -429,7 +413,10 @@ public sealed class PositionOptimizationEngine : IPositionOptimizationEngine
         _ => (50, 50, code, code)
     };
 
-    private sealed record SlotPool(string Code, IReadOnlyList<PlayerSlotScore> Players);
-    private sealed record PlayerSlotScore(int PlayerId, double Score);
+    private sealed record SlotDefinition(int Index, string Code);
+    private sealed record PartialAssignment(
+        IReadOnlyList<AssignedSlot> Assigned,
+        IReadOnlySet<int> UsedPlayerIds,
+        double Score);
     private sealed record AssignedSlot(int PlayerId, string Code, double RawScore, double AdjustedScore);
 }
