@@ -23,6 +23,28 @@ public static class OfflineRegressionRunner
             Check(players.Count >= 11, "own player pool >= 11", failures);
             Check(IsFiniteRating(opponent), "opponent 7 rating finite", failures);
 
+            // M3 → M4 structural regression gate.
+            var m3 = new PlayerAnalysisEngine();
+            var m3Result = m3.Analyze(players);
+            Check(m3Result.Players.Count == players.Count, "M3 input/output player count", failures);
+            Check(m3Result.Players.Select(p => p.PlayerId).Distinct().Count() == m3Result.Players.Count, "M3 duplicate player profile", failures);
+            Check(m3Result.Players.All(p => p.IsEligible == (p.InjuryLevel != 999)), "M3 eligibility consistency", failures);
+
+            var m4 = new FormationCandidateEngine();
+            var m4First = m4.Generate(m3Result);
+            var m4Second = m4.Generate(m3Result);
+            Check(m4First.Candidates.Count > 0, "M4 has legal formation candidates", failures);
+            Check(m4First.Candidates.All(c => c.SlotCodes.Count == 11), "M4 all candidates have 11 slots", failures);
+            Check(m4First.Candidates.All(c => c.SlotCodes.Distinct(StringComparer.Ordinal).Count() == 11), "M4 duplicate slot code", failures);
+            Check(m4First.Candidates.Select(c => c.Formation).Distinct(StringComparer.Ordinal).Count() == m4First.Candidates.Count, "M4 duplicate formation candidate", failures);
+            Check(m4First.Candidates.All(c => double.IsFinite(c.StructuralScore) && c.StructuralScore > 0), "M4 finite structural scores", failures);
+            Check(m4First.Candidates.Select(c => c.Formation).SequenceEqual(m4Second.Candidates.Select(c => c.Formation), StringComparer.Ordinal), "M4 deterministic candidate order", failures);
+            Check(m4First.Candidates.Select(c => c.StructuralScore).SequenceEqual(m4Second.Candidates.Select(c => c.StructuralScore)), "M4 deterministic structural score", failures);
+            Console.WriteLine($"M3: {m3Result.Players.Count} profiles | M4: {m4First.Candidates.Count} legal formation candidates | invalid: 0");
+            Console.WriteLine("M4 formations: " + string.Join(", ", m4First.Candidates.Select(c => c.Formation)));
+
+            if (failures.Count > 0) { foreach (var f in failures) Console.WriteLine("FAIL: " + f); return 1; }
+
             var m7 = new RegionalRatingScenarioEngine();
             var m72 = new AdvancedTacticalScenarioEngine();
             var m8 = new M8ChanceModel();
@@ -44,7 +66,7 @@ public static class OfflineRegressionRunner
             }
 
             if (failures.Count > 0) { foreach (var f in failures) Console.WriteLine("FAIL: " + f); return 1; }
-            Console.WriteLine("PASS: M7 → M7.1 → M7.2 → M8 offline regression");
+            Console.WriteLine("PASS: M3 → M4 → M7 → M7.1 → M7.2 → M8 offline regression");
             Console.WriteLine($"XI: {lineup.Formation} | Opponent: {analysis.GetProperty("opponentName").GetString()}");
             Console.WriteLine($"M7 midfield: {m7Result.Rating.Midfield:0.###} | Opponent midfield: {opponent.Midfield:0.###}");
             Console.WriteLine("Tactics tested: Normal, CounterAttack, LongShots, AttackMiddle, AttackWings, Creative");
