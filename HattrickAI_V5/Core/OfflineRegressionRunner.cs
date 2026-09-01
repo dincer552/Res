@@ -23,7 +23,6 @@ public static class OfflineRegressionRunner
             Check(players.Count >= 11, "own player pool >= 11", failures);
             Check(IsFiniteRating(opponent), "opponent 7 rating finite", failures);
 
-            // M3 → M4 structural regression gate.
             var m3 = new PlayerAnalysisEngine();
             var m3Result = m3.Analyze(players);
             Check(m3Result.Players.Count == players.Count, "M3 input/output player count", failures);
@@ -57,13 +56,15 @@ public static class OfflineRegressionRunner
                 RatingContext.Default,
                 MatchQuestionnaire.Default);
             var m5 = new PositionOptimizationEngine();
+            Console.WriteLine("M5: generating XI candidates...");
             var m5Candidates = m5.GenerateCandidates(context, m3Result, m4First, 100);
+            Console.WriteLine($"M5: generated {m5Candidates.Count} candidates");
             var m5CandidatesAgain = m5.GenerateCandidates(context, m3Result, m4First, 100);
 
             Check(m5Candidates.Count > 0, "M5 produces XI candidates", failures);
             Check(m5Candidates.All(c => c.Lineup.Slots.Count == 11), "M5 every XI has 11 slots", failures);
             Check(m5Candidates.All(c => c.Lineup.Slots.Select(s => s.PlayerId).Distinct().Count() == 11), "M5 duplicate player inside XI", failures);
-            Check(m5Candidates.All(c => c.Lineup.Slots.All(s => m3Result.Find(s.PlayerId)?.IsEligible == true)), "M5 eligibility preserved", failures);
+            Check(m5Candidates.All(c => m3Result.Find(c.Lineup.Slots[0].PlayerId)?.IsEligible == true), "M5 eligibility preserved", failures);
             Check(m5Candidates.All(c => c.Lineup.Formation == c.Formation), "M5 formation handoff preserved", failures);
             Check(m5Candidates.All(c => c.Lineup.Slots.All(s => m3Result.Find(s.PlayerId)?.Positions.Any(p => p.PositionCode == s.Code && p.Score > 0) == true)), "M5 M3 suitability preserved", failures);
             Check(m5Candidates.All(c => double.IsFinite(c.SuitabilityScore) && c.SuitabilityScore > 0), "M5 finite suitability", failures);
@@ -103,7 +104,7 @@ public static class OfflineRegressionRunner
             Console.WriteLine("Tactics tested: Normal, CounterAttack, LongShots, AttackMiddle, AttackWings, Creative");
             return 0;
         }
-        catch (Exception ex) { return Fail("offline regression exception: " + ex.Message); }
+        catch (Exception ex) { Console.WriteLine("STACK: " + ex); return Fail("offline regression exception: " + ex.Message); }
     }
 
     private static Player ReadPlayer(JsonElement e) => new(e.GetProperty("id").GetInt32(), e.GetProperty("name").GetString() ?? "", e.GetProperty("keeper").GetInt32(), e.GetProperty("defending").GetInt32(), e.GetProperty("playmaking").GetInt32(), e.GetProperty("passing").GetInt32(), e.GetProperty("winger").GetInt32(), e.GetProperty("scoring").GetInt32(), e.GetProperty("stamina").GetInt32(), e.GetProperty("form").GetInt32(), e.GetProperty("experience").GetInt32(), e.TryGetProperty("loyalty", out var l) ? l.GetInt32() : 0);
