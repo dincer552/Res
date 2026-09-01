@@ -4,20 +4,156 @@
 
 V5, Hattrick maç analizini tek bir büyük formül yerine birbirine bağlı motorlar halinde geliştirir.
 
-### GELİŞTİRME SIRASI — KAYBOLMAYACAK ANA YOL HARİTASI
+## HEDEFLENEN ANA ANALİZ AKIŞI
 
-Analiz butonuna basıldığında hedeflenen karar sırası:
+Analiz butonuna basıldığında hedeflenen karar sırası aşağıdaki 11 aşamadır. Bu akış V5'in ana mimari referansıdır ve motorlar geliştirilirken sıra korunacaktır.
 
-`CHPP Veri → Rakip Analiz → Rakip Tehdit → Takım Kadro/11 Seçim → Bölgesel Rating → Oyuncu Rol/Davranış → Rakibe Karşı Rol Optimizasyonu → Final Taktik Optimizasyonu`
+```text
+                    ┌─────────────────────┐
+                    │     CHPP / Veri     │
+                    │  Takım + Oyuncular  │
+                    │  Rakip + Maç bilgisi│
+                    └──────────┬──────────┘
+                               │
+                               ▼
+                 ┌──────────────────────────┐
+                 │  1. VERİ HAZIRLAMA       │
+                 │  Oyuncu skill / form     │
+                 │  Rakip XI / skill        │
+                 │  Maç koşulları           │
+                 └────────────┬─────────────┘
+                              │
+                ┌─────────────┴─────────────┐
+                ▼                           ▼
+      ┌───────────────────┐       ┌───────────────────┐
+      │ 2. RAKİP ANALİZİ  │       │ 3. OYUNCU ANALİZİ │
+      │                   │       │                   │
+      │ Rakip diziliş     │       │ Oyuncuların       │
+      │ 7 bölgesel rating │       │ pozisyon uygunluğu│
+      │ Tehdit bölgeleri  │       │                   │
+      └─────────┬─────────┘       └─────────┬─────────┘
+                │                           │
+                └─────────────┬─────────────┘
+                              ▼
+                ┌──────────────────────────┐
+                │ 4. ADAY DİZİLİŞLER       │
+                │                          │
+                │ 3-5-2 / 3-4-3 / 2-5-3   │
+                │ ve diğer yasal dizilişler│
+                └────────────┬─────────────┘
+                             │
+                             ▼
+                ┌──────────────────────────┐
+                │ 5. POZİSYON OPTİMİZERİ   │
+                │                          │
+                │ Oyuncu → Pozisyon        │
+                │ yasal aday kombinasyonları│
+                └────────────┬─────────────┘
+                             │
+                             ▼
+                ┌──────────────────────────┐
+                │ 6. DAVRANIŞ OPTİMİZERİ   │
+                │                          │
+                │ Normal / Ofansif         │
+                │ Defansif / Ortaya        │
+                │ Kanada                    │
+                └────────────┬─────────────┘
+                             │
+                             ▼
+              ┌────────────────────────────────┐
+              │ 7. BÖLGESEL RATING MOTORU     │
+              │                                │
+              │ DEF-L / DEF-C / DEF-R         │
+              │ MID                            │
+              │ ATT-L / ATT-C / ATT-R         │
+              │                                │
+              │ Pozisyon + skill + davranış +  │
+              │ maç bağlamından rating üretir │
+              └───────────────┬────────────────┘
+                              │
+                              ▼
+                ┌──────────────────────────┐
+                │ 8. MAÇ EŞLEŞME MOTORU    │
+                │                          │
+                │ ATT-R ↔ Rakip DEF-L      │
+                │ ATT-C ↔ Rakip DEF-C      │
+                │ ATT-L ↔ Rakip DEF-R      │
+                │                          │
+                │ DEF-R ↔ Rakip ATT-L      │
+                │ DEF-C ↔ Rakip ATT-C      │
+                │ DEF-L ↔ Rakip ATT-R      │
+                │ + Orta saha              │
+                └────────────┬─────────────┘
+                             │
+                             ▼
+                ┌──────────────────────────┐
+                │ 9. TAKTİKSEL SKOR        │
+                │                          │
+                │ Hücum avantajı           │
+                │ Savunma güvenliği        │
+                │ Orta saha                │
+                │ Risk / denge             │
+                └────────────┬─────────────┘
+                             │
+                             ▼
+                    ┌──────────────────┐
+                    │ Daha iyi aday var│
+                    │       mı?        │
+                    └────────┬─────────┘
+                        EVET │
+                             └──────────────► 5. POZİSYON OPTİMİZERİ
 
-**Mevcut geliştirme aşaması: Rakip Tehdit Motoru.**
+                        HAYIR
+                             │
+                             ▼
+                ┌──────────────────────────┐
+                │ 10. EN İYİ MAÇ PLANI     │
+                │                          │
+                │ Diziliş                  │
+                │ İlk 11                   │
+                │ Oyuncu emirleri          │
+                │ Bölgesel ratingler       │
+                │ Rakibe karşı avantajlar  │
+                └────────────┬─────────────┘
+                             │
+                             ▼
+                ┌──────────────────────────┐
+                │ 11. MAÇ TAHMİNİ          │
+                │                          │
+                │ Pozisyon şansı           │
+                │ Gol olasılığı            │
+                │ Kazanma olasılığı        │
+                └──────────────────────────┘
+```
 
-Rakip Analiz Motoru ilk doğrulama aşamasını geçti ve gerçek rakip 7 ratingini kullanarak XI seçim akışına veri sağlıyor. Şimdi bu verinin bağımsız tehdit/fırsat haritasını sağlamlaştırıyoruz.
+### Akışın temel prensibi
+
+Bölgesel Rating Motoru karar veren tek başına bir motor değildir. Seçilen oyuncu + pozisyon + davranış kombinasyonunun yedi bölgesel ratingini üretir. Bu ratingler Maç Eşleşme Motoruna aktarılır; adayın rakibe karşı değeri burada ve Taktiksel Skor katmanında ölçülür.
+
+Daha iyi bir aday bulunduğu sürece optimizasyon döngüsü tekrar Pozisyon Optimizasyonuna döner. Böylece sistem yalnızca tek oyuncuyu değil, **oyuncu + pozisyon + davranış + rakip eşleşmesi** bütününü optimize eder.
+
+## GELİŞTİRME SIRASI
+
+1. **CHPP Veri Motoru / Veri Katmanı** — CHPP'den ham takım, oyuncu, rakip ve maç verilerini sağlar. Karar vermez.
+2. **Rakip Analiz Motoru** — Rakibin son resmi maçını, dizilişini, final 11'ini ve gerçek 7 bölgesel ratingini bizim kadro seçimimizden önce hazırlar.
+3. **Oyuncu Analiz Motoru** — Kendi oyuncularımızın yasal pozisyonlardaki uygunluklarını ve aday kullanım alanlarını çıkarır.
+4. **Aday Diziliş Motoru** — Maç için değerlendirilebilecek yasal dizilişleri üretir.
+5. **Pozisyon Optimizasyon Motoru** — Oyuncu → pozisyon kombinasyonlarını takım seviyesinde değerlendirir.
+6. **Davranış Optimizasyon Motoru** — Oyuncu emirlerinin rating üzerindeki etkisini adaylar halinde üretir.
+7. **Bölgesel Rating Motoru** — Pozisyon + skill + davranış + maç bağlamından yedi bölgesel rating üretir.
+8. **Maç Eşleşme Motoru** — Bizim hücum/savunma bölgelerimizi rakibin karşı savunma/hücum bölgeleriyle eşleştirir ve orta saha etkisini değerlendirir.
+9. **Taktiksel Skor Motoru** — Hücum avantajı, savunma güvenliği, orta saha ve risk/denge üzerinden aday planları karşılaştırır.
+10. **Final Taktik Optimizasyon Motoru** — En iyi diziliş + 11 + oyuncu emirleri kombinasyonunu final maç planına dönüştürür.
+11. **Maç Tahmin Motoru** — Final plan üzerinden pozisyon şansı, gol olasılığı ve kazanma olasılığı üretir.
+
+> Not: Bu 11 aşamalı akış hedef mimaridir. Her motorun canlı karar zincirine bağlandığı varsayılmamalıdır; geliştirme durumu aşağıdaki bölümlerde ayrıca belirtilir.
+
+## MOTOR DURUMLARI
 
 ### Motor 1 — CHPP Veri Motoru / Veri Katmanı ✅
 CHPP'den kendi takımının oyuncu becerileri ve takım verileri ile rakibin son resmi maçına ait kadro, yıldız ve gerçek bölgesel rating verilerini toplar. Kupa ve hazırlık maçları otomatik olarak atlanır. Bu katman karar vermez; ham veriyi sağlar.
 
-### Motor 2 — Rakip Analiz + Kadro/11 Seçim Motoru 🟡 DOĞRULAMA / BAKIM
+### Motor 2 — Rakip Analiz Motoru 🟡 DOĞRULAMA / BAKIM
 Rakibin son resmi maçını, gerçek 7 bölgesel ratingini, dizilişini, final saha 11'ini ve rakip profilini bizim kadro seçimimizden **önce** hazırlar. Pozisyon uygunluğuyla ilk XI oluşturulur; ardından gerçek bölgesel ratingler ile yasal oyuncu takasları denenir.
 
 **RP karar girdisi değildir.** Rakip oyuncu RP tahmini yalnızca görüntüleme/yardımcı veri olarak kalır.
@@ -31,7 +167,19 @@ Eşleşme skoru:
 
 Bu skor maç sonucu tahmini değildir; yasal XI adaylarını karşılaştırmak içindir.
 
-### Motor 3 — Bölgesel Rating Motoru ✅
+### Motor 3 — Oyuncu Analiz Motoru ⏳
+Kendi oyuncularının pozisyon uygunluğunu ve takım içindeki kullanılabilir adaylarını çıkarır. Bu katman henüz final optimizasyon döngüsünün tamamına bağlanmış değildir.
+
+### Motor 4 — Aday Diziliş Motoru ⏳
+3-5-2, 3-4-3, 2-5-3 ve diğer yasal diziliş adaylarını üretmek için ayrıştırılmış bir katman olarak planlanmıştır.
+
+### Motor 5 — Pozisyon Optimizasyon Motoru ⏳
+Oyuncu → pozisyon eşleşmelerini takım seviyesinde değerlendirecek optimizasyon katmanıdır.
+
+### Motor 6 — Davranış Optimizasyon Motoru 🟡
+Oyuncunun normal / ofansif / defansif / ortaya doğru / kanada doğru seçeneklerinin rating hesabına etkisini üretir. Legal davranış adayları hazırlanmıştır; nihai otomatik seçim henüz Final Taktik katmanına bağlanmamıştır.
+
+### Motor 7 — Bölgesel Rating Motoru ✅
 `RegionalRatingEngineFixed`, doğrulanmış rating katmanıdır. Pozisyon + skill + behaviour + maç bağlamından yedi bölgesel rating üretir.
 
 S4MSUNFC — 3-5-2 regression referansı:
@@ -39,50 +187,17 @@ S4MSUNFC — 3-5-2 regression referansı:
 
 Yeni doğrulanmış maç verisi gelmeden temel katsayılar değiştirilmemelidir.
 
-### Motor 4 — Oyuncu Rol/Davranış Motoru 🟡
-Oyuncunun normal / ofansif / defansif / ortaya doğru / kanada doğru seçeneklerinin rating hesabına etkisini üretir. Legal davranış adayları hazırlanmıştır; nihai otomatik seçim henüz Final Taktik katmanına bağlanmamıştır.
+### Motor 8 — Maç Eşleşme Motoru ⏳
+Bizim hücum ve savunma bölgelerini rakibin karşı bölgeleriyle eşleştirir. Tehdit/fırsat verisini aday taktiklerin değerlendirilmesinde kullanır.
 
-### Motor 5 — Rakibe Karşı Rol Optimizasyon Motoru ⏳
-Rakip tehdit haritasını kullanarak oyuncu davranışlarını ve yönlerini rakibe karşı optimize eder. Bu motor, davranış değişikliğinin DEF/MID/ATT ratinglerine etkisini Bölgesel Rating Motoru üzerinden ölçmelidir.
+### Motor 9 — Taktiksel Skor Motoru ⏳
+Aday planları hücum avantajı, savunma güvenliği, orta saha ve risk/denge kriterleriyle karşılaştırır.
 
-### Motor 6 — Rakip Rating Tahmin Motoru 🟡 KALİBRASYON KONTROLÜ
-Rakibin oyuncu skill'leri CHPP'den gelmediği için son resmi maçtaki yıldızlar, pozisyon/davranış ve gerçek takım ratingleri kullanılarak rakip oyuncu RP tahmini yapılır. Son testlerde RP değerlerinin 12–21 aralığına şişebildiği görüldü; bu değerler karar mekanizmasından çıkarılmıştır ve ayrı kalibrasyon konusu olarak tutulacaktır.
+### Motor 10 — Final Taktik Optimizasyon Motoru ⏳
+En iyi diziliş + ilk 11 + individual behaviour + rakip eşleşmesini tek final maç planında birleştirir.
 
-### Motor 7 — Rakip Tehdit Motoru 🟡 AKTİF GELİŞTİRME
-Rakibin gerçek 7 bölgesel ratinginden iki yönlü eşleşme haritası üretir:
-- rakip sol hücum → bizim sağ savunma tehdidi,
-- rakip merkez hücum → bizim merkez savunma tehdidi,
-- rakip sağ hücum → bizim sol savunma tehdidi,
-- bizim sol hücum → rakibin sağ savunma fırsatı,
-- bizim merkez hücum → rakibin merkez savunma fırsatı,
-- bizim sağ hücum → rakibin sol savunma fırsatı.
-
-Bu katman oyuncu seçmez ve RP üretmez. Sonraki Kadro/11 ve Rol Optimizasyon katmanlarının kullanacağı temiz eşleşme verisini sağlar.
-
-### Motor 8 — Final Taktik Optimizasyon Motoru ⏳
-XI + pozisyon + individual behaviour + rakip threat + üç soruluk kullanıcı anketini tek final kararında birleştirir. Henüz canlıya alınmadı.
-
-## Hedeflenen analiz bağlantı zinciri
-
-```text
-CHPP Veri Motoru
-        ↓
-Rakip Analiz Motoru
-        ↓
-Rakip Tehdit Motoru   ← ŞİMDİ BURADAYIZ
-        ↓
-Takım Kadro/11 Seçim
-        ↓
-Bölgesel Rating
-        ↓
-Oyuncu Rol/Davranış
-        ↓
-Rakibe Karşı Rol Optimizasyonu
-        ↓
-Bölgesel Rating ile yeniden ölçüm
-        ↓
-Final Taktik Optimizasyonu
-```
+### Motor 11 — Maç Tahmin Motoru ⏳
+Final maç planından pozisyon şansı, gol olasılığı ve kazanma olasılığı üretir.
 
 ## KULLANICI ANKETİ
 
@@ -118,7 +233,7 @@ Zeytinburnu Sahil Spor:
 `MID 7.00`
 `ATT 10.00 / 13.00 / 8.50`
 
-Bu veri seti hem Rakip Analiz hem Rakip Tehdit Motoru için temel regression testidir.
+Bu veri seti hem Rakip Analiz hem Maç Eşleşme Motoru için temel regression testidir.
 
 ## GELİŞTİRME KURALI
 
@@ -131,4 +246,4 @@ Her motor için:
 6. Commit/deploy
 7. Sonuç doğrulanmadan sonraki motora geçmeme
 
-Bu belge motorlar geliştirilirken ana referans yol haritasıdır.
+Bu belge V5 motorları geliştirilirken ana referans yol haritasıdır. Aktif geliştirme hattı yalnızca **`v5`** branch'idir.
