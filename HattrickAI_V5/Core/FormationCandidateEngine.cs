@@ -23,18 +23,25 @@ public sealed class FormationCandidateEngine : IFormationCandidateEngine
         return Generate(players);
     }
 
-    // Testable M4 core: context is intentionally unused because M4 is purely
-    // structural and must not depend on opponent/tactical information.
+    // M4 is structural only. Its feasibility and structural score use the same
+    // eligible player universe that M5 is allowed to consume.
     public FormationCandidateSet Generate(PlayerAnalysisResult players)
     {
         ArgumentNullException.ThrowIfNull(players);
 
+        var eligiblePlayers = players.Players
+            .Where(p => p.IsEligible && p.PlayerId > 0)
+            .GroupBy(p => p.PlayerId)
+            .Select(g => g.First())
+            .ToList();
+
         var available = LegalCandidates
-            .Where(candidate => HasFeasibleAssignment(players, candidate.SlotCodes))
+            .Where(candidate => HasFeasibleAssignment(eligiblePlayers, candidate.SlotCodes))
             .Select(candidate => candidate with
             {
-                StructuralScore = StructuralFeasibilityScore(players, candidate.SlotCodes)
+                StructuralScore = StructuralFeasibilityScore(eligiblePlayers, candidate.SlotCodes)
             })
+            .Where(candidate => double.IsFinite(candidate.StructuralScore) && candidate.StructuralScore > 0)
             .OrderByDescending(x => x.StructuralScore)
             .ThenBy(x => x.Formation, StringComparer.Ordinal)
             .ToList();
@@ -42,8 +49,10 @@ public sealed class FormationCandidateEngine : IFormationCandidateEngine
         return new FormationCandidateSet(available);
     }
 
-    private static bool HasFeasibleAssignment(PlayerAnalysisResult players, IReadOnlyList<string> slots)
-        => TryAssign(slots, players.Players, 0, new HashSet<int>());
+    private static bool HasFeasibleAssignment(
+        IReadOnlyList<PlayerAnalysisProfile> players,
+        IReadOnlyList<string> slots)
+        => TryAssign(slots, players, 0, new HashSet<int>());
 
     private static bool TryAssign(
         IReadOnlyList<string> slots,
@@ -53,9 +62,6 @@ public sealed class FormationCandidateEngine : IFormationCandidateEngine
     {
         if (index == slots.Count) return true;
 
-        // Exact feasibility remains a backtracking matching check. Assign the
-        // most constrained slot first so the search fails fast and never
-        // depends on incidental player ordering.
         var remaining = slots.Skip(index).ToList();
         var next = remaining
             .Select(code => new
@@ -85,12 +91,9 @@ public sealed class FormationCandidateEngine : IFormationCandidateEngine
     }
 
     private static double StructuralFeasibilityScore(
-        PlayerAnalysisResult players,
+        IReadOnlyList<PlayerAnalysisProfile> players,
         IReadOnlyList<string> slots)
     {
-        // Greedy quality signal with scarcity-first slot ordering. This keeps
-        // M4 structural-only while avoiding the old left-to-right assignment
-        // bias that could consume a player needed by a rarer slot.
         var remaining = slots.ToList();
         var used = new HashSet<int>();
         var total = 0d;
@@ -101,13 +104,13 @@ public sealed class FormationCandidateEngine : IFormationCandidateEngine
                 .Select(code => new
                 {
                     Code = code,
-                    Count = players.Players.Count(p => !used.Contains(p.PlayerId) && Score(p, code) > 0)
+                    Count = players.Count(p => !used.Contains(p.PlayerId) && Score(p, code) > 0)
                 })
                 .OrderBy(x => x.Count)
                 .ThenBy(x => PositionOrder(x.Code))
                 .First();
 
-            var best = players.Players
+            var best = players
                 .Where(p => !used.Contains(p.PlayerId))
                 .Select(p => new { Profile = p, Score = Score(p, next.Code) })
                 .Where(x => x.Score > 0)
