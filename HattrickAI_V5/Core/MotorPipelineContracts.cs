@@ -29,7 +29,8 @@ public sealed record PositionAssignmentCandidate(
     string Formation,
     Lineup Lineup,
     double SuitabilityScore,
-    IReadOnlyDictionary<int, string>? PlayerAssignments = null)
+    IReadOnlyDictionary<int, string>? PlayerAssignments = null,
+    double StructuralScore = 0)
 {
     public string FormationId => Formation;
     public string LineupId => CandidateId;
