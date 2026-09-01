@@ -48,7 +48,7 @@ Döngünün amacı tek bir oyuncuyu değil; **oyuncu + pozisyon + davranış + r
 | M2 | Rakip Analiz Motoru | `Motor2OpponentAwareRefiner` / rakip profil katmanı | 🟡 Bakım + doğrulama |
 | M3 | Oyuncu Analiz Motoru | `PlayerAnalysisEngine` | ✅ Offline test PASS |
 | M4 | Aday Diziliş Motoru | `FormationCandidateEngine` | ✅ Offline test PASS |
-| M5 | Pozisyon Optimizasyon Motoru | `XIOptimizer` / XI optimizasyon katmanı | 🟠 Offline test PARTIAL — düzeltme gerekli |
+| M5 | Pozisyon Optimizasyon Motoru | `PositionOptimizationEngine` | 🟡 Düzeltildi / offline regression tekrar bekliyor |
 | M6 | Davranış Optimizasyon Motoru | `BehaviourOptimizer` | 🟡 İskelet |
 | M7 | Bölgesel Rating Motoru | `RegionalRatingEngineFixed` | ✅ Referans motor |
 | M8 | Maç Eşleşme Motoru | planlanan | ⏳ Sıradaki ana geliştirme |
@@ -69,7 +69,11 @@ Sadece kendi oyuncularının pozisyon uygunluk profillerini üretir. XI seçmez,
 Yasal ve doldurulabilir diziliş adaylarını üretir. Mevcut adaylar arasında 3-5-2, 3-4-3, 4-4-2, 4-5-1, 2-5-3 ve 5-3-2 vardır. Nihai rakip/taktik skorunu hesaplamaz.
 
 ### M5 — Pozisyon Optimizasyon Motoru
-Diziliş adayındaki slotlara oyuncu atamalarını takım seviyesinde optimize eder. Aynı oyuncu aynı aday XI içinde iki kez kullanılamaz. Uygunluk skoru gerçek Hattrick maç ratingi değildir; yalnızca optimizasyon girdisidir.
+Motor 4'ten gelen **her FormationCandidate** için oyuncu → slot atamalarını takım seviyesinde optimize eder. 11 slotun tamamı doldurulmalı, aynı oyuncu aynı aday XI içinde iki kez kullanılamamalıdır. Uygunluk skoru gerçek Hattrick maç ratingi değildir; yalnızca optimizasyon girdisidir.
+
+M5 artık `PositionOptimizationEngine` üzerinden çalışır. Motor 4'ün altı formasyonunun tamamını doğrudan kabul eden bir overload bulunur. İlk/best atama tüm uygun oyuncu havuzu üzerinde Hungarian algoritmasıyla exact olarak garanti edilir; ek adaylar alternatif kombinasyonları sınırlı arama ile üretir.
+
+M5, rakip/taktik skorunu ve oyuncu davranış emirlerini hesaplamaz. Bu katmanlar sonraki motorlarda kalır.
 
 ### M6 — Davranış Optimizasyon Motoru
 Normal, ofansif, defansif, ortaya doğru ve kanada doğru davranış adaylarını değerlendirir. Nihai karar M9/M10 tarafında verilecektir.
@@ -162,34 +166,15 @@ Greedy structural scoring ile optimal distinct-player eşleştirmesi arasındaki
 
 **Sonuç: M4 PASS.** Mevcut Motor 4 yapısının değiştirilmesine gerek görülmedi.
 
-### M5 — Pozisyon Optimizasyon Motoru — PARTIAL 🟠
+### M5 — Pozisyon Optimizasyon Motoru — PARTIAL → DÜZELTİLDİ 🟠
 
-M5'in mevcut `XIOptimizer` kodu gerçek bir takım-seviyesi atama yapıyor: 11 slot için dikdörtgen Hungarian algoritması kullanıyor ve aynı oyuncunun aynı XI içinde iki kez seçilmesini engelliyor. Bu nedenle temel optimizasyon mekanizması çalışıyor.
+Önceki offline kontrolde temel Hungarian ataması çalışırken iki eksik bulundu: eski `XIOptimizer` yolu yalnızca 3-5-2'yi destekliyordu ve opponent adjustment slot sabiti olarak kalıyordu. Bu yapı M5'ün Motor 4 ile tam zincir halinde kullanılmasına uygun değildi.
 
-3-5-2 offline testinde 30 uygun oyuncu içinden 11 farklı oyuncu seçildi ve toplam pozisyon uygunluk skoru **197.77** oldu. Rakip-aware ayarlamayla bulunan eşdeğer optimal çözümün toplamı **198.67** oldu; oyuncu atamasında DEF-CL / DEF-C arasında eşit skorlu bir yer değişimi oluştu.
+M5 şimdi `PositionOptimizationEngine` olarak Motor 4'ün ürettiği altı formationun tamamını kabul ediyor. `FormationCandidateSet` için doğrudan toplu üretim API'si eklendi; her formation bağımsız optimize ediliyor. Eligibility filtresi M5 içinde tekrar uygulanıyor ve aynı oyuncunun iki slotta kullanılması engelleniyor.
 
-Test çıktısı:
+En iyi atama tüm uygun oyuncu havuzu üzerinde Hungarian algoritmasıyla exact olarak hesaplanıyor. Sınırlı arama yalnızca alternatif adayları üretmek için kullanılıyor; böylece aday havuzu kesintisi birinci çözümü değiştiremiyor.
 
-| Slot | Oyuncu | Suitability |
-|---|---|---:|
-| GK | Enzo Bultot | 17.90 |
-| DEF-CL | Dawid Nocoń | 18.72 |
-| DEF-C | Abeiku Takyi | 19.17 |
-| DEF-CR | Cristian Pesalovo | 18.39 |
-| W-L | Felix Gustavsson | 19.00 |
-| IM-L | Francisco Manuel | 17.48 |
-| IM-C | Bertalan Doktor | 21.64 |
-| IM-R | Milen Bozev | 14.97 |
-| W-R | Nándor Dobóvári | 18.94 |
-| FW-L | Adrian Beţa | 16.74 |
-| FW-R | Ersin Akşın | 14.82 |
-
-**Ancak M5 henüz PASS değil. İki kritik eksik bulundu:**
-
-1. `XIOptimizer.FormationSlots()` şu anda yalnızca **3-5-2** destekliyor. M4 ise 3-5-2, 3-4-3, 4-4-2, 4-5-1, 2-5-3 ve 5-3-2 olmak üzere 6 aday üretiyor. Dolayısıyla M4 → M5 entegrasyonu bütün adaylar için çalışmıyor.
-2. `OpponentAdjustment()` mevcut haliyle yalnızca **slot bazlı sabit** bir terim ekliyor; oyuncuya bağlı olmadığı için sabit bir formation içinde Hungarian oyuncu atamasını gerçek anlamda rakibe göre değiştiremiyor. Bu nedenle mevcut kodun “opponent-aware adjustment” iddiası oyuncu seçimi açısından henüz tam karşılanmış sayılmamalı.
-
-**M5 kararı: PARTIAL / FAIL değil, fakat PASS için düzeltme gerekli.** Temel Hungarian optimizasyonu doğrulandı; formation kapsamı ve gerçek rakip-aware oyuncu eşleştirmesi tamamlanmalı.
+Bu aşamada **kod düzeltmesi tamamlandı; yeni 6-formasyon offline regression koşusu yapıldıktan sonra M5 PASS/FAIL durumu kesinleştirilecektir.**
 
 ## Mimari olarak doğrulanan noktalar
 
@@ -200,13 +185,14 @@ Test çıktısı:
 5. Rakip analizi kendi XI seçimimize bağımlı olmamalıdır.
 6. Aynı oyuncu bir aday XI içinde iki slotta kullanılamaz.
 7. M4 → M5 geçişinde M5'in tüm M4 formationlarını desteklemesi gerekir.
-8. Rakip adjustment oyuncu-slot eşleşmesini gerçekten etkileyebilecek şekilde tasarlanmalıdır; yalnızca slot sabiti eklemek yeterli değildir.
-9. Optimizasyon döngüsü yalnızca daha iyi aday bulunduğunda devam etmelidir.
-10. Bir motorun sorumluluğu sonraki motorun işini gizlice üstlenmemelidir.
+8. M5'in first/best assignment sonucu exact optimizasyonla doğrulanmalıdır.
+9. Rakip/taktik skor ve individual behaviour M5 içinde gizlice hesaplanmamalıdır.
+10. Optimizasyon döngüsü yalnızca daha iyi aday bulunduğunda devam etmelidir.
+11. Bir motorun sorumluluğu sonraki motorun işini gizlice üstlenmemelidir.
 
 ## Dikkat edilmesi gereken eski yol
 
-`HattrickAI_V5/Core/XIOptimizer.cs` içinde eski oyuncu → pozisyon atama yolu hâlâ bulunmaktadır. Yeni 11 aşamalı mimaride bunun canlı çağrı zincirinde nerede kullanıldığı kesinleştirilmeden silinmemelidir. `PositionSuitabilityEngine` ise mevcut API'yi koruyan uyumluluk katmanı olarak Motor 3'e delegasyon yapmaktadır.
+`HattrickAI_V5/Core/XIOptimizer.cs` içinde eski oyuncu → pozisyon atama yolu hâlâ bulunmaktadır. Bu sınıf eski/uyumluluk yoludur ve M5'ün kanonik kaynağı **değildir**. Yeni 11 aşamalı mimaride canlı çağrı zincirinde nerede kullanıldığı kesinleştirilmeden silinmemelidir. `PositionSuitabilityEngine` ise mevcut API'yi koruyan uyumluluk katmanı olarak Motor 3'e delegasyon yapmaktadır.
 
 ## Geliştirme kuralı
 
