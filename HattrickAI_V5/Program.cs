@@ -133,6 +133,22 @@ app.MapGet("/api/v5/analysis", async (HttpContext http, AnalysisService service,
     catch (Exception ex) { return Results.Problem(ex.Message, statusCode: 502); }
 });
 
+app.MapGet("/api/v5/offline-export", async (HttpContext http, AnalysisService service, ChppV5 chpp, CancellationToken ct) =>
+{
+    if (!chpp.Connected) return Results.Unauthorized();
+    try
+    {
+        var questionnaire = new MatchQuestionnaire(
+            Enum.TryParse<CoachStyle>(http.Session.GetString("v5.coach"), true, out var coach) ? coach : CoachStyle.Neutral,
+            Enum.TryParse<TeamSpiritLevel>(http.Session.GetString("v5.spirit"), true, out var spirit) ? spirit : TeamSpiritLevel.Composed,
+            Enum.TryParse<TeamAttitude>(http.Session.GetString("v5.attitude"), true, out var attitude) ? attitude : TeamAttitude.Normal);
+        var exporter = new OfflineExportService(chpp, service);
+        return Results.Ok(await exporter.ExportAsync(build, questionnaire, ct));
+    }
+    catch (UnauthorizedAccessException ex) { return Results.Unauthorized(); }
+    catch (Exception ex) { return Results.Problem(ex.Message, statusCode: 502); }
+});
+
 app.MapGet("/api/v5/reference-match", async (ReferenceMatchService service, ChppV5 chpp, CancellationToken ct) =>
 {
     if (!chpp.Connected) return Results.Unauthorized();
