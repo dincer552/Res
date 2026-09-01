@@ -15,17 +15,19 @@ public sealed class PositionOptimizationEngine : IPositionOptimizationEngine
     private const int DefaultMaxCandidates = 100;
     private const int PlayerPoolPerSlot = 12;
 
+    // M5, M3'ün pozisyon skorunu ezmez. Natural-role yalnızca birbirine çok
+    // yakın seçeneklerde küçük bir tie-breaker olarak kullanılır.
+    private const double NaturalRoleTieThreshold = 0.75;
+    private const double PrimaryRoleBonus = 0.05;
+    private const double SecondaryRoleBonus = 0.02;
+    private const double RoleTieEpsilon = 0.05;
+
     public IReadOnlyList<PositionAssignmentCandidate> GenerateCandidates(
         MatchDataContext context,
         PlayerAnalysisResult players,
         FormationCandidate formation)
         => GenerateCandidates(context, players, formation, DefaultMaxCandidates);
 
-    /// <summary>
-    /// Motor 4'ün ürettiği tek bir FormationCandidate için pozisyon atama
-    /// adaylarını üretir. En iyi atama Hungarian ile tam olarak bulunur; ek
-    /// adaylar alternatif kombinasyonları keşfeden sınırlı arama ile üretilir.
-    /// </summary>
     public IReadOnlyList<PositionAssignmentCandidate> GenerateCandidates(
         MatchDataContext context,
         PlayerAnalysisResult players,
@@ -38,8 +40,6 @@ public sealed class PositionOptimizationEngine : IPositionOptimizationEngine
         if (maxCandidates < 1) throw new ArgumentOutOfRangeException(nameof(maxCandidates));
         ValidateFormation(formation);
 
-        // Motor 3'ün eligibility kararına tekrar güvenlik filtresi koyuyoruz.
-        // Böylece eski/harici profile verisi sakat oyuncuyu M5'e sızdıramaz.
         var eligibleProfiles = players.Players
             .Where(p => p.IsEligible && p.PlayerId > 0)
             .GroupBy(p => p.PlayerId)
@@ -52,9 +52,8 @@ public sealed class PositionOptimizationEngine : IPositionOptimizationEngine
         var results = new List<PositionAssignmentCandidate>();
         var seen = new HashSet<string>(StringComparer.Ordinal);
 
-        // Önce global olarak en iyi 11'li atamayı tüm uygun oyuncu havuzunda
-        // exact Hungarian çözümüyle garanti altına alıyoruz. Böylece M5'in
-        // aday havuzu kesmesi hiçbir zaman birinci çözümü bozmaz.
+        // Exact çözüm hâlâ tüm uygun oyuncu havuzunda yapılır. M5'in aday
+        // havuzu kesmesi birinci çözümü değiştiremez.
         var exact = BuildExactBestCandidate(formation, eligibleProfiles, byId);
         AddUnique(exact, results, seen);
 
@@ -73,10 +72,8 @@ public sealed class PositionOptimizationEngine : IPositionOptimizationEngine
                     .ToList()))
             .ToList();
 
-        // Tek bir slot bile doldurulamıyorsa diziliş Motor 5'ten geçmez.
         if (candidatePools.Any(x => x.Players.Count == 0)) return results;
 
-        // En az seçenekli slotları önce doldurmak dallanmayı azaltır.
         var ordered = candidatePools
             .OrderBy(x => x.Players.Count)
             .ThenByDescending(x => x.Players.Max(y => y.Score))
@@ -101,10 +98,6 @@ public sealed class PositionOptimizationEngine : IPositionOptimizationEngine
             .ToList();
     }
 
-    /// <summary>
-    /// Motor 4'ün tüm aday diziliş setini doğrudan Motor 5'e bağlayan kolaylık API'si.
-    /// Her formation bağımsız olarak optimize edilir; Motor 5 diziliş seçmez.
-    /// </summary>
     public IReadOnlyList<PositionAssignmentCandidate> GenerateCandidates(
         MatchDataContext context,
         PlayerAnalysisResult players,
@@ -140,7 +133,7 @@ public sealed class PositionOptimizationEngine : IPositionOptimizationEngine
         {
             for (var col = 0; col < cols; col++)
             {
-                var value = Score(profiles[col], formation.SlotCodes[row]);
+                var value = AdjustedScore(profiles[col], formation.SlotCodes[row]);
                 cost[row, col] = value > 0 ? -value : 1e9;
             }
         }
@@ -158,13 +151,14 @@ public sealed class PositionOptimizationEngine : IPositionOptimizationEngine
                     $"Motor 5 '{formation.Formation}' için geçerli bir Hungarian ataması üretemedi.");
 
             var profile = profiles[playerIndex];
-            var score = Score(profile, formation.SlotCodes[row]);
-            if (score <= 0 || !used.Add(profile.PlayerId))
+            var rawScore = Score(profile, formation.SlotCodes[row]);
+            var adjustedScore = AdjustedScore(profile, formation.SlotCodes[row]);
+            if (rawScore <= 0 || !used.Add(profile.PlayerId))
                 throw new InvalidOperationException(
                     $"Motor 5 '{formation.Formation}' geçersiz oyuncu-slot ataması üretti.");
 
-            assigned.Add(new AssignedSlot(profile.PlayerId, formation.SlotCodes[row], score));
-            total += score;
+            assigned.Add(new AssignedSlot(profile.PlayerId, formation.SlotCodes[row], rawScore, adjustedScore));
+            total += adjustedScore;
         }
 
         return BuildCandidate(formation.Formation, assigned, total, byId);
@@ -192,18 +186,27 @@ public sealed class PositionOptimizationEngine : IPositionOptimizationEngine
         }
 
         var pool = pools[index];
-        foreach (var option in pool.Players)
+        foreach (var option in pool.Players
+                     .OrderByDescending(x => AdjustedScore(profiles[x.PlayerId], pool.Code))
+                     .ThenBy(x => x.PlayerId))
         {
             if (used.Contains(option.PlayerId)) continue;
 
+            var adjusted = AdjustedScore(profiles[option.PlayerId], pool.Code);
+            if (adjusted <= 0) continue;
+
             used.Add(option.PlayerId);
-            assigned.Add(new AssignedSlot(option.PlayerId, pool.Code, option.Score));
+            assigned.Add(new AssignedSlot(
+                option.PlayerId,
+                pool.Code,
+                option.Score,
+                adjusted));
             Search(
                 pools,
                 index + 1,
                 used,
                 assigned,
-                score + option.Score,
+                score + adjusted,
                 profiles,
                 results,
                 resultLimit,
@@ -223,7 +226,7 @@ public sealed class PositionOptimizationEngine : IPositionOptimizationEngine
         IReadOnlyDictionary<int, PlayerAnalysisProfile> profiles)
     {
         var slots = assigned
-            .Select(x => ToSlot(profiles[x.PlayerId], x.Code, x.Score))
+            .Select(x => ToSlot(profiles[x.PlayerId], x.Code, x.RawScore))
             .OrderBy(x => SlotOrder(x.Code))
             .ToList();
 
@@ -268,6 +271,33 @@ public sealed class PositionOptimizationEngine : IPositionOptimizationEngine
 
     private static double Score(PlayerAnalysisProfile profile, string code)
         => profile.Positions.FirstOrDefault(x => x.PositionCode == code)?.Score ?? 0;
+
+    private static double AdjustedScore(PlayerAnalysisProfile profile, string code)
+    {
+        var raw = Score(profile, code);
+        if (raw <= 0) return 0;
+
+        // M3'ün skoru açık ara en güçlü sinyal olarak kalır. Natural-role
+        // yalnızca oyuncunun en iyi pozisyonlarına yakın seçeneklerde devreye girer.
+        var best = profile.Positions.Max(x => x.Score);
+        if (best - raw > NaturalRoleTieThreshold)
+            return raw;
+
+        // Birden fazla pozisyon aynı güçteyse primary/secondary bilgisi yapay
+        // bir sol/merkez/sağ tercihi yaratmamalı.
+        var tiedBestCount = profile.Positions.Count(x =>
+            x.Score > 0 && Math.Abs(x.Score - best) <= RoleTieEpsilon);
+        if (tiedBestCount > 1)
+            return raw;
+
+        if (string.Equals(profile.PrimaryPosition, code, StringComparison.Ordinal))
+            return raw + PrimaryRoleBonus;
+
+        if (string.Equals(profile.SecondaryPosition, code, StringComparison.Ordinal))
+            return raw + SecondaryRoleBonus;
+
+        return raw;
+    }
 
     private static Slot ToSlot(PlayerAnalysisProfile profile, string code, double score)
     {
@@ -401,5 +431,5 @@ public sealed class PositionOptimizationEngine : IPositionOptimizationEngine
 
     private sealed record SlotPool(string Code, IReadOnlyList<PlayerSlotScore> Players);
     private sealed record PlayerSlotScore(int PlayerId, double Score);
-    private sealed record AssignedSlot(int PlayerId, string Code, double Score);
+    private sealed record AssignedSlot(int PlayerId, string Code, double RawScore, double AdjustedScore);
 }
