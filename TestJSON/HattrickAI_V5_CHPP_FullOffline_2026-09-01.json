@@ -1,0 +1,11 @@
+{
+  "schema": "hattrickai-v5-offline-test-v2",
+  "exportedAt": "2026-09-01T08:49:55.1576611+00:00",
+  "build": "dev",
+  "source": "CHPP",
+  "security": {
+    "credentialsIncluded": false,
+    "oauthTokensIncluded": false,
+    "sessionCookiesIncluded": false
+  }
+}
