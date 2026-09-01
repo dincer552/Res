@@ -1,39 +1,25 @@
 namespace HattrickAI.V5.Core;
 
 /// <summary>
-/// Motor 1: oyuncunun seçilen pozisyon için temel uygunluğunu hesaplar.
-/// Bu katman takım ratingi üretmez ve davranış seçmez; XI optimizer için
-/// karşılaştırılabilir pozisyon skorları sağlar.
+/// Compatibility adapter for the existing XI optimizer.
+/// Canonical player-position analysis now lives in PlayerAnalysisEngine (Motor 3).
+/// This adapter keeps the existing API stable while delegating the actual
+/// suitability calculation to Motor 3.
 /// </summary>
 public sealed class PositionSuitabilityEngine
 {
-    public double Score(Player p, string code)
-    {
-        ArgumentNullException.ThrowIfNull(p);
+    private readonly PlayerAnalysisEngine _playerAnalysis = new();
 
-        return code switch
-        {
-            "GK" => p.Keeper + p.Form * .15,
-            "DEF-L" or "DEF-R" => p.Defending + p.Passing * .10 + p.Winger * .05,
-            "DEF-C" or "DEF-CL" or "DEF-CR" => p.Defending * 1.05 + p.Passing * .15 + p.Playmaking * .04,
-            "W-L" or "W-R" => p.Winger + p.Passing * .22 + p.Playmaking * .08,
-            "IM-L" or "IM-R" => p.Playmaking + p.Passing * .25 + p.Stamina * .12,
-            "IM-C" => p.Playmaking * 1.05 + p.Passing * .25 + p.Stamina * .12 + p.Experience * .04,
-            "FW-L" or "FW-R" => p.Scoring + p.Passing * .18 + p.Winger * .08 + p.Experience * .02,
-            "FW-C" => p.Scoring * 1.05 + p.Passing * .20 + p.Playmaking * .04,
-            _ => double.NegativeInfinity
-        };
-    }
+    public double Score(Player player, string positionCode)
+        => _playerAnalysis.Score(player, positionCode);
 
-    public IReadOnlyDictionary<string, double> ScoreAll(Player p)
-    {
-        var codes = new[]
-        {
-            "GK", "DEF-L", "DEF-CL", "DEF-C", "DEF-CR", "DEF-R",
-            "W-L", "IM-L", "IM-C", "IM-R", "W-R",
-            "FW-L", "FW-C", "FW-R"
-        };
+    public IReadOnlyDictionary<string, double> ScoreAll(Player player)
+        => _playerAnalysis.Analyze(player).Positions
+            .ToDictionary(x => x.PositionCode, x => x.Score);
 
-        return codes.ToDictionary(code => code, code => Score(p, code));
-    }
+    public PlayerAnalysisProfile Analyze(Player player)
+        => _playerAnalysis.Analyze(player);
+
+    public IReadOnlyList<PlayerAnalysisProfile> AnalyzeAll(IEnumerable<Player> players)
+        => _playerAnalysis.AnalyzeAll(players);
 }
