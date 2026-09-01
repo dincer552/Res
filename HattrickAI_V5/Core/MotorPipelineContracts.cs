@@ -29,7 +29,14 @@ public sealed record PositionAssignmentCandidate(
     string Formation,
     Lineup Lineup,
     double SuitabilityScore,
-    IReadOnlyDictionary<int, string>? PlayerAssignments = null);
+    IReadOnlyDictionary<int, string>? PlayerAssignments = null)
+{
+    public string FormationId => Formation;
+    public string LineupId => CandidateId;
+    public string CandidateId => string.Join(";", Lineup.Slots
+        .OrderBy(x => x.Code, StringComparer.Ordinal)
+        .Select(x => $"{x.Code}:{x.PlayerId}"));
+}
 
 public sealed record BehaviourPlanCandidate(
     Lineup Lineup,
@@ -89,43 +96,5 @@ public interface IBehaviourOptimizationEngine
 {
     IReadOnlyList<BehaviourPlanCandidate> GenerateCandidates(
         MatchDataContext context,
-        PositionAssignmentCandidate positionCandidate);
-}
-
-public interface IRegionalRatingCalculator
-{
-    RegionalRatingSnapshot Calculate(
-        Lineup lineup,
-        IReadOnlyList<Player> players,
-        RatingContext context);
-}
-
-public interface IMatchupEvaluationEngine
-{
-    MatchupEvaluation Evaluate(
-        RegionalRatingSnapshot own,
-        RegionalRatingSnapshot opponent);
-}
-
-public interface ITacticalScoreEngine
-{
-    double Score(
-        RegionalRatingSnapshot own,
-        RegionalRatingSnapshot opponent,
-        MatchupEvaluation matchup,
-        MatchQuestionnaire questionnaire);
-}
-
-public interface IFinalMatchPlanEngine
-{
-    FinalMatchPlan Build(IReadOnlyList<TacticalCandidate> candidates);
-}
-
-public interface IMatchPredictionEngine
-{
-    MatchPrediction Predict(
-        FinalMatchPlan plan,
-        RegionalRatingSnapshot opponent,
-        RatingContext context,
-        MatchQuestionnaire questionnaire);
+        PositionAssignmentCandidate xi);
 }
