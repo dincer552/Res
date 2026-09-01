@@ -42,15 +42,25 @@ public static class OfflineRegressionRunner
             Console.WriteLine($"M3: {m3Result.Players.Count} profiles | M4: {m4First.Candidates.Count} legal formation candidates | invalid: 0");
             Console.WriteLine("M4 formations: " + string.Join(", ", m4First.Candidates.Select(c => c.Formation)));
 
+            var opponentName = analysis.TryGetProperty("opponentName", out var opponentNameElement)
+                ? opponentNameElement.GetString() ?? "Opponent"
+                : "Opponent";
+            var opponentFormation = analysis.TryGetProperty("opponentFormation", out var opponentFormationElement)
+                ? opponentFormationElement.GetString() ?? ""
+                : "";
+            var teamName = analysis.TryGetProperty("teamName", out var teamNameElement)
+                ? teamNameElement.GetString() ?? lineup.TeamName
+                : lineup.TeamName;
+
             var opponentProfile = new OpponentMatchProfile(
-                analysis.GetProperty("opponentName").GetString() ?? "Opponent",
-                analysis.GetProperty("opponentFormation").GetString() ?? "",
+                opponentName,
+                opponentFormation,
                 opponent,
                 new OpponentThreatEngine().Analyze(opponent));
             var context = new MatchDataContext(
                 players,
                 0,
-                analysis.GetProperty("teamName").GetString() ?? "Own Team",
+                teamName,
                 opponentProfile,
                 RatingContext.Default,
                 MatchQuestionnaire.Default);
@@ -101,7 +111,7 @@ public static class OfflineRegressionRunner
 
             if (failures.Count > 0) { foreach (var f in failures) Console.WriteLine("FAIL: " + f); return 1; }
             Console.WriteLine("PASS: M3 → M4 → M5 → M7 → M7.1 → M7.2 → M8 offline regression");
-            Console.WriteLine($"XI: {lineup.Formation} | Opponent: {analysis.GetProperty("opponentName").GetString()}");
+            Console.WriteLine($"XI: {lineup.Formation} | Opponent: {opponentName}");
             Console.WriteLine($"M7 midfield: {m7Result.Rating.Midfield:0.###} | Opponent midfield: {opponent.Midfield:0.###}");
             Console.WriteLine("Tactics tested: Normal, CounterAttack, LongShots, AttackMiddle, AttackWings, Creative");
             return 0;
@@ -109,7 +119,21 @@ public static class OfflineRegressionRunner
         catch (Exception ex) { Console.WriteLine("STACK: " + ex); return Fail("offline regression exception: " + ex.Message); }
     }
 
-    private static Player ReadPlayer(JsonElement e) => new(e.GetProperty("id").GetInt32(), e.GetProperty("name").GetString() ?? "", e.GetProperty("keeper").GetInt32(), e.GetProperty("defending").GetInt32(), e.GetProperty("playmaking").GetInt32(), e.GetProperty("passing").GetInt32(), e.GetProperty("winger").GetInt32(), e.GetProperty("scoring").GetInt32(), e.GetProperty("stamina").GetInt32(), e.GetProperty("form").GetInt32(), e.GetProperty("experience").GetInt32(), e.TryGetProperty("loyalty", out var l) ? l.GetInt32() : 0);
+    private static Player ReadPlayer(JsonElement e) => new(
+        e.GetProperty("id").GetInt32(),
+        e.GetProperty("name").GetString() ?? "",
+        e.GetProperty("keeper").GetInt32(),
+        e.GetProperty("defending").GetInt32(),
+        e.GetProperty("playmaking").GetInt32(),
+        e.GetProperty("passing").GetInt32(),
+        e.GetProperty("winger").GetInt32(),
+        e.GetProperty("scoring").GetInt32(),
+        e.GetProperty("stamina").GetInt32(),
+        e.GetProperty("form").GetInt32(),
+        e.GetProperty("experience").GetInt32(),
+        e.TryGetProperty("loyalty", out var l) ? l.GetInt32() : 0,
+        e.TryGetProperty("injuryLevel", out var injury) ? injury.GetInt32() : 0);
+
     private static Lineup ReadLineup(JsonElement e)
     {
         var slots = e.GetProperty("slots").EnumerateArray().Select(s => new Slot(s.GetProperty("code").GetString() ?? "", s.GetProperty("label").GetString() ?? "", s.GetProperty("description").GetString() ?? "", s.TryGetProperty("playerName", out var n) ? n.GetString() : null, s.GetProperty("playerId").GetInt32(), s.GetProperty("rating").GetDouble(), s.GetProperty("x").GetDouble(), s.GetProperty("y").GetDouble())).ToList();
