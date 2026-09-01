@@ -4,98 +4,385 @@
 
 **Aktif branch: `v5`**
 
-V5, Hattrick maç analizini tek bir büyük formül yerine birbirine bağlı 11 aşamalı motor mimarisiyle geliştirir.
+V5, Hattrick maç analizini tek bir büyük formül yerine birbirine bağlı, aday üreten ve gerektiğinde geri beslemeli motor mimarisiyle geliştirir.
 
-## Hedef analiz akışı
+## Nihai hedef akış — V5.1 mimari planı
 
 ```text
-CHPP / Veri
-    ↓
-1. Veri Hazırlama
-    ├───────────────┐
-    ↓               ↓
-2. Rakip Analizi   3. Oyuncu Analizi
-    └───────┬───────┘
-            ↓
-4. Aday Dizilişler
-            ↓
-5. Pozisyon Optimizasyonu
-            ↓
-6. Davranış Optimizasyonu
-            ↓
-7. Bölgesel Rating
-            ↓
-8. Maç Eşleşmesi
-            ↓
-9. Taktiksel Skor
-            ↓
-       daha iyi aday?
-        ├─ EVET → 5
-        └─ HAYIR
-             ↓
-10. En İyi Maç Planı
-            ↓
-11. Maç Tahmini
+M1  Veri / CHPP
+ │
+ ├──────────────→ M2  Rakip Analizi
+ │
+ └──────────────→ M3  Oyuncu Analizi
+                         │
+                         ↓
+                  M4  Diziliş Adayları
+                         │
+                         ↓
+                  M5  XI Adayları
+                         │
+                         ↓
+                  M6  Individual Behaviour Adayları
+                         │
+                         ↓
+                  M6B Maç Ayarı Adayları
+                  ├─ Team Attitude
+                  ├─ Team Tactic
+                  └─ diğer maç parametreleri
+                         │
+                         ↓
+                  M7  Rating Simulation
+                         │
+                         ↓
+                  M8  Matchup Engine
+                         │
+                         ↓
+                  M9  Tactical Value
+                         │
+                         ↓
+                  M10 Global Match Optimizer
+                    ↙       ↓        ↘
+                  M4        M5       M6/M6B
+                    \        │        /
+                     └──→ M7 → M8 → M9
+                              │
+                         stabil aday
+                              ↓
+                       M11 Prediction
 ```
 
-Döngünün amacı tek bir oyuncuyu değil; **oyuncu + pozisyon + davranış + rakip eşleşmesi** bütününü optimize etmektir.
+### Mimari prensip
 
-## Motor isimleri ve mevcut durum
+Her motor kendisinden önceki katmanın bilgisini kullanır; kendisinden sonraki motorun kararını erkenden vermemelidir. Aday üreten motorlar tek bir erken karar vermek yerine yeterli alternatifleri korur. M10, tüm aday uzayını karşılaştıran kontrollü global optimizerdır.
 
-| Sıra | Gerçek işlev | Kod / sınıf | Durum |
+---
+
+## Motor isimleri ve hedef durum
+
+| Sıra | Motor | Gerçek işlev | Durum |
 |---|---|---|---|
-| M1 | CHPP Veri Motoru / Veri Katmanı | CHPP veri katmanı | ✅ Çalışıyor |
-| M2 | Rakip Analiz Motoru | `Motor2OpponentAwareRefiner` / rakip profil katmanı | 🟡 Bakım + doğrulama |
-| M3 | Oyuncu Analiz Motoru | `PlayerAnalysisEngine` | ✅ Offline test PASS |
-| M4 | Aday Diziliş Motoru | `FormationCandidateEngine` | ✅ Offline test PASS |
-| M5 | Pozisyon Optimizasyon Motoru | `PositionOptimizationEngine` | 🟡 Düzeltildi / offline regression tekrar bekliyor |
-| M6 | Davranış Optimizasyon Motoru | `BehaviourOptimizer` | 🟡 İskelet |
-| M7 | Bölgesel Rating Motoru | `RegionalRatingEngineFixed` | ✅ Referans motor |
-| M8 | Maç Eşleşme Motoru | planlanan | ⏳ Sıradaki ana geliştirme |
-| M9 | Taktiksel Skor Motoru | planlanan | ⏳ |
-| M10 | Final Taktik Optimizasyon Motoru | planlanan | ⏳ |
-| M11 | Maç Tahmin Motoru | planlanan | ⏳ |
+| M1 | CHPP Veri Motoru | Veri toplama/normalizasyon | ✅ |
+| M2 | Rakip Analiz Motoru | Rakip profili ve tehdit verisi | 🟡 Bakım + doğrulama |
+| M3 | Oyuncu Analiz Motoru | Oyuncu/pozisyon profilleri | ✅ Offline PASS |
+| M4 | Aday Diziliş Motoru | Yasal/doldurulabilir formation adayları | ✅ Offline PASS |
+| M5 | Pozisyon Optimizasyon Motoru | Formation başına XI adayları | 🟢 Düzeltildi / regression PASS hedefi |
+| M6 | Davranış Aday Motoru | Individual behaviour adayları | 🟡 İskelet |
+| M6B | Maç Ayarı Aday Motoru | Team attitude + team tactic adayları | 🆕 Planlandı |
+| M7 | Bölgesel Rating Motoru | Senaryo → 7 bölgesel rating | ✅ Referans motor |
+| M8 | Maç Eşleşme Motoru | Biz ↔ rakip bölgesel matchup | ⏳ Sıradaki ana geliştirme |
+| M9 | Taktiksel Değer Motoru | Fırsat + güvenlik + midfield + risk | ⏳ |
+| M10 | Global Match Optimizer | Formation × XI × behaviour × settings optimizasyonu | ⏳ |
+| M11 | Maç Tahmin Motoru | Final plan → olasılık/tahmin | ⏳ |
+
+---
+
+## Motor sorumlulukları
 
 ### M1 — CHPP Veri Motoru / Veri Katmanı
-Ham takım, oyuncu, rakip ve maç verilerini sağlar. Karar vermemelidir.
+
+Ham takım, oyuncu, rakip, maç, training ve ilgili CHPP verilerini sağlar ve normalize eder. Karar vermemelidir.
 
 ### M2 — Rakip Analiz Motoru
-Rakibin bizim XI seçimimizden bağımsız olarak son resmi maçını, dizilişini, final 11'ini, gerçek 7 bölgesel ratingini ve tehdit profilini hazırlar. **RP karar girdisi değildir.**
+
+Rakibin bizim XI seçimimizden bağımsız profilini üretir:
+
+- son resmi maç
+- mümkünse recent baseline (son 3–5 maç)
+- formasyon
+- final 11
+- gerçek 7 bölgesel rating
+- tehdit profili
+- veri kaynağı
+- confidence
+
+**RP karar girdisi değildir.** M2 bizim XI'ımızı seçmez ve değiştirmez.
 
 ### M3 — Oyuncu Analiz Motoru
-Sadece kendi oyuncularının pozisyon uygunluk profillerini üretir. XI seçmez, diziliş seçmez, rakip skoru üretmez ve bölgesel rating üretmez. Oyuncu profilinde `IsEligible`, `InjuryLevel`, pozisyon adayları, birincil ve ikincil pozisyon bulunur. `InjuryLevel == 999` oyuncular aday değildir.
+
+Sadece kendi oyuncularının doğal pozisyon uygunluk profilini üretir. XI, formation, rakip matchup veya takım ratingi seçmez. Profilde `IsEligible`, `InjuryLevel`, pozisyon adayları, primary ve secondary position bulunur. `InjuryLevel == 999` oyuncular aday değildir.
 
 ### M4 — Aday Diziliş Motoru
-Yasal ve doldurulabilir diziliş adaylarını üretir. Mevcut adaylar arasında 3-5-2, 3-4-3, 4-4-2, 4-5-1, 2-5-3 ve 5-3-2 vardır. Nihai rakip/taktik skorunu hesaplamaz.
+
+Yasal ve doldurulabilir formation adaylarını üretir. Mevcut adaylar:
+
+- 3-5-2
+- 3-4-3
+- 4-4-2
+- 4-5-1
+- 2-5-3
+- 5-3-2
+
+M4 formation adaylarını sıralayabilir ancak rakibe karşı nihai seçim yapmaz. Structural Score aday üretme sinyalidir; M5/M8/M9 sonuçlarıyla karıştırılmamalıdır.
 
 ### M5 — Pozisyon Optimizasyon Motoru
-Motor 4'ten gelen **her FormationCandidate** için oyuncu → slot atamalarını takım seviyesinde optimize eder. 11 slotun tamamı doldurulmalı, aynı oyuncu aynı aday XI içinde iki kez kullanılamamalıdır. Uygunluk skoru gerçek Hattrick maç ratingi değildir; yalnızca optimizasyon girdisidir.
 
-M5 artık `PositionOptimizationEngine` üzerinden çalışır. Motor 4'ün altı formasyonunun tamamını doğrudan kabul eden bir overload bulunur. İlk/best atama tüm uygun oyuncu havuzu üzerinde Hungarian algoritmasıyla exact olarak garanti edilir; ek adaylar alternatif kombinasyonları sınırlı arama ile üretir.
+Her `FormationCandidate` için oyuncu → slot eşleşmesini optimize eder. 11 slotun tamamı dolmalı, aynı oyuncu aynı XI içinde iki kez kullanılamamalı ve eligibility tekrar kontrol edilmelidir.
 
-M5, rakip/taktik skorunu ve oyuncu davranış emirlerini hesaplamaz. Bu katmanlar sonraki motorlarda kalır.
+Ana optimizasyon tüm uygun oyuncu havuzunda exact Hungarian assignment ile yapılır. Alternatif XI'lar geniş aday havuzu/beam search ile korunur.
 
-### M6 — Davranış Optimizasyon Motoru
-Normal, ofansif, defansif, ortaya doğru ve kanada doğru davranış adaylarını değerlendirir. Nihai karar M9/M10 tarafında verilecektir.
+M5'te:
 
-### M7 — Bölgesel Rating Motoru
-`RegionalRatingEngineFixed` yedi bölgesel rating üretir. Yeni doğrulanmış maç verisi olmadan temel katsayılar değiştirilmemelidir.
+- M3 suitability temel sinyaldir.
+- Natural Role yalnızca küçük tie-breaker olmalıdır.
+- Role Distance yakın adaylar arasında tercih sinyalidir; M3 skorunu ezmemelidir.
+- Continuity verisi güvenilir biçimde mevcutsa küçük bonus olarak kullanılabilir.
+- Balance sinyali M5'te gerçek rating/crowding hesabının yerine geçmemelidir.
 
-### M8 — Maç Eşleşme Motoru
-Bizim hücum/savunma bölgelerimizi rakibin karşı savunma/hücum bölgeleriyle eşleştirecek. **Bir sonraki ana geliştirme aşaması.**
+M5 rakibe, team tactic'e veya individual behaviour'a göre gizli karar vermez.
 
-### M9 — Taktiksel Skor Motoru
-Hücum avantajı, savunma güvenliği, orta saha ve risk/denge üzerinden aday planları karşılaştıracak.
+### M6 — Individual Behaviour Candidate Engine
 
-### M10 — Final Taktik Optimizasyon Motoru
-En iyi diziliş + ilk 11 + individual behaviour + rakip eşleşmesini final maç planına dönüştürecek.
+M5'ten gelen her XI için mümkün individual behaviour adaylarını üretir:
 
-### M11 — Maç Tahmin Motoru
-Final plan üzerinden pozisyon şansı, gol olasılığı ve kazanma olasılığı üretecek.
+- Normal
+- Offensive
+- Defensive
+- Towards Middle
+- Towards Wing
+- pozisyona göre yasal diğer seçenekler
 
-## Offline regression testi
+M6 nihai davranış kararını vermez; adayları M7/M8/M9 değerlendirmesine bırakır.
 
-Kalıcı test girdisi:
+### M6B — Match Configuration Candidate Engine
+
+M6'dan ayrı tutulur. Individual order ile takım ayarlarının birbirine karışmasını önler. Aday uzayına:
+
+- Team Attitude (Normal/PIC/MOTS vb. uygun seçenekler)
+- Team Tactic (Normal, Counter Attack, Attack in Middle, Attack on Wings, Pressing, Long Shots, Play Creatively vb. uygun seçenekler)
+- ileride eklenebilecek maç ayarları
+
+eklenir.
+
+M6B nihai seçimi yapmaz. Yasal/uygulanabilir kombinasyonlar üretir.
+
+### M7 — Bölgesel Rating / Scenario Simulation Engine
+
+M7 artık yalnızca XI değil, bir **Match State** senaryosunu değerlendirmelidir:
+
+```text
+XI
++ Individual Behaviour Set
++ Team Attitude
++ Team Tactic
++ diğer doğrulanmış maç parametreleri
+→ 7 bölgesel rating
+```
+
+Çıktı `RatingCandidateId`, `FormationId`, `LineupId`, `BehaviourSetId`, `TacticId` gibi izlenebilir kimlikleri taşımalıdır. Böylece M8'de bir ratingin hangi adaydan geldiği kaybolmaz.
+
+Yeni doğrulanmış gerçek maç verisi olmadan temel rating katsayıları değiştirilmemelidir.
+
+### M8 — Matchup Engine
+
+M8, bizim M7 rating adaylarımızı M2'nin rakip profilindeki gerçek/reference ratinglerle karşılaştırır.
+
+Bölgesel eşleşmeler:
+
+```text
+Our ATT-L ↔ Opp DEF-L
+Our ATT-C ↔ Opp DEF-C
+Our ATT-R ↔ Opp DEF-R
+
+Opp ATT-L ↔ Our DEF-L
+Opp ATT-C ↔ Our DEF-C
+Opp ATT-R ↔ Our DEF-R
+
+Our MID ↔ Opp MID
+```
+
+Her bölge için mümkün olduğunca:
+
+- Our Rating
+- Opponent Rating
+- Absolute Difference
+- Ratio/relative strength
+- Attack Opportunity
+- Defensive Security
+- Risk
+- Confidence
+- Data Source
+
+tutulmalıdır.
+
+M8 oyuncu, formation veya behaviour seçmez. Gol/kazanma olasılığı da üretmez.
+
+### M9 — Tactical Value Engine
+
+M8 matchup sonuçlarını maç açısından değerlendirir:
+
+- Attack Opportunity
+- Defensive Security
+- Midfield Control
+- Risk / balance
+- veri güveni
+
+M9'un görevi "en iyi oyuncuyu" seçmek değil, aday maç planının rakibe karşı değerini çıkarmaktır.
+
+### M10 — Global Match Optimizer
+
+M10 gerçek global optimizasyon katmanıdır. Aday uzayı:
+
+```text
+Formation
+× XI
+× Individual Behaviour Set
+× Team Attitude
+× Team Tactic
+```
+
+üzerinde M7 → M8 → M9 sonuçlarını karşılaştırır.
+
+M10 gerektiğinde kontrollü geri besleme verir:
+
+- daha iyi formation aranıyorsa → M4
+- daha iyi XI gerekiyorsa → M5
+- daha iyi behaviour gerekiyorsa → M6
+- daha iyi team setting gerekiyorsa → M6B
+
+Sonra aday tekrar M7 → M8 → M9 zincirinden geçer.
+
+Döngü sonsuz olmamalıdır. Maksimum iteration sayısı ve/veya anlamlı skor iyileşmesi (`epsilon`) ile durdurulmalıdır. Aynı aday tekrar tekrar değerlendirilmemeli; `CandidateId`/hash ile deduplication yapılmalıdır.
+
+M10 ayrıca **Immediate Match Value** ile **Long-Term Cost** bilgisini ayrı tutmalıdır. Özellikle PIC/MOTS gibi kararlar yalnızca anlık rating artışıyla değerlendirilmemelidir.
+
+### M11 — Match Prediction Engine
+
+M10'un stabilize edilmiş final maç planını alır ve:
+
+- pozisyon/atak fırsatı
+- gol olasılığı
+- beraberlik/kazanma/kaybetme olasılığı
+- mümkünse confidence interval
+
+üretir.
+
+M11 formation, XI veya behaviour seçmez.
+
+---
+
+# Veri sözleşmeleri — kritik zincir
+
+M8 ve sonrası için adayın izlenebilirliği korunmalıdır:
+
+```text
+M5 PositionCandidate
+    ↓
+M6 BehaviourCandidate
+    ↓
+M6B MatchConfigurationCandidate
+    ↓
+M7 RatingCandidate
+    ↓
+M8 MatchupCandidate
+    ↓
+M9 TacticalCandidate
+    ↓
+M10 FinalMatchPlan
+    ↓
+M11 Prediction
+```
+
+M7 ratingi gerçek CHPP ratingiyle karıştırılmamalıdır. Rakibin CHPP'den gelen ratingi `GroundTruth/Reference`, bizim M7 ratingimiz `Prediction/Scenario` olarak işaretlenmelidir.
+
+---
+
+# Geri besleme döngüsü
+
+Eski tasarımda M9 → M5 doğrudan dönüş vardı. Nihai tasarımda bu dönüş **M10 Global Optimizer tarafından kontrollü şekilde yönetilir**.
+
+```text
+M4 → M5 → M6 → M6B → M7 → M8 → M9
+                         ↓
+                    M10 Optimizer
+                  ↙      ↓       ↘
+                M4       M5       M6/M6B
+                  \       │       /
+                   └→ M7 → M8 → M9
+```
+
+Amaç yalnızca toplam ratingi büyütmek değildir. Amaç:
+
+**oyuncu + pozisyon + davranış + takım ayarı + rakip matchup**
+
+bütününü optimize etmektir.
+
+---
+
+# V5.1 yol haritası
+
+## Faz 1 — M1–M5 stabilizasyonu
+
+- M1 veri sözleşmesini sabitle
+- M2 opponent profile + source/confidence
+- M3 player profile regression
+- M4 six-formation regression
+- M5 exact assignment + geniş alternatif arama
+- eski `XIOptimizer` yolunun canlı zincirdeki kullanımını netleştir
+
+## Faz 2 — M6 / M6B
+
+- M5'ten tüm kaliteli XI adaylarını al
+- legal individual behaviour kombinasyonlarını üret
+- team attitude ve team tactic adaylarını ayrı katmanda üret
+- adayları erken eleme yerine M7'ye taşı
+
+## Faz 3 — M7 Match State
+
+- XI + behaviour + team setting → rating senaryosu
+- CandidateId zinciri
+- 7 bölgesel rating
+- regression test
+
+## Faz 4 — M8 Matchup
+
+- 7 bölgesel matchup
+- attack opportunity
+- defensive security
+- midfield control
+- risk
+- confidence
+- tüm M7 adaylarını rakibe karşı değerlendirme
+
+## Faz 5 — M9 Tactical Value
+
+- M8 çıktılarından maç değeri
+- risk/fırsat dengesi
+- tactic-dependent trade-off'lar
+
+## Faz 6 — M10 Global Optimization
+
+- Formation × XI × Behaviour × Settings kombinasyonları
+- deduplication
+- beam/pruning
+- kontrollü geri dönüş
+- convergence/epsilon
+- immediate value vs long-term cost
+
+## Faz 7 — M11 Prediction
+
+- final stabilized plan
+- goal probability
+- W/D/L probability
+- confidence
+
+---
+
+# Test stratejisi
+
+Her motor için sıra:
+
+1. Kod kontrolü
+2. Girdi/çıktı sözleşmesi kontrolü
+3. Önceki motorla entegrasyon testi
+4. Offline CHPP regression
+5. Sonuç analizi
+6. Gerekli düzeltme
+7. Commit
+8. Build/deploy
+9. Deploy doğrulaması
+10. Sonraki motorun nihai karar mantığına geçiş
+
+### Kalıcı offline senaryo
 
 `TestJSON/HattrickAI_V5_CHPP_FullOffline_2026-09-01.json`
 
@@ -112,11 +399,7 @@ Ana senaryo:
 - **Saha:** Zeytinburnu Sahil Spor
 - **Durum:** S4MSUNFC deplasman
 
-Export CHPP kaynaklıdır ve credentials, OAuth token veya session cookie içermez.
-
 ### Ground-truth rakip ratingi
-
-Zeytinburnu Sahil Spor'un referans resmi maçından alınan gerçek 7 bölgesel rating:
 
 ```text
 DEF-L 6.25
@@ -128,7 +411,7 @@ ATT-C 13.00
 ATT-R 8.50
 ```
 
-### Mevcut S4MSUNFC maç verisi
+### Mevcut S4MSUNFC referans ratingi
 
 ```text
 Diziliş: 3-5-2
@@ -141,71 +424,65 @@ ATT-C 11.50
 ATT-R 10.00
 ```
 
-Bu iki rating seti birbirine karıştırılmamalıdır: CHPP'den gelen gerçek rating **ground-truth**, motorun ürettiği rating ise **tahmin/aday çıktısıdır**.
+Bu iki rating seti birbirine karıştırılmamalıdır: CHPP'den gelen gerçek rating ground-truth/reference, motorun ürettiği rating prediction/scenario'dur.
 
-## Offline test sonucu — 2026-09-01
+---
 
-### M3 — Oyuncu Analiz Motoru — PASS ✅
+# Son doğrulanmış test özeti
 
-Güncel `PlayerAnalysisEngine` mantığı offline CHPP kadrosuna uygulandı. Pozisyon adayları 14 slot için üretildi; oyuncu uygunluğu `PlayerId > 0 && InjuryLevel != 999` kuralıyla sınırlandı. `Biel Kichute` (`InjuryLevel=999`) aday havuzundan çıkarıldı. M3 yalnızca oyuncu profili üretmeye devam ediyor; XI/diziliş/rakip skoru üretmiyor.
+### M3 — PASS ✅
 
-### M4 — Aday Diziliş Motoru — PASS ✅
+Pozisyon profilleri üretildi. `InjuryLevel == 999` oyuncular aday dışı. M3 yalnızca oyuncu profili üretmektedir.
 
-2026-09-01 CHPP offline verisi üzerinde 6 yasal dizilişin tamamı 11 farklı uygun oyuncuyla doldurulabildi. Structural Score sıralaması:
+### M4 — PASS ✅
 
-| Sıra | Diziliş | Structural Score | Sonuç |
-|---|---|---:|---|
-| 1 | **3-5-2** | **17.977** | ✅ |
-| 2 | **3-4-3** | **17.907** | ✅ |
-| 3 | **2-5-3** | **17.701** | ✅ |
-| 4 | **4-5-1** | **17.556** | ✅ |
-| 5 | **4-4-2** | **17.365** | ✅ |
-| 6 | **5-3-2** | **16.035** | ✅ |
+6 yasal diziliş 11 farklı uygun oyuncuyla doldurulabildi. Structural Score sıralaması:
 
-Greedy structural scoring ile optimal distinct-player eşleştirmesi arasındaki fark tüm dizilişlerde çok düşük kaldı; en büyük fark 5-3-2'de yaklaşık **0.059** puan oldu.
+| Sıra | Diziliş | Structural Score |
+|---|---|---:|
+| 1 | **3-5-2** | **17.977** |
+| 2 | **3-4-3** | **17.907** |
+| 3 | **2-5-3** | **17.701** |
+| 4 | **4-5-1** | **17.556** |
+| 5 | **4-4-2** | **17.365** |
+| 6 | **5-3-2** | **16.035** |
 
-**Sonuç: M4 PASS.** Mevcut Motor 4 yapısının değiştirilmesine gerek görülmedi.
+3-5-2 ile 3-4-3 arasındaki fark yalnızca **0.070** olduğundan M4'ün diğer adayları erken elememesi gerekir.
 
-### M5 — Pozisyon Optimizasyon Motoru — PARTIAL → DÜZELTİLDİ 🟠
+### M5 — PASS / geliştirilmiş 🟢
 
-Önceki offline kontrolde temel Hungarian ataması çalışırken iki eksik bulundu: eski `XIOptimizer` yolu yalnızca 3-5-2'yi destekliyordu ve opponent adjustment slot sabiti olarak kalıyordu. Bu yapı M5'ün Motor 4 ile tam zincir halinde kullanılmasına uygun değildi.
+Yeni M5 tüm uygun oyuncu havuzunda exact Hungarian assignment kullanır; alternatif aday araması da genişletilmiştir. Natural Role artık M3 suitability'yi ezmeyen küçük bir tie-breaker olarak kullanılmaktadır.
 
-M5 şimdi `PositionOptimizationEngine` olarak Motor 4'ün ürettiği altı formationun tamamını kabul ediyor. `FormationCandidateSet` için doğrudan toplu üretim API'si eklendi; her formation bağımsız optimize ediliyor. Eligibility filtresi M5 içinde tekrar uygulanıyor ve aynı oyuncunun iki slotta kullanılması engelleniyor.
+Aynı offline senaryoda en iyi M5 toplamları:
 
-En iyi atama tüm uygun oyuncu havuzu üzerinde Hungarian algoritmasıyla exact olarak hesaplanıyor. Sınırlı arama yalnızca alternatif adayları üretmek için kullanılıyor; böylece aday havuzu kesintisi birinci çözümü değiştiremiyor.
+| Diziliş | M5 toplam suitability |
+|---|---:|
+| **3-5-2** | **197.89** |
+| **3-4-3** | **197.28** |
+| **2-5-3** | **195.08** |
+| **4-5-1** | **193.44** |
+| **4-4-2** | **191.23** |
+| **5-3-2** | **177.15** |
 
-Bu aşamada **kod düzeltmesi tamamlandı; yeni 6-formasyon offline regression koşusu yapıldıktan sonra M5 PASS/FAIL durumu kesinleştirilecektir.**
+Sıralama M4 ile tutarlı kalmıştır. M5 rakip/taktik davranış kararını üstlenmemektedir.
 
-## Mimari olarak doğrulanan noktalar
+### M2 — bakım konusu ⚠️
 
-1. Motor 3 yalnızca oyuncu profili üretir.
-2. Motor 4 yalnızca yasal/doldurulabilir diziliş adaylarını üretir.
-3. Motor 3'ün pozisyon uygunluk skoru gerçek maç ratingi değildir.
-4. Gerçek CHPP ratingi ile motor tahmini ayrı tutulur.
-5. Rakip analizi kendi XI seçimimize bağımlı olmamalıdır.
-6. Aynı oyuncu bir aday XI içinde iki slotta kullanılamaz.
-7. M4 → M5 geçişinde M5'in tüm M4 formationlarını desteklemesi gerekir.
-8. M5'in first/best assignment sonucu exact optimizasyonla doğrulanmalıdır.
-9. Rakip/taktik skor ve individual behaviour M5 içinde gizlice hesaplanmamalıdır.
-10. Optimizasyon döngüsü yalnızca daha iyi aday bulunduğunda devam etmelidir.
-11. Bir motorun sorumluluğu sonraki motorun işini gizlice üstlenmemelidir.
+Rakibin tek maçlık gerçek 7 ratingi kullanılabilir; ancak daha sağlam M8/M9 için future `recent baseline + confidence` katmanı gereklidir. M2'nin eski `Motor2OpponentAwareRefiner` yolunun canlı zincirdeki kullanımı ayrıca netleştirilmelidir.
 
-## Dikkat edilmesi gereken eski yol
+---
 
-`HattrickAI_V5/Core/XIOptimizer.cs` içinde eski oyuncu → pozisyon atama yolu hâlâ bulunmaktadır. Bu sınıf eski/uyumluluk yoludur ve M5'ün kanonik kaynağı **değildir**. Yeni 11 aşamalı mimaride canlı çağrı zincirinde nerede kullanıldığı kesinleştirilmeden silinmemelidir. `PositionSuitabilityEngine` ise mevcut API'yi koruyan uyumluluk katmanı olarak Motor 3'e delegasyon yapmaktadır.
+# Tasarımda kesin sınırlar
 
-## Geliştirme kuralı
+- M3 rakip bilmez.
+- M4 rakip sonucu seçmez.
+- M5 rakip/taktik davranış seçmez.
+- M6 final behaviour seçmez; aday üretir.
+- M6B final team setting seçmez; aday üretir.
+- M7 rating üretir ama maç kazanma olasılığı üretmez.
+- M8 oyuncu/diziliş seçmez; matchup üretir.
+- M9 final plan seçmez; tactical value üretir.
+- M10 global kararı verir ve gerektiğinde önceki aday motorlarına kontrollü geri döner.
+- M11 final prediction üretir; planı değiştirmez.
 
-Her motor için sıra:
-
-1. Kod kontrolü
-2. Girdi/çıktı sözleşmesi kontrolü
-3. Önceki motorla entegrasyon testi
-4. Offline CHPP regression testi
-5. Hata analizi
-6. Düzeltme ve commit
-7. Deploy
-8. Deploy sonucu doğrulama
-9. Sonuç PASS olmadan sonraki motorun nihai karar mantığına geçmeme
-
-Bu README, V5 motorlarının mevcut durumunu ve hedef akışı kaybetmemek için ana teknik kayıt olarak tutulacaktır.
+Bu README, V5'in mevcut teknik durumunu, doğrulanmış regression sonuçlarını ve M6–M11 için yeni hedef mimariyi ana teknik kayıt olarak tutar.
