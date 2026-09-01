@@ -2,12 +2,10 @@ namespace HattrickAI.V5.Core;
 
 /// <summary>
 /// Motor 3: Oyuncu Analiz Motoru.
-/// CHPP'den gelen oyuncu durumunu takım seçiminin geri kalanından bağımsız
-/// olarak değerlendirir. Rakibi değerlendirmez, takım ratingi üretmez ve
-/// bireysel davranış seçmez. Her oyuncu için yasal/uygun pozisyon adaylarını
-/// puanlar ve sonraki motorların kullanacağı temiz bir oyuncu profili üretir.
+/// Sadece oyuncu uygunluk profilini üretir. XI seçmez, diziliş seçmez,
+/// rakip skoru kullanmaz ve takım ratingi üretmez.
 /// </summary>
-public sealed class PlayerAnalysisEngine
+public sealed class PlayerAnalysisEngine : IPlayerAnalysisEngine
 {
     private static readonly string[] PositionCodes =
     [
@@ -17,12 +15,19 @@ public sealed class PlayerAnalysisEngine
         "FW-L", "FW-C", "FW-R"
     ];
 
-    public PlayerAnalysisProfile Analyze(Player player)
+    public PlayerAnalysisResult Analyze(IReadOnlyList<Player> players)
+    {
+        ArgumentNullException.ThrowIfNull(players);
+        return new PlayerAnalysisResult(players.Select(AnalyzePlayer).ToList());
+    }
+
+    public PlayerAnalysisProfile AnalyzePlayer(Player player)
     {
         ArgumentNullException.ThrowIfNull(player);
 
+        var eligible = IsEligible(player);
         var candidates = PositionCodes
-            .Select(code => new PlayerPositionCandidate(code, Score(player, code)))
+            .Select(code => new PlayerPositionCandidate(code, eligible ? Score(player, code) : double.NegativeInfinity))
             .Where(x => !double.IsNegativeInfinity(x.Score))
             .OrderByDescending(x => x.Score)
             .ThenBy(x => PositionOrder(x.PositionCode))
@@ -31,49 +36,34 @@ public sealed class PlayerAnalysisEngine
         return new PlayerAnalysisProfile(
             player.Id,
             player.Name,
+            eligible,
+            player.InjuryLevel,
             candidates,
             candidates.FirstOrDefault()?.PositionCode,
             candidates.Skip(1).FirstOrDefault()?.PositionCode);
     }
 
-    public IReadOnlyList<PlayerAnalysisProfile> AnalyzeAll(IEnumerable<Player> players)
-    {
-        ArgumentNullException.ThrowIfNull(players);
-        return players.Select(Analyze).ToList();
-    }
-
     public double Score(Player player, string positionCode)
     {
         ArgumentNullException.ThrowIfNull(player);
+        if (!IsEligible(player)) return double.NegativeInfinity;
 
         return positionCode switch
         {
             "GK" => player.Keeper + player.Form * .15,
-
-            "DEF-L" or "DEF-R" =>
-                player.Defending + player.Passing * .10 + player.Winger * .05,
-
-            "DEF-C" or "DEF-CL" or "DEF-CR" =>
-                player.Defending * 1.05 + player.Passing * .15 + player.Playmaking * .04,
-
-            "W-L" or "W-R" =>
-                player.Winger + player.Passing * .22 + player.Playmaking * .08,
-
-            "IM-L" or "IM-R" =>
-                player.Playmaking + player.Passing * .25 + player.Stamina * .12,
-
-            "IM-C" =>
-                player.Playmaking * 1.05 + player.Passing * .25 + player.Stamina * .12 + player.Experience * .04,
-
-            "FW-L" or "FW-R" =>
-                player.Scoring + player.Passing * .18 + player.Winger * .08 + player.Experience * .02,
-
-            "FW-C" =>
-                player.Scoring * 1.05 + player.Passing * .20 + player.Playmaking * .04,
-
+            "DEF-L" or "DEF-R" => player.Defending + player.Passing * .10 + player.Winger * .05,
+            "DEF-C" or "DEF-CL" or "DEF-CR" => player.Defending * 1.05 + player.Passing * .15 + player.Playmaking * .04,
+            "W-L" or "W-R" => player.Winger + player.Passing * .22 + player.Playmaking * .08,
+            "IM-L" or "IM-R" => player.Playmaking + player.Passing * .25 + player.Stamina * .12,
+            "IM-C" => player.Playmaking * 1.05 + player.Passing * .25 + player.Stamina * .12 + player.Experience * .04,
+            "FW-L" or "FW-R" => player.Scoring + player.Passing * .18 + player.Winger * .08 + player.Experience * .02,
+            "FW-C" => player.Scoring * 1.05 + player.Passing * .20 + player.Playmaking * .04,
             _ => double.NegativeInfinity
         };
     }
+
+    private static bool IsEligible(Player player)
+        => player.Id > 0 && player.InjuryLevel != 999;
 
     private static int PositionOrder(string code) => code switch
     {
@@ -95,13 +85,13 @@ public sealed class PlayerAnalysisEngine
     };
 }
 
-public sealed record PlayerPositionCandidate(
-    string PositionCode,
-    double Score);
+public sealed record PlayerPositionCandidate(string PositionCode, double Score);
 
 public sealed record PlayerAnalysisProfile(
     int PlayerId,
     string PlayerName,
+    bool IsEligible,
+    int InjuryLevel,
     IReadOnlyList<PlayerPositionCandidate> Positions,
     string? PrimaryPosition,
     string? SecondaryPosition)
