@@ -1,0 +1,55 @@
+{
+  "normalized": {
+    "ownPlayers": [
+      {"id":448933569,"name":"Uğur Günal","keeper":0,"defending":0,"playmaking":0,"passing":0,"winger":0,"scoring":0,"stamina":1,"form":2,"experience":10,"loyalty":0},
+      {"id":468363070,"name":"Abeiku Takyi","keeper":1,"defending":17,"playmaking":3,"passing":8,"winger":4,"scoring":7,"stamina":5,"form":6,"experience":10,"loyalty":0},
+      {"id":491743384,"name":"Adrian Beţa","keeper":1,"defending":4,"playmaking":5,"passing":8,"winger":3,"scoring":15,"stamina":7,"form":7,"experience":3,"loyalty":0},
+      {"id":437630242,"name":"Alexey Esin","keeper":0,"defending":2,"playmaking":0,"passing":0,"winger":0,"scoring":0,"stamina":1,"form":4,"experience":12,"loyalty":0},
+      {"id":495041177,"name":"Andres Nahasepp","keeper":1,"defending":3,"playmaking":6,"passing":7,"winger":5,"scoring":13,"stamina":7,"form":7,"experience":3,"loyalty":0},
+      {"id":465805392,"name":"Bertalan Doktor","keeper":1,"defending":2,"playmaking":17,"passing":11,"winger":6,"scoring":6,"stamina":6,"form":4,"experience":8,"loyalty":0},
+      {"id":442645385,"name":"Biel Kichute","keeper":0,"defending":0,"playmaking":8,"passing":1,"winger":0,"scoring":1,"stamina":1,"form":5,"experience":12,"loyalty":0},
+      {"id":493851210,"name":"Bumin Pehlivanlar","keeper":2,"defending":4,"playmaking":4,"passing":7,"winger":5,"scoring":7,"stamina":5,"form":8,"experience":2,"loyalty":0},
+      {"id":497066104,"name":"Cevat Durguner","keeper":2,"defending":4,"playmaking":5,"passing":6,"winger":3,"scoring":8,"stamina":6,"form":7,"experience":2,"loyalty":0},
+      {"id":476114406,"name":"Cristian Pesalovo","keeper":1,"defending":16,"playmaking":6,"passing":9,"winger":3,"scoring":6,"stamina":7,"form":7,"experience":6,"loyalty":0},
+      {"id":513040102,"name":"Daim Evliya","keeper":2,"defending":4,"playmaking":5,"passing":7,"winger":4,"scoring":4,"stamina":5,"form":4,"experience":2,"loyalty":0},
+      {"id":458524225,"name":"Dawid Nocoń","keeper":0,"defending":17,"playmaking":3,"passing":5,"winger":4,"scoring":7,"stamina":5,"form":6,"experience":12,"loyalty":0},
+      {"id":479235895,"name":"Enzo Bultot","keeper":17,"defending":4,"playmaking":1,"passing":2,"winger":1,"scoring":4,"stamina":7,"form":6,"experience":5,"loyalty":0},
+      {"id":497641568,"name":"Ersin Akşın","keeper":1,"defending":2,"playmaking":5,"passing":8,"winger":4,"scoring":13,"stamina":6,"form":7,"experience":3,"loyalty":0},
+      {"id":492052456,"name":"Felix Gustavsson","keeper":1,"defending":3,"playmaking":3,"passing":8,"winger":17,"scoring":5,"stamina":7,"form":7,"experience":4,"loyalty":0},
+      {"id":454418419,"name":"Francisco Manuel","keeper":0,"defending":2,"playmaking":15,"passing":8,"winger":2,"scoring":7,"stamina":4,"form":5,"experience":10,"loyalty":0},
+      {"id":445283093,"name":"Giacomo Rizzo","keeper":11,"defending":5,"playmaking":0,"passing":0,"winger":0,"scoring":1,"stamina":1,"form":3,"experience":12,"loyalty":0},
+      {"id":474962854,"name":"Manuel Gobiet","keeper":1,"defending":9,"playmaking":11,"passing":8,"winger":15,"scoring":8,"stamina":6,"form":7,"experience":7,"loyalty":0},
+      {"id":498487535,"name":"Mikel Thiebault","keeper":1,"defending":4,"playmaking":5,"passing":8,"winger":4,"scoring":12,"stamina":6,"form":7,"experience":2,"loyalty":0},
+      {"id":465141092,"name":"Milen Bozev","keeper":1,"defending":5,"playmaking":12,"passing":9,"winger":14,"scoring":6,"stamina":6,"form":6,"experience":7,"loyalty":0},
+      {"id":502427630,"name":"Münir Balkın","keeper":1,"defending":5,"playmaking":5,"passing":5,"winger":5,"scoring":3,"stamina":3,"form":5,"experience":2,"loyalty":0},
+      {"id":492253331,"name":"Nándor Dobóvári","keeper":2,"defending":3,"playmaking":5,"passing":7,"winger":17,"scoring":4,"stamina":7,"form":6,"experience":3,"loyalty":0},
+      {"id":501442578,"name":"Nelson Ferrante","keeper":1,"defending":4,"playmaking":6,"passing":8,"winger":3,"scoring":11,"stamina":6,"form":7,"experience":2,"loyalty":0},
+      {"id":483683238,"name":"Nurtaç Armağan","keeper":6,"defending":2,"playmaking":2,"passing":2,"winger":2,"scoring":6,"stamina":7,"form":5,"experience":3,"loyalty":0},
+      {"id":514089104,"name":"Oğuz Can Çıtel","keeper":2,"defending":3,"playmaking":5,"passing":6,"winger":5,"scoring":4,"stamina":4,"form":7,"experience":1,"loyalty":0},
+      {"id":498557618,"name":"Patrik Zarins","keeper":1,"defending":4,"playmaking":6,"passing":7,"winger":2,"scoring":12,"stamina":6,"form":7,"experience":2,"loyalty":0},
+      {"id":495027585,"name":"Şaban Savlet","keeper":1,"defending":4,"playmaking":5,"passing":5,"winger":5,"scoring":7,"stamina":6,"form":6,"experience":3,"loyalty":0},
+      {"id":513885774,"name":"Sergen Gözay","keeper":2,"defending":6,"playmaking":5,"passing":4,"winger":5,"scoring":5,"stamina":4,"form":3,"experience":2,"loyalty":0},
+      {"id":482291700,"name":"Utku Hakan Başak","keeper":1,"defending":4,"playmaking":3,"passing":5,"winger":7,"scoring":8,"stamina":6,"form":4,"experience":3,"loyalty":0},
+      {"id":512433039,"name":"Zübeyir Balaban","keeper":2,"defending":6,"playmaking":6,"passing":3,"winger":5,"scoring":5,"stamina":5,"form":8,"experience":2,"loyalty":0},
+      {"id":437860841,"name":"Antonín Vašica","keeper":0,"defending":2,"playmaking":12,"passing":6,"winger":5,"scoring":3,"stamina":3,"form":8,"experience":12,"loyalty":0}
+    ]
+  },
+  "v5Analysis": {
+    "ownFormation":"3-5-2",
+    "opponentName":"Zeytinburnu Sahil Spor",
+    "ownLineup": {"teamName":"S4MSUNFC","formation":"3-5-2","slots":[
+      {"code":"GK","label":"GK","description":"Kaleci","playerName":"Enzo Bultot","playerId":479235895,"rating":17.9,"x":50,"y":10},
+      {"code":"DEF-CL","label":"DEF-CL","description":"Sol stoper","playerName":"Abeiku Takyi","playerId":468363070,"rating":19.17,"x":30,"y":34},
+      {"code":"DEF-C","label":"DEF-C","description":"Merkez stoper","playerName":"Dawid Nocoń","playerId":458524225,"rating":18.72,"x":50,"y":34},
+      {"code":"DEF-CR","label":"DEF-CR","description":"Sağ stoper","playerName":"Cristian Pesalovo","playerId":476114406,"rating":18.39,"x":70,"y":34},
+      {"code":"W-L","label":"W-L","description":"Sol kanat","playerName":"Felix Gustavsson","playerId":492052456,"rating":19,"x":12,"y":50},
+      {"code":"IM-L","label":"IM-L","description":"Sol iç","playerName":"Francisco Manuel","playerId":454418419,"rating":17.48,"x":34,"y":50},
+      {"code":"IM-C","label":"IM-C","description":"Merkez","playerName":"Milen Bozev","playerId":465141092,"rating":15.85,"x":50,"y":50},
+      {"code":"IM-R","label":"IM-R","description":"Sağ iç","playerName":"Bertalan Doktor","playerId":465805392,"rating":20.47,"x":66,"y":50},
+      {"code":"W-R","label":"W-R","description":"Sağ kanat","playerName":"Nándor Dobóvári","playerId":492253331,"rating":18.94,"x":88,"y":50},
+      {"code":"FW-L","label":"FW-L","description":"Sol forvet","playerName":"Adrian Beţa","playerId":491743384,"rating":16.74,"x":38,"y":72},
+      {"code":"FW-R","label":"FW-R","description":"Sağ forvet","playerName":"Ersin Akşın","playerId":497641568,"rating":14.82,"x":62,"y":72}
+    ]},
+    "opponentRating":{"rawLeftDefence":6.25,"rawCentralDefence":9.5,"rawRightDefence":6.25,"rawMidfield":7,"rawLeftAttack":10,"rawCentralAttack":13,"rawRightAttack":8.5,"leftDefence":6.25,"centralDefence":9.5,"rightDefence":6.25,"midfield":7,"leftAttack":10,"centralAttack":13,"rightAttack":8.5}
+  }
+}
