@@ -1,10 +1,9 @@
 namespace HattrickAI.V5.Core;
 
 /// <summary>
-/// Motor 6/Threat layer: converts opponent seven-sector ratings into the
-/// defensive threat faced by the corresponding sectors. No player skills are
-/// fabricated here; it works from the opponent rating already available from
-/// CHPP matchdetails or the opponent estimator.
+/// Rakip Tehdit Motoru: rakibin gerçek yedi bölgesel ratingini,
+/// savunma tehdidi ve hücum fırsatı olarak karşı sektörlere eşler.
+/// Oyuncu RP'si veya tahmini skill üretmez.
 /// </summary>
 public sealed class OpponentThreatEngine
 {
@@ -40,4 +39,14 @@ public sealed record OpponentThreatMap(
 {
     public double MaxAttackThreat => Math.Max(LeftThreat, Math.Max(CenterThreat, RightThreat));
     public double TotalAttackThreat => LeftThreat + CenterThreat + RightThreat;
+
+    // Opponent left attack -> our right defence.
+    public double ThreatToOurLeftDefence => RightThreat;
+    public double ThreatToOurCentreDefence => CenterThreat;
+    public double ThreatToOurRightDefence => LeftThreat;
+
+    // Our attack -> corresponding opposite opponent defence.
+    public double OpportunityForOurLeftAttack => RightDefenceBarrier;
+    public double OpportunityForOurCentreAttack => CenterDefenceBarrier;
+    public double OpportunityForOurRightAttack => LeftDefenceBarrier;
 }
