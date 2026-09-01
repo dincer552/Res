@@ -35,14 +35,23 @@
     var t=readTeam(prefix),labels=['DEF-L','DEF-C','DEF-R','MID','ATT-L','ATT-C','ATT-R'];
     return [(opponent?'RAKİP ':'')+'HattrickAI V5 KOPYA','TAKIM: '+(t.title||'—'),'DİZİLİŞ: '+(t.formation||'—'),'','OYUNCULAR:',t.players.map(function(p){return (p.position?p.position+': ':'')+p.name+' | RP='+p.rp;}).join('\n'),'','BÖLGESEL RATING:'].concat(labels.map(function(l){return l+': '+(t.ratings[l]||'—');})).join('\n');
   }
-  function jsonData(){
-    var own=readTeam('own'),opp=readTeam('opp');
-    return {schemaVersion:'v5-offline-1',source:'CHPP',exportedAt:new Date().toISOString(),match:{ownTeam:own.title,opponentTeam:opp.title},ownTeam:own,opponent:opp};
-  }
-  function downloadJson(button){
-    var data=JSON.stringify(jsonData(),null,2),blob=new Blob([data],{type:'application/json;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');
-    a.href=url;a.download='HattrickAI_V5_CHPP_Offline_'+new Date().toISOString().replace(/[:.]/g,'-')+'.json';document.body.appendChild(a);a.click();a.remove();setTimeout(function(){URL.revokeObjectURL(url);},1000);
-    button.textContent='JSON HAZIR ✓';button.classList.add('ok');setTimeout(function(){button.textContent='OFFLINE JSON · CHPP';button.classList.remove('ok');},1600);
+  async function downloadJson(button){
+    var old=button.textContent;
+    button.disabled=true;button.textContent='CHPP VERİLERİ ALINIYOR…';
+    try{
+      var r=await fetch('/api/v5/offline-export?ts='+Date.now(),{cache:'no-store'});
+      if(r.status===401) throw new Error('CHPP bağlantısı yok. Önce CHPP bağlantısını tamamla.');
+      if(!r.ok){var msg='CHPP offline verisi alınamadı (HTTP '+r.status+').';try{var e=await r.json();if(e&&e.detail)msg=e.detail;}catch(_){ }throw new Error(msg);}
+      var data=await r.json();
+      var blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');
+      a.href=url;a.download='HattrickAI_V5_CHPP_FullOffline_'+new Date().toISOString().replace(/[:.]/g,'-')+'.json';document.body.appendChild(a);a.click();a.remove();
+      setTimeout(function(){URL.revokeObjectURL(url);},1000);
+      button.textContent='JSON HAZIR ✓';button.classList.add('ok');
+      setTimeout(function(){button.textContent=old;button.classList.remove('ok');button.disabled=false;},1800);
+    }catch(e){
+      button.textContent='HATA: '+(e.message||'JSON oluşturulamadı');
+      setTimeout(function(){button.textContent=old;button.disabled=false;},2500);
+    }
   }
   function install(){
     var own=document.getElementById('copyOwn'),opp=document.getElementById('copyOpp'),analyze=document.getElementById('analyze');
@@ -57,10 +66,10 @@
       });
     }
     if(analyze&&!document.getElementById('offlineJsonExport')){
-      var b=document.createElement('button');b.id='offlineJsonExport';b.type='button';b.className='copy-btn';b.textContent='OFFLINE JSON · CHPP';b.title='CHPP verilerini Motor 5 offline testi için JSON dosyası olarak çıkar';b.disabled=true;b.style.width='100%';b.style.marginTop='9px';b.style.opacity='.45';
+      var b=document.createElement('button');b.id='offlineJsonExport';b.type='button';b.className='copy-btn';b.textContent='CHPP VERİLERİNİ JSON AL';b.title='CHPP üzerinden offline motor testleri için gereken tüm verileri yeniden çek ve JSON indir';b.disabled=true;b.style.width='100%';b.style.marginTop='9px';b.style.opacity='.45';
       analyze.parentNode.appendChild(b);
       b.addEventListener('click',function(){if(hasChppData()) downloadJson(b);});
-      function refresh(){var ready=hasChppData();b.disabled=!ready;b.style.opacity=ready?'1':'.45';b.title=ready?'CHPP verileri hazır — offline test JSON dosyasını çıkar':'Önce CHPP verilerinin yüklenmesi bekleniyor';}
+      function refresh(){var ready=hasChppData();b.disabled=!ready;b.style.opacity=ready?'1':'.45';b.title=ready?'CHPP verileri hazır — tüm gerekli CHPP verilerini çekip offline test JSON dosyasını indir':'Önce CHPP verilerinin yüklenmesi bekleniyor';}
       refresh();setInterval(refresh,1000);
     }
   }
