@@ -91,8 +91,9 @@ public sealed record Analysis(
     public RegionalRatingPair RegionalRatings => new(OwnRating, OpponentRating);
 
     /// <summary>
-    /// Motor 7 adapter. The canonical threat engine lives in
-    /// OpponentThreatEngine.cs; Models.cs only exposes its result.
+    /// Compatibility view for the Rakip Analiz Motoru.
+    /// The threat map is derived from the opponent's seven regional ratings.
+    /// It is not a separate decision stage.
     /// </summary>
     public OpponentThreatMap OpponentThreat => new OpponentThreatEngine().Analyze(OpponentRating);
 }
