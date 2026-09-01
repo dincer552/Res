@@ -1,3 +1,7 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
 namespace HattrickAI.V5.Core;
 
 /// <summary>
@@ -18,8 +22,9 @@ public sealed class PositionOptimizationEngine : IPositionOptimizationEngine
         => GenerateCandidates(context, players, formation, DefaultMaxCandidates);
 
     /// <summary>
-    /// Motor 4'ün ürettiği tek bir FormationCandidate için en iyi oyuncu-slot
-    /// kombinasyonlarını üretir.
+    /// Motor 4'ün ürettiği tek bir FormationCandidate için pozisyon atama
+    /// adaylarını üretir. En iyi atama Hungarian ile tam olarak bulunur; ek
+    /// adaylar alternatif kombinasyonları keşfeden sınırlı arama ile üretilir.
     /// </summary>
     public IReadOnlyList<PositionAssignmentCandidate> GenerateCandidates(
         MatchDataContext context,
@@ -44,6 +49,18 @@ public sealed class PositionOptimizationEngine : IPositionOptimizationEngine
         if (eligibleProfiles.Count < 11) return [];
 
         var byId = eligibleProfiles.ToDictionary(x => x.PlayerId);
+        var results = new List<PositionAssignmentCandidate>();
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+
+        // Önce global olarak en iyi 11'li atamayı tüm uygun oyuncu havuzunda
+        // exact Hungarian çözümüyle garanti altına alıyoruz. Böylece M5'in
+        // aday havuzu kesmesi hiçbir zaman birinci çözümü bozmaz.
+        var exact = BuildExactBestCandidate(formation, eligibleProfiles, byId);
+        AddUnique(exact, results, seen);
+
+        if (maxCandidates == 1)
+            return results;
+
         var candidatePools = formation.SlotCodes
             .Select(code => new SlotPool(
                 code,
@@ -57,15 +74,14 @@ public sealed class PositionOptimizationEngine : IPositionOptimizationEngine
             .ToList();
 
         // Tek bir slot bile doldurulamıyorsa diziliş Motor 5'ten geçmez.
-        if (candidatePools.Any(x => x.Players.Count == 0)) return [];
+        if (candidatePools.Any(x => x.Players.Count == 0)) return results;
 
-        // Önce seçenek sayısı en az olan slotları doldurmak dallanmayı azaltır.
+        // En az seçenekli slotları önce doldurmak dallanmayı azaltır.
         var ordered = candidatePools
             .OrderBy(x => x.Players.Count)
             .ThenByDescending(x => x.Players.Max(y => y.Score))
             .ToList();
 
-        var results = new List<PositionAssignmentCandidate>();
         Search(
             ordered,
             0,
@@ -75,18 +91,19 @@ public sealed class PositionOptimizationEngine : IPositionOptimizationEngine
             byId,
             results,
             resultLimit: Math.Max(maxCandidates * 8, 100),
-            formation.Formation);
+            formation.Formation,
+            seen);
 
         return results
             .OrderByDescending(x => x.SuitabilityScore)
-            .ThenBy(x => AssignmentKey(x))
+            .ThenBy(x => AssignmentKey(x), StringComparer.Ordinal)
             .Take(maxCandidates)
             .ToList();
     }
 
     /// <summary>
     /// Motor 4'ün tüm aday diziliş setini doğrudan Motor 5'e bağlayan kolaylık API'si.
-    /// Sonuçta her diziliş için bağımsız adaylar döner; Motor 5 diziliş seçmez.
+    /// Her formation bağımsız olarak optimize edilir; Motor 5 diziliş seçmez.
     /// </summary>
     public IReadOnlyList<PositionAssignmentCandidate> GenerateCandidates(
         MatchDataContext context,
@@ -99,11 +116,133 @@ public sealed class PositionOptimizationEngine : IPositionOptimizationEngine
             throw new ArgumentOutOfRangeException(nameof(maxCandidatesPerFormation));
 
         return formations.Candidates
-            .SelectMany(formation => GenerateCandidates(context, players, formation, maxCandidatesPerFormation))
+            .SelectMany(formation => GenerateCandidates(
+                context,
+                players,
+                formation,
+                maxCandidatesPerFormation))
             .OrderByDescending(x => x.SuitabilityScore)
             .ThenBy(x => x.Formation, StringComparer.Ordinal)
-            .Take(maxCandidatesPerFormation * Math.Max(1, formations.Candidates.Count))
+            .ThenBy(x => AssignmentKey(x), StringComparer.Ordinal)
             .ToList();
+    }
+
+    private static PositionAssignmentCandidate BuildExactBestCandidate(
+        FormationCandidate formation,
+        IReadOnlyList<PlayerAnalysisProfile> profiles,
+        IReadOnlyDictionary<int, PlayerAnalysisProfile> byId)
+    {
+        var rows = formation.SlotCodes.Count;
+        var cols = profiles.Count;
+        var cost = new double[rows, cols];
+
+        for (var row = 0; row < rows; row++)
+        {
+            for (var col = 0; col < cols; col++)
+            {
+                var value = Score(profiles[col], formation.SlotCodes[row]);
+                cost[row, col] = value > 0 ? -value : 1e9;
+            }
+        }
+
+        var assignment = RectangularHungarian(cost);
+        var assigned = new List<AssignedSlot>(rows);
+        var used = new HashSet<int>();
+        var total = 0d;
+
+        for (var row = 0; row < rows; row++)
+        {
+            var playerIndex = assignment[row];
+            if (playerIndex < 0 || playerIndex >= profiles.Count)
+                throw new InvalidOperationException(
+                    $"Motor 5 '{formation.Formation}' için geçerli bir Hungarian ataması üretemedi.");
+
+            var profile = profiles[playerIndex];
+            var score = Score(profile, formation.SlotCodes[row]);
+            if (score <= 0 || !used.Add(profile.PlayerId))
+                throw new InvalidOperationException(
+                    $"Motor 5 '{formation.Formation}' geçersiz oyuncu-slot ataması üretti.");
+
+            assigned.Add(new AssignedSlot(profile.PlayerId, formation.SlotCodes[row], score));
+            total += score;
+        }
+
+        return BuildCandidate(formation.Formation, assigned, total, byId);
+    }
+
+    private static void Search(
+        IReadOnlyList<SlotPool> pools,
+        int index,
+        HashSet<int> used,
+        List<AssignedSlot> assigned,
+        double score,
+        IReadOnlyDictionary<int, PlayerAnalysisProfile> profiles,
+        List<PositionAssignmentCandidate> results,
+        int resultLimit,
+        string formation,
+        HashSet<string> seen)
+    {
+        if (results.Count >= resultLimit) return;
+
+        if (index == pools.Count)
+        {
+            var candidate = BuildCandidate(formation, assigned, score, profiles);
+            AddUnique(candidate, results, seen);
+            return;
+        }
+
+        var pool = pools[index];
+        foreach (var option in pool.Players)
+        {
+            if (used.Contains(option.PlayerId)) continue;
+
+            used.Add(option.PlayerId);
+            assigned.Add(new AssignedSlot(option.PlayerId, pool.Code, option.Score));
+            Search(
+                pools,
+                index + 1,
+                used,
+                assigned,
+                score + option.Score,
+                profiles,
+                results,
+                resultLimit,
+                formation,
+                seen);
+            assigned.RemoveAt(assigned.Count - 1);
+            used.Remove(option.PlayerId);
+
+            if (results.Count >= resultLimit) return;
+        }
+    }
+
+    private static PositionAssignmentCandidate BuildCandidate(
+        string formation,
+        IReadOnlyList<AssignedSlot> assigned,
+        double score,
+        IReadOnlyDictionary<int, PlayerAnalysisProfile> profiles)
+    {
+        var slots = assigned
+            .Select(x => ToSlot(profiles[x.PlayerId], x.Code, x.Score))
+            .OrderBy(x => SlotOrder(x.Code))
+            .ToList();
+
+        return new PositionAssignmentCandidate(
+            formation,
+            new Lineup("Aday XI", formation, slots),
+            score,
+            assigned
+                .OrderBy(x => SlotOrder(x.Code))
+                .ToDictionary(x => x.PlayerId, x => x.Code));
+    }
+
+    private static void AddUnique(
+        PositionAssignmentCandidate candidate,
+        List<PositionAssignmentCandidate> results,
+        HashSet<string> seen)
+    {
+        if (seen.Add(AssignmentKey(candidate)))
+            results.Add(candidate);
     }
 
     private static void ValidateFormation(FormationCandidate formation)
@@ -125,60 +264,6 @@ public sealed class PositionOptimizationEngine : IPositionOptimizationEngine
             throw new ArgumentException(
                 $"'{formation.Formation}' dizilişinde tekrar eden slot kodu bulunamaz.",
                 nameof(formation));
-    }
-
-    private static void Search(
-        IReadOnlyList<SlotPool> pools,
-        int index,
-        HashSet<int> used,
-        List<AssignedSlot> assigned,
-        double score,
-        IReadOnlyDictionary<int, PlayerAnalysisProfile> profiles,
-        List<PositionAssignmentCandidate> results,
-        int resultLimit,
-        string formation)
-    {
-        if (results.Count >= resultLimit) return;
-
-        if (index == pools.Count)
-        {
-            var slots = assigned
-                .Select(x => ToSlot(profiles[x.PlayerId], x.Code, x.Score))
-                .OrderBy(x => SlotOrder(x.Code))
-                .ToList();
-
-            results.Add(new PositionAssignmentCandidate(
-                formation,
-                new Lineup("Aday XI", formation, slots),
-                score,
-                assigned
-                    .OrderBy(x => SlotOrder(x.Code))
-                    .ToDictionary(x => x.PlayerId, x => x.Code)));
-            return;
-        }
-
-        var pool = pools[index];
-        foreach (var option in pool.Players)
-        {
-            if (used.Contains(option.PlayerId)) continue;
-
-            used.Add(option.PlayerId);
-            assigned.Add(new AssignedSlot(option.PlayerId, pool.Code, option.Score));
-            Search(
-                pools,
-                index + 1,
-                used,
-                assigned,
-                score + option.Score,
-                profiles,
-                results,
-                resultLimit,
-                formation);
-            assigned.RemoveAt(assigned.Count - 1);
-            used.Remove(option.PlayerId);
-
-            if (results.Count >= resultLimit) return;
-        }
     }
 
     private static double Score(PlayerAnalysisProfile profile, string code)
@@ -205,6 +290,86 @@ public sealed class PositionOptimizationEngine : IPositionOptimizationEngine
             candidate.Lineup.Slots
                 .OrderBy(x => SlotOrder(x.Code))
                 .Select(x => $"{x.Code}:{x.PlayerId}"));
+
+    private static int[] RectangularHungarian(double[,] cost)
+    {
+        var rows = cost.GetLength(0);
+        var cols = cost.GetLength(1);
+        if (rows > cols) throw new ArgumentException("Satır sayısı sütun sayısından büyük olamaz.");
+
+        var u = new double[rows + 1];
+        var v = new double[cols + 1];
+        var p = new int[cols + 1];
+        var way = new int[cols + 1];
+
+        for (var i = 1; i <= rows; i++)
+        {
+            p[0] = i;
+            var j0 = 0;
+            var minv = Enumerable.Repeat(double.PositiveInfinity, cols + 1).ToArray();
+            var used = new bool[cols + 1];
+
+            do
+            {
+                used[j0] = true;
+                var i0 = p[j0];
+                var delta = double.PositiveInfinity;
+                var j1 = 0;
+
+                for (var j = 1; j <= cols; j++)
+                {
+                    if (used[j]) continue;
+                    var cur = cost[i0 - 1, j - 1] - u[i0] - v[j];
+                    if (cur < minv[j])
+                    {
+                        minv[j] = cur;
+                        way[j] = j0;
+                    }
+                    if (minv[j] < delta)
+                    {
+                        delta = minv[j];
+                        j1 = j;
+                    }
+                }
+
+                if (double.IsPositiveInfinity(delta))
+                    throw new InvalidOperationException("Motor 5 Hungarian optimizasyonunda geçerli yol bulunamadı.");
+
+                for (var j = 0; j <= cols; j++)
+                {
+                    if (used[j])
+                    {
+                        u[p[j]] += delta;
+                        v[j] -= delta;
+                    }
+                    else
+                    {
+                        minv[j] -= delta;
+                    }
+                }
+
+                j0 = j1;
+            }
+            while (p[j0] != 0);
+
+            do
+            {
+                var j1 = way[j0];
+                p[j0] = p[j1];
+                j0 = j1;
+            }
+            while (j0 != 0);
+        }
+
+        var assignment = Enumerable.Repeat(-1, rows).ToArray();
+        for (var j = 1; j <= cols; j++)
+        {
+            if (p[j] > 0)
+                assignment[p[j] - 1] = j - 1;
+        }
+
+        return assignment;
+    }
 
     private static int SlotOrder(string code) => code switch
     {
