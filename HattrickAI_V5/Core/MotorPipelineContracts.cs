@@ -12,17 +12,7 @@ public sealed record MatchDataContext(
     RatingContext RatingContext,
     MatchQuestionnaire Questionnaire);
 
-public sealed record PlayerAnalysisProfile(
-    int PlayerId,
-    string PlayerName,
-    IReadOnlyDictionary<string, double> PositionScores,
-    string PrimaryPosition,
-    string SecondaryPosition,
-    double PrimaryScore,
-    double SecondaryScore);
-
-public sealed record PlayerAnalysisResult(
-    IReadOnlyList<PlayerAnalysisProfile> Players)
+public sealed record PlayerAnalysisResult(IReadOnlyList<PlayerAnalysisProfile> Players)
 {
     public PlayerAnalysisProfile? Find(int playerId)
         => Players.FirstOrDefault(x => x.PlayerId == playerId);
@@ -33,13 +23,13 @@ public sealed record FormationCandidate(
     IReadOnlyList<string> SlotCodes,
     double StructuralScore = 0);
 
-public sealed record FormationCandidateSet(
-    IReadOnlyList<FormationCandidate> Candidates);
+public sealed record FormationCandidateSet(IReadOnlyList<FormationCandidate> Candidates);
 
 public sealed record PositionAssignmentCandidate(
     string Formation,
     Lineup Lineup,
-    double SuitabilityScore);
+    double SuitabilityScore,
+    IReadOnlyDictionary<int, string>? PlayerAssignments = null);
 
 public sealed record BehaviourPlanCandidate(
     Lineup Lineup,
