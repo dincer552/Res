@@ -1,12 +1,12 @@
-# Res
+# HattrickAI V5
 
-## HattrickAI V5 motor mimarisi
+## Aktif geliştirme hattı
 
-V5, Hattrick maç analizini tek bir büyük formül yerine birbirine bağlı motorlar halinde geliştirir.
+**Aktif branch: `v5`**
 
-## HEDEFLENEN ANA ANALİZ AKIŞI
+V5, Hattrick maç analizini tek bir büyük formül yerine birbirine bağlı 11 aşamalı motor mimarisiyle geliştirir.
 
-Analiz butonuna basıldığında hedeflenen karar sırası aşağıdaki 11 aşamadır. Bu akış V5'in ana mimari referansıdır ve motorlar geliştirilirken sıra korunacaktır.
+## Hedef analiz akışı
 
 ```text
 CHPP / Veri
@@ -38,149 +38,149 @@ CHPP / Veri
 11. Maç Tahmini
 ```
 
-### Akışın temel prensibi
+Döngünün amacı tek bir oyuncuyu değil; **oyuncu + pozisyon + davranış + rakip eşleşmesi** bütününü optimize etmektir.
 
-Bölgesel Rating Motoru karar veren tek başına bir motor değildir. Seçilen oyuncu + pozisyon + davranış kombinasyonunun yedi bölgesel ratingini üretir. Bu ratingler Maç Eşleşme Motoruna aktarılır; adayın rakibe karşı değeri burada ve Taktiksel Skor katmanında ölçülür.
+## Motor isimleri ve mevcut durum
 
-Daha iyi bir aday bulunduğu sürece optimizasyon döngüsü tekrar Pozisyon Optimizasyonuna döner. Böylece sistem yalnızca tek oyuncuyu değil, **oyuncu + pozisyon + davranış + rakip eşleşmesi** bütününü optimize eder.
+| Sıra | Gerçek işlev | Kod / sınıf | Durum |
+|---|---|---|---|
+| M1 | CHPP Veri Motoru / Veri Katmanı | CHPP veri katmanı | ✅ Çalışıyor |
+| M2 | Rakip Analiz Motoru | `Motor2OpponentAwareRefiner` / rakip profil katmanı | 🟡 Bakım + doğrulama |
+| M3 | Oyuncu Analiz Motoru | `PlayerAnalysisEngine` | 🟡 Kod hazır, offline doğrulama bekliyor |
+| M4 | Aday Diziliş Motoru | `FormationCandidateEngine` | 🟡 İskelet hazır |
+| M5 | Pozisyon Optimizasyon Motoru | `XIOptimizer` / XI optimizasyon katmanı | 🟡 İskelet + entegrasyon doğrulaması |
+| M6 | Davranış Optimizasyon Motoru | `BehaviourOptimizer` | 🟡 İskelet |
+| M7 | Bölgesel Rating Motoru | `RegionalRatingEngineFixed` | ✅ Referans motor |
+| M8 | Maç Eşleşme Motoru | planlanan | ⏳ Sıradaki ana geliştirme |
+| M9 | Taktiksel Skor Motoru | planlanan | ⏳ |
+| M10 | Final Taktik Optimizasyon Motoru | planlanan | ⏳ |
+| M11 | Maç Tahmin Motoru | planlanan | ⏳ |
 
-## GELİŞTİRME SIRASI
+### M1 — CHPP Veri Motoru / Veri Katmanı
+Ham takım, oyuncu, rakip ve maç verilerini sağlar. Karar vermemelidir.
 
-1. **CHPP Veri Motoru / Veri Katmanı** — CHPP'den ham takım, oyuncu, rakip ve maç verilerini sağlar. Karar vermez.
-2. **Rakip Analiz Motoru** — Rakibin son resmi maçını, dizilişini, final 11'ini ve gerçek 7 bölgesel ratingini bizim kadro seçimimizden önce hazırlar.
-3. **Oyuncu Analiz Motoru** — Kendi oyuncularımızın pozisyon uygunluklarını ve aday kullanım alanlarını çıkarır. XI seçmez.
-4. **Aday Diziliş Motoru** — Maç için değerlendirilebilecek yasal dizilişleri üretir.
-5. **Pozisyon Optimizasyon Motoru** — Oyuncu → pozisyon kombinasyonlarını takım seviyesinde değerlendirir.
-6. **Davranış Optimizasyon Motoru** — Oyuncu emirlerinin rating üzerindeki etkisini adaylar halinde üretir.
-7. **Bölgesel Rating Motoru** — Pozisyon + skill + davranış + maç bağlamından yedi bölgesel rating üretir.
-8. **Maç Eşleşme Motoru** — Bizim hücum/savunma bölgelerimizi rakibin karşı savunma/hücum bölgeleriyle eşleştirir ve orta saha etkisini değerlendirir.
-9. **Taktiksel Skor Motoru** — Hücum avantajı, savunma güvenliği, orta saha ve risk/denge üzerinden aday planları karşılaştırır.
-10. **Final Taktik Optimizasyon Motoru** — En iyi diziliş + 11 + oyuncu emirleri kombinasyonunu final maç planına dönüştürür.
-11. **Maç Tahmin Motoru** — Final plan üzerinden pozisyon şansı, gol olasılığı ve kazanma olasılığı üretir.
+### M2 — Rakip Analiz Motoru
+Rakibin bizim XI seçimimizden bağımsız olarak son resmi maçını, dizilişini, final 11'ini, gerçek 7 bölgesel ratingini ve tehdit profilini hazırlar. **RP karar girdisi değildir.**
 
-> Not: Bu 11 aşamalı akış hedef mimaridir. Her motorun canlı karar zincirine bağlandığı varsayılmamalıdır; geliştirme durumu aşağıdaki bölümlerde ayrıca belirtilir.
+### M3 — Oyuncu Analiz Motoru
+Sadece kendi oyuncularının pozisyon uygunluk profillerini üretir. XI seçmez, diziliş seçmez, rakip skoru üretmez ve bölgesel rating üretmez. Oyuncu profilinde `IsEligible`, `InjuryLevel`, pozisyon adayları, birincil ve ikincil pozisyon bulunur. `InjuryLevel == 999` oyuncular aday değildir.
 
-## MOTOR DURUMLARI
+### M4 — Aday Diziliş Motoru
+Yasal ve doldurulabilir diziliş adaylarını üretir. Mevcut adaylar arasında 3-5-2, 3-4-3, 4-4-2, 4-5-1, 2-5-3 ve 5-3-2 vardır. Nihai rakip/taktik skorunu hesaplamaz.
 
-### Motor 1 — CHPP Veri Motoru / Veri Katmanı ✅
-CHPP'den kendi takımının oyuncu becerileri ve takım verileri ile rakibin son resmi maçına ait kadro, yıldız ve gerçek bölgesel rating verilerini toplar. Kupa ve hazırlık maçları otomatik olarak atlanır. Bu katman karar vermez; ham veriyi sağlar.
+### M5 — Pozisyon Optimizasyon Motoru
+Diziliş adayındaki slotlara oyuncu atamalarını takım seviyesinde optimize eder. Aynı oyuncu aynı aday XI içinde iki kez kullanılamaz. Uygunluk skoru gerçek Hattrick maç ratingi değildir; yalnızca optimizasyon girdisidir.
 
-### Motor 2 — Rakip Analiz Motoru 🟡 DOĞRULAMA / BAKIM
-Rakibin son resmi maçını, gerçek 7 bölgesel ratingini, dizilişini, final saha 11'ini ve rakip profilini bizim kadro seçimimizden **önce** hazırlar. Pozisyon uygunluğuyla ilk XI oluşturulur; ardından gerçek bölgesel ratingler ile yasal oyuncu takasları denenir.
+### M6 — Davranış Optimizasyon Motoru
+Normal, ofansif, defansif, ortaya doğru ve kanada doğru davranış adaylarını değerlendirir. Nihai karar M9/M10 tarafında verilecektir.
 
-**RP karar girdisi değildir.** Rakip oyuncu RP tahmini yalnızca görüntüleme/yardımcı veri olarak kalır.
+### M7 — Bölgesel Rating Motoru
+`RegionalRatingEngineFixed` yedi bölgesel rating üretir. Yeni doğrulanmış maç verisi olmadan temel katsayılar değiştirilmemelidir.
 
-### Motor 3 — Oyuncu Analiz Motoru 🟡 DÜZELTİLDİ / OFFLINE DOĞRULAMA BEKLİYOR
-Motor 3'ün tek görevi kendi oyuncularını bağımsız biçimde analiz etmektir. Rakibi değerlendirmez, diziliş seçmez, XI oluşturmaz ve bölgesel rating üretmez. Her oyuncu için pozisyon uygunluk profilini üretir ve bunu Motor 4 ile Motor 5'e aktarır.
+### M8 — Maç Eşleşme Motoru
+Bizim hücum/savunma bölgelerimizi rakibin karşı savunma/hücum bölgeleriyle eşleştirecek. **Bir sonraki ana geliştirme aşaması.**
 
-Oyuncu profili artık aşağıdaki temel bilgileri taşır:
-- `IsEligible`
-- `InjuryLevel`
-- pozisyon adayları ve skorları
-- birincil pozisyon
-- ikincil pozisyon
+### M9 — Taktiksel Skor Motoru
+Hücum avantajı, savunma güvenliği, orta saha ve risk/denge üzerinden aday planları karşılaştıracak.
 
-`InjuryLevel == 999` olan oyuncular Motor 3 tarafından seçilebilir oyuncu adayı sayılmaz. Böylece sakat/oynanamaz oyuncunun daha sonraki pozisyon optimizasyonuna sızması engellenir.
+### M10 — Final Taktik Optimizasyon Motoru
+En iyi diziliş + ilk 11 + individual behaviour + rakip eşleşmesini final maç planına dönüştürecek.
 
-Motor 3'ün güncel rolü:
+### M11 — Maç Tahmin Motoru
+Final plan üzerinden pozisyon şansı, gol olasılığı ve kazanma olasılığı üretecek.
 
-`CHPP oyuncuları → oyuncu profilleri → pozisyon uygunluğu → Motor 4/5`
+## Offline regression testi
 
-ÖNEMLİ: Pozisyon uygunluk skoru Hattrick maç ratingi değildir. Yalnızca oyuncunun belirli bir slot için göreli uygunluğunu ifade eden optimizasyon girdisidir.
+Kalıcı test girdisi:
 
-### Motor 4 — Aday Diziliş Motoru 🟡 İSKELET HAZIR
-3-5-2, 3-4-3, 4-4-2, 4-5-1, 2-5-3 ve 5-3-2 gibi yasal adayları üretir. Rakibe karşı nihai taktik değerini hesaplamaz; bu sorumluluk sonraki motorlardadır.
+`TestJSON/HattrickAI_V5_CHPP_FullOffline_2026-09-01.json`
 
-### Motor 5 — Pozisyon Optimizasyon Motoru 🟡 İSKELET HAZIR / MOTOR 3 ENTEGRASYON TESTİ
-Motor 4'ten gelen diziliş adayını Motor 3'ün oyuncu profilleriyle eşleştirir. Aynı oyuncu aynı aday XI içinde iki kez kullanılamaz. Çıkış, oyuncu → slot atamalarından oluşan sıralı adaylardır.
+Şema:
 
-Motor 5'te dikkat edilen ayrım:
-- uygunluk skoru = optimizasyon girdisi
-- bölgesel maç ratingi = Motor 7'nin çıktısı
-- rakibe karşı taktik skor = Motor 8/9'un çıktısı
+`hattrickai-v5-offline-test-v2`
 
-Bir sonraki offline doğrulama Motor 3 → Motor 4 → Motor 5 zincirinin tamamını gerçek CHPP verisiyle kontrol edecektir.
+Ana senaryo:
 
-### Motor 6 — Davranış Optimizasyon Motoru 🟡 İSKELET
-Oyuncunun normal / ofansif / defansif / ortaya doğru / kanada doğru davranışlarını aday olarak üretir. Nihai seçim henüz Motor 9/10'a bağlanmamıştır.
+- **Biz:** S4MSUNFC (`1080139`)
+- **Rakip:** Zeytinburnu Sahil Spor (`653953`)
+- **Maç:** `769648177`
+- **Tarih:** 2026-09-06 15:00 UTC
+- **Saha:** Zeytinburnu Sahil Spor
+- **Durum:** S4MSUNFC deplasman
 
-### Motor 7 — Bölgesel Rating Motoru ✅
-`RegionalRatingEngineFixed`, doğrulanmış rating katmanıdır. Pozisyon + skill + behaviour + maç bağlamından yedi bölgesel rating üretir.
+Export CHPP kaynaklıdır ve credentials, OAuth token veya session cookie içermez.
 
-S4MSUNFC — 3-5-2 regression referansı:
-`DEF-L 10.25 / DEF-C 16.50 / DEF-R 10.25 / MID 7.25 / ATT-L 10.50 / ATT-C 12.00 / ATT-R 9.50`
+### Ground-truth rakip ratingi
 
-Yeni doğrulanmış maç verisi gelmeden temel katsayılar değiştirilmemelidir.
+Zeytinburnu Sahil Spor'un referans resmi maçından alınan gerçek 7 bölgesel rating:
 
-### Motor 8 — Maç Eşleşme Motoru ⏳
-Bizim hücum ve savunma bölgelerini rakibin karşı bölgeleriyle eşleştirir. Tehdit/fırsat verisini aday taktiklerin değerlendirilmesinde kullanır.
+```text
+DEF-L 6.25
+DEF-C 9.50
+DEF-R 6.25
+MID   7.00
+ATT-L 10.00
+ATT-C 13.00
+ATT-R 8.50
+```
 
-### Motor 9 — Taktiksel Skor Motoru ⏳
-Aday planları hücum avantajı, savunma güvenliği, orta saha ve risk/denge kriterleriyle karşılaştırır.
+### Mevcut S4MSUNFC maç verisi
 
-### Motor 10 — Final Taktik Optimizasyon Motoru ⏳
-En iyi diziliş + ilk 11 + individual behaviour + rakip eşleşmesini tek final maç planında birleştirir.
+```text
+Diziliş: 3-5-2
+DEF-L 9.50
+DEF-C 16.00
+DEF-R 9.75
+MID   7.50
+ATT-L 9.50
+ATT-C 11.50
+ATT-R 10.00
+```
 
-### Motor 11 — Maç Tahmin Motoru ⏳
-Final maç planından pozisyon şansı, gol olasılığı ve kazanma olasılığı üretir.
+Bu iki rating seti birbirine karıştırılmamalıdır: CHPP'den gelen gerçek rating **ground-truth**, motorun ürettiği rating ise **tahmin/aday çıktısıdır**.
 
-## KULLANICI ANKETİ
+## Offline test sonucu — 2026-09-01
 
-V5 kullanıcıdan yalnızca üç bilgi alır:
+Şu anki kayıt durumu:
 
-1. Teknik direktör tarzı
-2. Takım ruhu
-3. Maç yaklaşımı: Normal / PIC / MOTS
+- M1 veri seti: ✅ mevcut
+- M2 rakip verisi: ✅ test girdisi mevcut / 🟡 motor doğrulaması sürüyor
+- M3 kaynak kodu: ✅ incelendi / 🟡 tam offline PASS bekliyor
+- M4 kaynak kodu: ✅ incelendi / 🟡 tam offline PASS bekliyor
+- M5 kaynak kodu: 🟡 entegrasyon doğrulaması bekliyor
+- M6: 🟡 iskelet
+- M7: ✅ referans motor
+- M8-M11: ⏳ geliştirme bekliyor
 
-CHPP'den alınabilen confidence gibi diğer psikoloji bilgileri kullanıcıya ayrıca sorulmaz; hesap için mevcutsa sistem içinden kullanılır.
+**Önemli:** Tam Motor 1 → Motor 5 regression sonucu henüz `PASS` olarak işaretlenmemiştir. Test dosyasının araç üzerinden tam içeriği tek seferde çalışma ortamına alınamadığı için çalıştırılmamış bir test başarılı kabul edilmemiştir.
 
-## KOPYA AKIŞI
+## Mimari olarak doğrulanan noktalar
 
-Tek `İKİ TAKIMI KOPYALA` butonu bizim takım ve rakibi arka arkaya üretir:
+1. Motor 3 yalnızca oyuncu profili üretir.
+2. Motor 4 yalnızca yasal/doldurulabilir diziliş adaylarını üretir.
+3. Motor 3'ün pozisyon uygunluk skoru gerçek maç ratingi değildir.
+4. Gerçek CHPP ratingi ile motor tahmini ayrı tutulur.
+5. Rakip analizi kendi XI seçimimize bağımlı olmamalıdır.
+6. Aynı oyuncu bir aday XI içinde iki slotta kullanılamaz.
+7. Optimizasyon döngüsü yalnızca daha iyi aday bulunduğunda devam etmelidir.
+8. Bir motorun sorumluluğu sonraki motorun işini gizlice üstlenmemelidir.
 
-`HattrickAI V5 KOPYA` → bizim takım → diziliş → oyuncular → 7 bölgesel rating
+## Dikkat edilmesi gereken eski yol
 
-`HattrickAI V5 KOPYA` → rakip → diziliş → oyuncular → 7 bölgesel rating
+`HattrickAI_V5/Core/XIOptimizer.cs` içinde eski oyuncu → pozisyon atama yolu hâlâ bulunmaktadır. Yeni 11 aşamalı mimaride bunun canlı çağrı zincirinde nerede kullanıldığı kesinleştirilmeden silinmemelidir. `PositionSuitabilityEngine` ise mevcut API'yi koruyan uyumluluk katmanı olarak Motor 3'e delegasyon yapmaktadır.
 
-## OFFLINE TEST VERİSİ
+## Geliştirme kuralı
 
-Ana regression dosyası `HattrickAI_V5_CHPP_FullOffline_2026-09-01T08-49-54-690Z.json` olarak tutulur. Şema `hattrickai-v5-offline-test-v2`dir. Dosya CHPP kaynaklıdır ve credential, OAuth token veya session cookie içermez. fileciteturn879file0L11-L21
+Her motor için sıra:
 
-Bu veri seti S4MSUNFC → Zeytinburnu Sahil Spor maçı için kullanılacak. Dosya; kendi takım oyuncuları, training, maç geçmişi, rakip maçları, rakibin son resmi maç lineup'ı ve matchdetails gibi ham CHPP verilerini içerir. fileciteturn879file0L51-L55
-
-Rakibin son resmi maçının 7 ratingi matchdetails içinden doğrulanabilir: DEF-L 6.25, DEF-C 9.50, DEF-R 6.25, MID 7.00, ATT-L 10.00, ATT-C 13.00, ATT-R 8.50. fileciteturn885file1L9-L10
-
-Offline testlerde önce Motor 1 → Motor 2 → Motor 3, ardından Motor 4 → Motor 5 sıralı olarak doğrulanır. Bir üst motora geçilmeden önce giriş/çıkış sözleşmesi kontrol edilir.
-
-## ÖNEMLİ REGRESSION TESTİ
-
-S4MSUNFC vs Zeytinburnu Sahil Spor ana regression senaryosudur.
-
-S4MSUNFC:
-`3-5-2`
-`DEF 9.50 / 16.00 / 9.75`
-`MID 7.50`
-`ATT 9.50 / 11.50 / 10.00`
-
-Zeytinburnu Sahil Spor:
-`2-5-3`
-`DEF 6.25 / 9.50 / 6.25`
-`MID 7.00`
-`ATT 10.00 / 13.00 / 8.50`
-
-Mevcut export analizinde S4MSUNFC 3-5-2, Zeytinburnu 2-5-3 olarak görünür ve rakip tehdit profili merkez 13.00, sol 10.00, sağ 8.50, orta saha baskısı 7.00 şeklindedir. fileciteturn886file0L53-L126
-
-Mevcut S4MSUNFC yerleşiminde Enzo Bultot GK, Abeiku Takyi DEF-CL, Dawid Nocoń DEF-C ve Cristian Pesalovo DEF-CR olarak yer alır. fileciteturn888file0L27-L77
-
-## GELİŞTİRME KURALI
-
-Her motor için:
 1. Kod kontrolü
 2. Girdi/çıktı sözleşmesi kontrolü
-3. Bir sonraki motora veri aktarımı testi
-4. Gerçek Hattrick referansıyla test
+3. Önceki motorla entegrasyon testi
+4. Offline CHPP regression testi
 5. Hata analizi
-6. Commit/deploy
-7. Sonuç doğrulanmadan sonraki motora geçmeme
+6. Düzeltme ve commit
+7. Deploy
+8. Deploy sonucu doğrulama
+9. Sonuç PASS olmadan sonraki motorun nihai karar mantığına geçmeme
 
-Bu belge V5 motorları geliştirilirken ana referans yol haritasıdır. Aktif geliştirme hattı yalnızca **`v5`** branch'idir.
+Bu README, V5 motorlarının mevcut durumunu ve hedef akışı kaybetmemek için ana teknik kayıt olarak tutulacaktır.
