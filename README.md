@@ -68,8 +68,8 @@ Her motor kendisinden önceki katmanın bilgisini kullanır; kendisinden sonraki
 | M5 | Pozisyon Optimizasyon Motoru | Formation başına XI adayları | 🟢 Düzeltildi / regression PASS hedefi |
 | M6 | Davranış Aday Motoru | Individual behaviour adayları | 🟡 İskelet |
 | M6B | Maç Ayarı Aday Motoru | Team attitude + team tactic adayları | 🆕 Planlandı |
-| M7 | Bölgesel Rating Motoru | Senaryo → 7 bölgesel rating | ✅ Referans motor |
-| M8 | Maç Eşleşme Motoru | Biz ↔ rakip bölgesel matchup | ⏳ Sıradaki ana geliştirme |
+| M7 | Bölgesel Rating Motoru | Senaryo → 7 bölgesel rating | 🟢 M7/M7.1 implementation + regression PASS |
+| M8 | Maç Eşleşme Motoru | Biz ↔ rakip bölgesel matchup | ⏳ |
 | M9 | Taktiksel Değer Motoru | Fırsat + güvenlik + midfield + risk | ⏳ |
 | M10 | Global Match Optimizer | Formation × XI × behaviour × settings optimizasyonu | ⏳ |
 | M11 | Maç Tahmin Motoru | Final plan → olasılık/tahmin | ⏳ |
@@ -143,6 +143,8 @@ M5'ten gelen her XI için mümkün individual behaviour adaylarını üretir:
 
 M6 nihai davranış kararını vermez; adayları M7/M8/M9 değerlendirmesine bırakır.
 
+**Database/learning:** M6 aşamasında database tabanlı davranış öğrenmesi uygulanmayacaktır. Yeterli gerçek maç verisi ve eşleşmiş pre-match snapshot birikmeden geçmiş sonuçları M6'nın deterministik aday üretimine bağlamak güvenilir değildir. Gelecekte historical evidence gerekirse M9/M10 tarafında kontrollü olarak değerlendirilecektir.
+
 ### M6B — Match Configuration Candidate Engine
 
 M6'dan ayrı tutulur. Individual order ile takım ayarlarının birbirine karışmasını önler. Aday uzayına:
@@ -157,20 +159,55 @@ M6B nihai seçimi yapmaz. Yasal/uygulanabilir kombinasyonlar üretir.
 
 ### M7 — Bölgesel Rating / Scenario Simulation Engine
 
-M7 artık yalnızca XI değil, bir **Match State** senaryosunu değerlendirmelidir:
+M7 yalnızca XI değil, bir **Match State** senaryosunu değerlendirmelidir:
 
 ```text
 XI
 + Individual Behaviour Set
 + Team Attitude
 + Team Tactic
++ Team Spirit
 + diğer doğrulanmış maç parametreleri
 → 7 bölgesel rating
 ```
 
 Çıktı `RatingCandidateId`, `FormationId`, `LineupId`, `BehaviourSetId`, `TacticId` gibi izlenebilir kimlikleri taşımalıdır. Böylece M8'de bir ratingin hangi adaydan geldiği kaybolmaz.
 
-Yeni doğrulanmış gerçek maç verisi olmadan temel rating katsayıları değiştirilmemelidir.
+M7'nin temel rating katsayıları, yeni doğrulanmış gerçek maç verisi olmadan değiştirilmemelidir.
+
+### M7.1 — Team Spirit Context Layer
+
+Team Spirit M7 rating senaryosunun ayrı bir context girdisidir. Team Spirit etkisi yalnızca **midfield** üzerinde uygulanmalı; diğer altı bölgesel ratingi değiştirmemelidir.
+
+Mevcut uygulama/regression yaklaşımında Team Spirit eğrisi:
+
+```text
+TeamSpiritMultiplier = 0.10 + 0.425 × sqrt(TeamSpirit)
+```
+
+olarak korunur.
+
+Bu katman M7'nin deterministic yapısını bozmaz ve M8'e gönderilecek rating candidate içinde Team Spirit context'ini izlenebilir tutar.
+
+### M7.2 — Advanced Tactics Layer / sonraki aşama
+
+M7.2'nin amacı M7'nin temel 7 bölgesel rating çekirdeğini gereksiz yere yeniden yazmak değil, doğrulanmış takım taktik etkilerini ayrı ve izlenebilir bir katman olarak eklemektir.
+
+Kapsam:
+
+- Normal / PIC / MOTS bağlamı
+- Team Tactic ve tactic level
+- Attack in the Middle (AIM)
+- Attack on Wings (AOW)
+- Counter Attack
+- Pressing
+- Long Shots
+- Play Creatively
+- diğer doğrulanmış taktikler
+
+Taktik etkileri tek bir kaba `rating × sabit katsayı` formülüne indirgenmeyecek. **Rating effect** ile **chance generation / chance distribution effect** ayrı tutulacaktır. M7 rating üretir; M8/M9 tarafı matchup ve maç değerini değerlendirecektir.
+
+M7.2 ilk aşamada katsayı kalibrasyonu yapmayacak; önce tüm taktik/interaction senaryolarını deterministik ve izlenebilir biçimde üretilebilir hale getirecektir. Gerçek CHPP maçları geldikçe kalibrasyon yapılacaktır.
 
 ### M8 — Matchup Engine
 
@@ -325,15 +362,26 @@ bütününü optimize etmektir.
 - legal individual behaviour kombinasyonlarını üret
 - team attitude ve team tactic adaylarını ayrı katmanda üret
 - adayları erken eleme yerine M7'ye taşı
+- database/learning katmanını bu aşamada uygulama
 
-## Faz 3 — M7 Match State
+## Faz 3 — M7 / M7.1
 
 - XI + behaviour + team setting → rating senaryosu
 - CandidateId zinciri
 - 7 bölgesel rating
-- regression test
+- Team Spirit → midfield context
+- baseline regression
+- historical calibration için temiz veri toplama
 
-## Faz 4 — M8 Matchup
+## Faz 4 — M7.2 Advanced Tactics
+
+- tactic + tactic level context
+- rating effect ile chance effect ayrımı
+- AIM/AOW/CA/Pressing/LS/PC senaryoları
+- individual order × tactic × attitude interaction testleri
+- deterministik regression
+
+## Faz 5 — M8 Matchup
 
 - 7 bölgesel matchup
 - attack opportunity
@@ -343,13 +391,13 @@ bütününü optimize etmektir.
 - confidence
 - tüm M7 adaylarını rakibe karşı değerlendirme
 
-## Faz 5 — M9 Tactical Value
+## Faz 6 — M9 Tactical Value
 
 - M8 çıktılarından maç değeri
 - risk/fırsat dengesi
 - tactic-dependent trade-off'lar
 
-## Faz 6 — M10 Global Optimization
+## Faz 7 — M10 Global Optimization
 
 - Formation × XI × Behaviour × Settings kombinasyonları
 - deduplication
@@ -358,12 +406,64 @@ bütününü optimize etmektir.
 - convergence/epsilon
 - immediate value vs long-term cost
 
-## Faz 7 — M11 Prediction
+## Faz 8 — M11 Prediction
 
 - final stabilized plan
 - goal probability
 - W/D/L probability
 - confidence
+
+---
+
+# M7 historical validation / regression kararı — 2026-09-01
+
+Mevcut offline CHPP snapshot içindeki geçmiş maçlar ayrıca incelendi.
+
+### Kullanılabilir geçmiş veri
+
+S4MSUNFC ve Zeytinburnu Sahil Spor için geçmiş maç kayıtları mevcut. Ancak geçmiş maçların büyük bölümü yalnızca maç listesi/sonuç verisi içeriyor. Gerçek 7 bölgesel rating içeren ayrıntılı `matchdetails.xml` kaydı bu snapshot'ta sınırlı.
+
+Kullanılabilir ayrıntılı örnek:
+
+**30 Ağustos 2026 — bombacı mülayim spor 3–2 Zeytinburnu Sahil Spor**
+
+Bu maçta gerçek CHPP 7 bölgesel ratingleri mevcut. Ancak geçmiş maçın o günkü oyuncu skill/form snapshotı ile mevcut oyuncu snapshotı birebir aynı olmadığı için bu kayıt **temiz historical replay calibration dataseti** olarak kabul edilmemelidir.
+
+### Karar
+
+Bu tek geçmiş maçtan M7/M7.1 temel katsayıları değiştirilmemelidir.
+
+M7/M7.1 durumu:
+
+- **Implementation/Regression:** PASS
+- **Historical calibration:** BEKLEMEDE
+- **M7.2:** Sıradaki geliştirme
+
+### Gelecekte gerçek maç verisiyle yapılacak test
+
+Kullanıcı yeni maçlar oynadıkça mümkünse maç öncesi CHPP snapshot + maç sonrası `matchdetails.xml` birlikte saklanacaktır. Yeterli örnek biriktiğinde:
+
+1. maç öncesi oyuncu snapshotı
+2. formation
+3. individual orders
+4. team attitude
+5. team spirit
+6. tactic/tactic level
+7. home/away
+8. gerçek 7 bölgesel rating
+
+eşleştirilerek M7/M7.1 ile karşılaştırılacaktır.
+
+Ölçülecek metrikler:
+
+- bölge bazlı absolute error
+- MAE
+- ortalama sapma/bias
+- yüzde hata
+- systematic under/over-estimation
+- Team Spirit etkisinin gerçek maçlarla doğrulanması
+
+Yeterli gerçek veri olmadan katsayı değiştirilmez.
 
 ---
 
@@ -466,9 +566,21 @@ Aynı offline senaryoda en iyi M5 toplamları:
 
 Sıralama M4 ile tutarlı kalmıştır. M5 rakip/taktik davranış kararını üstlenmemektedir.
 
-### M2 — bakım konusu ⚠️
+### M6 — PASS / candidate generation 🟢
 
-Rakibin tek maçlık gerçek 7 ratingi kullanılabilir; ancak daha sağlam M8/M9 için future `recent baseline + confidence` katmanı gereklidir. M2'nin eski `Motor2OpponentAwareRefiner` yolunun canlı zincirdeki kullanımı ayrıca netleştirilmelidir.
+Legal individual behaviour candidate matrisi üretildi. Örnek 3-5-2 senaryosunda davranış uzayı yaklaşık **248.832** kombinasyona ulaşabiliyor. M6 bu uzayın tamamını gereksiz RAM objelerine dönüştürmek yerine candidate matrix + kontrollü enumeration yaklaşımını kullanır.
+
+M6 için database/learning katmanı bu aşamada uygulanmamıştır.
+
+### M7 — PASS / implementation + regression 🟢
+
+M7 7 bölgesel rating senaryosu üretiyor. Individual orders, overcrowding, venue, attitude, tactic context, form ve experience gibi mevcut doğrulanmış hesaplar korunmuştur.
+
+### M7.1 — PASS / Team Spirit 🟢
+
+Team Spirit etkisi yalnızca midfield'e uygulanıyor. Test snapshotında `TeamSpirit = 3` için Team Spirit multiplier yaklaşık **0.8361** ve mevcut baseline midfield değeri yaklaşık **6.25 → 5.25** seviyesine geliyor; diğer 6 bölge değişmiyor.
+
+Bu test implementation/regression PASS'tir; henüz gerçek historical calibration değildir.
 
 ---
 
@@ -480,9 +592,13 @@ Rakibin tek maçlık gerçek 7 ratingi kullanılabilir; ancak daha sağlam M8/M9
 - M6 final behaviour seçmez; aday üretir.
 - M6B final team setting seçmez; aday üretir.
 - M7 rating üretir ama maç kazanma olasılığı üretmez.
+- M7.1 Team Spirit'i rating context olarak işler; yalnızca midfield etkisi uygular.
+- M7.2 rating etkisi ile chance effect'i ayrı tutar.
 - M8 oyuncu/diziliş seçmez; matchup üretir.
 - M9 final plan seçmez; tactical value üretir.
 - M10 global kararı verir ve gerektiğinde önceki aday motorlarına kontrollü geri döner.
 - M11 final prediction üretir; planı değiştirmez.
 
-Bu README, V5'in mevcut teknik durumunu, doğrulanmış regression sonuçlarını ve M6–M11 için yeni hedef mimariyi ana teknik kayıt olarak tutar.
+Database/learning katmanı şimdilik uygulanmıyor. Gerçek maç sonuçları ve eşleşmiş pre-match snapshotlar yeterli hacme ulaştığında M9/M10 tarafında historical evidence olarak ayrıca değerlendirilecek; M6/M7'nin deterministik temel matematiğine erken dönemde bağlanmayacak.
+
+Bu README, V5'in mevcut teknik durumunu, doğrulanmış regression sonuçlarını, historical validation kararını ve M7.2 sonrası hedef mimariyi ana teknik kayıt olarak tutar.
