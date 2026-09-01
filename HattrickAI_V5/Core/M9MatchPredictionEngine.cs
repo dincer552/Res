@@ -4,9 +4,9 @@ using System.Collections.Generic;
 namespace HattrickAI.V5.Core;
 
 /// <summary>
-/// M9: converts the calibrated/structural M8 chance result into a bounded
-/// match prediction contract. The conversion is deliberately isolated so the
-/// coefficients can be replaced by historical-match calibration later.
+/// M9: converts the structural M8 chance result into a bounded match
+/// prediction. The conversion is isolated so historical calibration can
+/// replace the coefficients without changing M7/M8.
 /// </summary>
 public sealed class M9MatchPredictionEngine
 {
@@ -26,49 +26,38 @@ public sealed class M9MatchPredictionEngine
         var midfieldShare = Clamp01(chance.MidfieldShare);
         var matchup = ClampSigned(candidate.Matchup.OverallScore);
 
-        // M8 owns chance structure; M9 only translates it into a bounded
-        // expectation and outcome probabilities. No XI/behaviour re-selection.
         var ownExpected = ClampGoals(BaseGoals + ChanceScale * ownChance);
         var opponentExpected = ClampGoals(BaseGoals + ChanceScale * (1.0 - ownChance));
 
-        // Small bounded matchup correction keeps M9 responsive to the complete
-        // M7/M8 matchup while preventing a single raw score from dominating.
+        // Keep matchup and venue effects small because M7/M8 already own the
+        // underlying rating and chance structure.
         var correction = 0.20 * matchup;
         ownExpected = ClampGoals(ownExpected + correction);
         opponentExpected = ClampGoals(opponentExpected - correction);
 
-        // Venue is an explicit M7 input. Keep the M9 adjustment tiny because
-        // the rating engine already owns the core venue effect.
         if (location == MatchLocation.Home)
             ownExpected = ClampGoals(ownExpected + 0.08);
         else if (location == MatchLocation.Away)
             opponentExpected = ClampGoals(opponentExpected + 0.04);
 
-        var possession = midfieldShare;
         var spread = ownExpected - opponentExpected;
-        var win = Logistic(2.20 * spread);
-        var draw = 0.18 + 0.20 * Math.Exp(-Math.Abs(spread) * 1.6);
-        draw = Math.Clamp(draw, 0.08, 0.32);
+        var winLogit = 2.20 * spread;
+        var drawLogit = 0.45 - (0.70 * Math.Abs(spread));
+        var lossLogit = -winLogit;
 
-        // Normalize the three mutually-exclusive outcomes.
-        var remaining = Math.Max(0.001, win + draw + (1.0 - win));
-        draw = draw / remaining;
-        var nonDraw = 1.0 - draw;
-        win = nonDraw * win;
-        var loss = nonDraw * (1.0 - win / Math.Max(nonDraw, 0.001));
-        loss = Math.Clamp(loss, 0.0, 1.0);
-        var total = win + draw + loss;
-        win /= total;
-        draw /= total;
-        loss /= total;
+        var max = Math.Max(winLogit, Math.Max(drawLogit, lossLogit));
+        var winWeight = Math.Exp(winLogit - max);
+        var drawWeight = Math.Exp(drawLogit - max);
+        var lossWeight = Math.Exp(lossLogit - max);
+        var total = Math.Max(1e-9, winWeight + drawWeight + lossWeight);
 
         var prediction = new MatchPrediction(
-            possession,
+            midfieldShare,
             ownExpected,
             opponentExpected,
-            win,
-            draw,
-            loss);
+            winWeight / total,
+            drawWeight / total,
+            lossWeight / total);
 
         return new M9PredictionResult(
             candidate.Lineup.Formation,
@@ -77,9 +66,6 @@ public sealed class M9MatchPredictionEngine
             ownChance,
             M9CalibrationStatus.StructuralModelAwaitingHistoricalCalibration);
     }
-
-    private static double Logistic(double value)
-        => 1.0 / (1.0 + Math.Exp(-Math.Clamp(value, -12.0, 12.0)));
 
     private static double Clamp01(double value) => Math.Clamp(value, 0.0, 1.0);
     private static double ClampSigned(double value) => Math.Clamp(value, -1.0, 1.0);
