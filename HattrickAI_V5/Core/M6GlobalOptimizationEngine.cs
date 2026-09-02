@@ -2,9 +2,10 @@ namespace HattrickAI.V5.Core;
 
 /// <summary>
 /// M6 bounded global behaviour optimizer.
-/// Starts from the all-Normal baseline and performs deterministic beam search
-/// over legal individual orders. M6 artık tek BestCandidate yanında ilk 100
-/// güçlü sonucu da Candidate Database #1 için dışarı verir.
+/// Starts from the supplied XI candidates and performs deterministic beam search
+/// over legal individual orders. M6-A normal baseline'dan geniş arama yapar;
+/// M6-B ise DB1 seed'lerinin mevcut davranışlarını koruyarak ikinci refinement
+/// turunu çalıştırır.
 /// </summary>
 public sealed class M6GlobalOptimizationEngine
 {
@@ -21,7 +22,8 @@ public sealed class M6GlobalOptimizationEngine
         int beamWidth = 12,
         int maxIterations = 8,
         CancellationToken cancellationToken = default,
-        Action<int, int, int, int>? progress = null)
+        Action<int, int, int, int>? progress = null,
+        bool preserveInputOrders = false)
     {
         ArgumentNullException.ThrowIfNull(xiCandidates);
         ArgumentNullException.ThrowIfNull(players);
@@ -45,7 +47,9 @@ public sealed class M6GlobalOptimizationEngine
             cancellationToken.ThrowIfCancellationRequested();
 
             var matrix = _candidateEngine.Build(xi.Lineup, players);
-            var baseline = ToNormalLineup(xi.Lineup, matrix);
+            var baseline = preserveInputOrders
+                ? ToExistingLineup(xi.Lineup, matrix)
+                : ToNormalLineup(xi.Lineup, matrix);
             var beam = new List<Lineup> { baseline };
             var seen = new HashSet<string>(StringComparer.Ordinal) { Signature(baseline) };
             TacticalCandidate? localBest = await EvaluateAndStore(baseline);
@@ -147,6 +151,17 @@ public sealed class M6GlobalOptimizationEngine
         {
             Slots = lineup.Slots
                 .Select(s => valid.Contains((s.Code, s.PlayerId)) ? s with { Order = PlayerOrder.Normal } : s)
+                .ToList()
+        };
+    }
+
+    private static Lineup ToExistingLineup(Lineup lineup, BehaviourCandidateSet matrix)
+    {
+        var valid = matrix.Slots.Select(x => (x.PositionCode, x.PlayerId)).ToHashSet();
+        return lineup with
+        {
+            Slots = lineup.Slots
+                .Where(s => s.PlayerId <= 0 || valid.Contains((s.Code, s.PlayerId)))
                 .ToList()
         };
     }
