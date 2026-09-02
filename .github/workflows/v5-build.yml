@@ -5,6 +5,12 @@ on:
     branches: [v5]
   workflow_dispatch:
 
+# Azure VM tek deploy hedefi olduğu için aynı anda birden fazla deploy
+# çalışmasına izin verme. Yeni commit geldiğinde eski deploy iptal edilir.
+concurrency:
+  group: v5-deploy
+  cancel-in-progress: true
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -37,10 +43,11 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          echo "💾 Docker image paketleniyor..."
-          docker save hattrick-v5:deploy | gzip > hattrick-v5.tar.gz
+          ARCHIVE="hattrick-v5-${GITHUB_SHA}.tar.gz"
+          echo "💾 Docker image paketleniyor: ${ARCHIVE}"
+          docker save hattrick-v5:deploy | gzip > "${ARCHIVE}"
           echo "✅ Image hazır:"
-          ls -lh hattrick-v5.tar.gz
+          ls -lh "${ARCHIVE}"
 
       - name: Configure SSH
         shell: bash
@@ -56,18 +63,25 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          echo "📤 Docker image Azure VM'ye gönderiliyor..."
-          scp -i ~/.ssh/deploy_key hattrick-v5.tar.gz "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/tmp/hattrick-v5.tar.gz"
+          ARCHIVE="hattrick-v5-${GITHUB_SHA}.tar.gz"
+          REMOTE_ARCHIVE="/tmp/${ARCHIVE}"
+          echo "📤 Docker image Azure VM'ye gönderiliyor: ${REMOTE_ARCHIVE}"
+          scp -i ~/.ssh/deploy_key "${ARCHIVE}" "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:${REMOTE_ARCHIVE}.upload"
+          ssh -i ~/.ssh/deploy_key "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
+            "mv '${REMOTE_ARCHIVE}.upload' '${REMOTE_ARCHIVE}'"
           echo "✅ Image Azure VM'ye gönderildi"
 
       - name: Deploy on Azure VM
         shell: bash
         run: |
           set -Eeuo pipefail
+          ARCHIVE="hattrick-v5-${GITHUB_SHA}.tar.gz"
+          REMOTE_ARCHIVE="/tmp/${ARCHIVE}"
           ssh -i ~/.ssh/deploy_key "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" << EOF
           set -Eeuo pipefail
           LOG_DIR="/home/azureuser/hattrick-deploy"
           LOG_FILE="\$LOG_DIR/deploy.log"
+          REMOTE_ARCHIVE="${REMOTE_ARCHIVE}"
           mkdir -p "\$LOG_DIR"
           touch "\$LOG_FILE"
           log() { printf '[%s] %s\n' "\$(date '+%Y-%m-%d %H:%M:%S')" "\$1" >> "\$LOG_FILE"; }
@@ -78,8 +92,9 @@ jobs:
           log "Commit: ${GITHUB_SHA:0:7}"
           log "Gönderen: ${GITHUB_ACTOR}"
           log "📦 Image: hattrick-v5:deploy"
-          log "📥 Docker image yükleniyor..."
-          gunzip -c /tmp/hattrick-v5.tar.gz | sudo docker load
+          log "📥 Docker image yükleniyor: \$REMOTE_ARCHIVE"
+          test -s "\$REMOTE_ARCHIVE"
+          gunzip -c "\$REMOTE_ARCHIVE" | sudo docker load
           log "✅ Docker image yüklendi"
           log "🛑 Eski container durduruluyor..."
           sudo docker rm -f hattrick-v5 2>/dev/null || true
@@ -98,7 +113,7 @@ jobs:
           log "❤️ Health: \$health"
           log "🟢 DEPLOY BAŞARILI"
           log "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-          rm -f /tmp/hattrick-v5.tar.gz
+          rm -f "\$REMOTE_ARCHIVE"
           sudo docker image prune -f
           EOF
 
