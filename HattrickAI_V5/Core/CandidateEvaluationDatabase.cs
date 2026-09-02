@@ -32,6 +32,11 @@ public sealed class CandidateEvaluationDatabase
 
     public int Count => _records.Count;
 
+    public IReadOnlyDictionary<string, int> FormationCounts =>
+        _records.Values
+            .GroupBy(x => x.Formation, StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => g.Count(), StringComparer.Ordinal);
+
     public void Add(CandidateEvaluationRecord record)
     {
         ArgumentNullException.ThrowIfNull(record);
@@ -53,21 +58,41 @@ public sealed class CandidateEvaluationDatabase
 
     public IReadOnlyList<CandidateEvaluationRecord> Top(int count) => Records.Take(Math.Max(0, count)).ToList();
 
+    /// <summary>
+    /// Önce her mevcut formasyondan en iyi adayı garanti eder, ardından kalan
+    /// kapasiteyi global ranking sırasıyla doldurur. Böylece yüksek skorlu tek
+    /// bir formasyon diğer legal formasyonları DB1/DB2'den tamamen silemez.
+    /// </summary>
     public IReadOnlyList<CandidateEvaluationRecord> TopWithFormationDiversity(int count, int maxPerFormation = MaxPerFormation)
     {
         if (count < 1) return [];
         if (maxPerFormation < 1) throw new ArgumentOutOfRangeException(nameof(maxPerFormation));
 
+        var ordered = Records;
         var selected = new List<CandidateEvaluationRecord>(Math.Min(count, Capacity));
+        var selectedIds = new HashSet<string>(StringComparer.Ordinal);
         var perFormation = new Dictionary<string, int>(StringComparer.Ordinal);
 
-        foreach (var record in Records)
+        // Anti-lock: first reserve the strongest candidate of every formation.
+        foreach (var formationGroup in ordered.GroupBy(x => x.Formation, StringComparer.Ordinal)
+                                               .OrderBy(g => g.Key, StringComparer.Ordinal))
         {
+            var first = formationGroup.First();
+            if (selected.Count >= count) break;
+            selected.Add(first);
+            selectedIds.Add(first.CandidateId);
+            perFormation[first.Formation] = 1;
+        }
+
+        // Fill remaining slots globally while preserving the per-formation cap.
+        foreach (var record in ordered)
+        {
+            if (selected.Count >= count || selectedIds.Contains(record.CandidateId)) continue;
             perFormation.TryGetValue(record.Formation, out var formationCount);
             if (formationCount >= maxPerFormation) continue;
             selected.Add(record);
+            selectedIds.Add(record.CandidateId);
             perFormation[record.Formation] = formationCount + 1;
-            if (selected.Count >= count) break;
         }
 
         return selected;
