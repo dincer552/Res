@@ -226,13 +226,18 @@ public sealed class M6GlobalOptimizationEngine
         bool Converged);
 }
 
-public sealed record M6FormationSearchBudget(int BeamWidth, int MaxIterations)
+public sealed record M6FormationSearchBudget
 {
-    public M6FormationSearchBudget : this()
+    public M6FormationSearchBudget(int beamWidth, int maxIterations)
     {
-        if (BeamWidth < 1) throw new ArgumentOutOfRangeException(nameof(BeamWidth));
-        if (MaxIterations < 1) throw new ArgumentOutOfRangeException(nameof(MaxIterations));
+        if (beamWidth < 1) throw new ArgumentOutOfRangeException(nameof(beamWidth));
+        if (maxIterations < 1) throw new ArgumentOutOfRangeException(nameof(maxIterations));
+        BeamWidth = beamWidth;
+        MaxIterations = maxIterations;
     }
+
+    public int BeamWidth { get; }
+    public int MaxIterations { get; }
 }
 
 public sealed record M6OptimizationResult(
