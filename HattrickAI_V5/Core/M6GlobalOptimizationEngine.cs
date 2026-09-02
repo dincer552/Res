@@ -13,7 +13,6 @@ public sealed class M6GlobalOptimizationEngine
 {
     private readonly BehaviourCandidateEngine _candidateEngine;
     private const int CandidateDatabaseCapacity = 100;
-    private const int MinimumFormationCandidates = 12;
 
     public M6GlobalOptimizationEngine(BehaviourCandidateEngine? candidateEngine = null)
         => _candidateEngine = candidateEngine ?? new BehaviourCandidateEngine();
@@ -50,7 +49,7 @@ public sealed class M6GlobalOptimizationEngine
         foreach (var formationGroup in formationGroups)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var formationBest = await OptimizeFormationAsync(formationGroup.ToList(), formationGroup.Key);
+            var formationBest = await OptimizeFormationAsync(formationGroup.ToList());
             if (formationBest.BestCandidate is not null)
                 globalBest = globalBest is null ? formationBest.BestCandidate : Better(globalBest, formationBest.BestCandidate);
 
@@ -70,19 +69,13 @@ public sealed class M6GlobalOptimizationEngine
         return new M6OptimizationResult(globalBest, topCandidates, iterations, evaluated, retained, converged);
 
         async Task<FormationSearchResult> OptimizeFormationAsync(
-            IReadOnlyList<PositionAssignmentCandidate> formationCandidates,
-            string formation)
+            IReadOnlyList<PositionAssignmentCandidate> formationCandidates)
         {
             TacticalCandidate? localBest = null;
             var localIterations = 0;
             var localEvaluated = 0;
             var localRetained = 0;
             var localConverged = false;
-
-            // Keep a meaningful local frontier for every formation. The exact
-            // minimum is deliberately small enough for live use but large enough
-            // that M10 can compare several real candidates per formation.
-            var localDatabase = new List<TacticalCandidate>(MinimumFormationCandidates);
 
             foreach (var xi in formationCandidates
                 .OrderByDescending(x => x.SuitabilityScore)
@@ -169,12 +162,7 @@ public sealed class M6GlobalOptimizationEngine
                 localBest = localBest is null ? xiBest : Better(localBest, xiBest!);
             }
 
-            // A formation pass is considered insufficient when it produced too
-            // few unique candidates for downstream formation competition. The
-            // pipeline exposes the actual count through DB1; this flag is kept
-            // informational and does not silently discard a valid formation.
-            localConverged = localConverged || localDatabase.Count >= MinimumFormationCandidates;
-            return new FormationSearchResult(localBest, localIterations, localEvaluated, localRetained, localConverged, formation);
+            return new FormationSearchResult(localBest, localIterations, localEvaluated, localRetained, localConverged);
 
             async Task<TacticalCandidate> EvaluateAndStore(Lineup lineup)
             {
@@ -187,14 +175,6 @@ public sealed class M6GlobalOptimizationEngine
                     database.Add(result);
                     database.Sort((a, b) => b.TacticalScore.CompareTo(a.TacticalScore));
                     if (database.Count > CandidateDatabaseCapacity) database.RemoveAt(database.Count - 1);
-                }
-
-                if (localDatabase.All(x => Signature(x.Lineup) != key))
-                {
-                    localDatabase.Add(result);
-                    localDatabase.Sort((a, b) => b.TacticalScore.CompareTo(a.TacticalScore));
-                    if (localDatabase.Count > MinimumFormationCandidates)
-                        localDatabase.RemoveAt(localDatabase.Count - 1);
                 }
 
                 return result;
@@ -240,8 +220,7 @@ public sealed class M6GlobalOptimizationEngine
         int Iterations,
         int EvaluatedCandidates,
         int RetainedCandidates,
-        bool Converged,
-        string Formation);
+        bool Converged);
 }
 
 public sealed record M6OptimizationResult(
