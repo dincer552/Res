@@ -19,6 +19,41 @@
   let open = false, timer = null, running = false;
   const esc = value => String(value ?? '').replace(/[&<>\"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#039;'}[m]));
   const motors = ['M3','M4','M5','M6','M7','M7.2','M8','M9','M10'];
+  const orderName = value => ({0:'Normal',1:'Ofansif',2:'Defansif',3:'Merkeze',4:'Kanada'}[Number(value)] || String(value ?? ''));
+
+  function copyLineup(kind) {
+    const data = window.__v5LastAnalysis;
+    if (!data) return;
+    const lineup = kind === 'opp' ? (data.opponentLineup || data.opponent || {}) : (data.ownLineup || data.own || {});
+    const rating = kind === 'opp' ? (data.opponentRating || {}) : (data.ownRating || {});
+    const players = (lineup.slots || []).filter(x => Number(x.playerId) > 0);
+    if (!players.length) return;
+
+    const title = kind === 'opp' ? 'RAKİP' : 'KULLANICI TAKIMI';
+    const lines = [
+      'HattrickAI V5 KOPYA',
+      `TAKIM: ${lineup.teamName || data.teamName || '—'}`,
+      `DİZİLİŞ: ${lineup.formation || '—'}`,
+      '',
+      'OYUNCULAR:'
+    ];
+    players.forEach(p => lines.push(`${p.code || p.positionCode || '—'}: ${p.playerName || '—'} | RP=${Number(p.rating || 0).toFixed(1)} | ${orderName(p.order)}`));
+    lines.push('', 'OYUNCU TALİMATLARI / DAVRANIŞLAR:');
+    players.forEach(p => lines.push(`${p.code || p.positionCode || '—'}: ${orderName(p.order)}`));
+    lines.push('', 'BÖLGESEL RATING:');
+    lines.push(`DEF-L: ${fmt(rating.leftDefence)}`);
+    lines.push(`DEF-C: ${fmt(rating.centralDefence)}`);
+    lines.push(`DEF-R: ${fmt(rating.rightDefence)}`);
+    lines.push(`MID: ${fmt(rating.midfield)}`);
+    lines.push(`ATT-L: ${fmt(rating.leftAttack)}`);
+    lines.push(`ATT-C: ${fmt(rating.centralAttack)}`);
+    lines.push(`ATT-R: ${fmt(rating.rightAttack)}`);
+    lines.push('', `KAYNAK: ${title} final M10 planı`);
+
+    navigator.clipboard.writeText(lines.join('\n')).catch(() => {});
+  }
+  function fmt(value) { return Number.isFinite(Number(value)) ? Number(value).toFixed(2) : '—'; }
+
   function icon(status) { if (status === 'completed') return '<span style="color:#267448;font-weight:900">✓</span>'; if (status === 'failed') return '<span style="color:#b33b32;font-weight:900">✕</span>'; if (status === 'running') return '<span style="color:#2f7d4f;font-weight:900">●</span>'; return '<span style="color:#a3aaa5;font-weight:900">○</span>'; }
   function label(status) { return status === 'completed' ? 'Tamamlandı' : status === 'failed' ? 'Hata' : status === 'running' ? 'Çalışıyor' : 'Bekliyor'; }
   function renderUnavailable() {
@@ -55,5 +90,27 @@
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', watchRuntime); else watchRuntime();
   const originalFetch = window.fetch;
-  window.fetch = async function () { const response = await originalFetch.apply(this, arguments); try { const input = arguments[0], url = typeof input === 'string' ? input : input?.url || ''; if (String(url).includes('/api/v5/analysis')) setTimeout(load, 50); } catch (_) {} return response; };
+  window.fetch = async function () {
+    const response = await originalFetch.apply(this, arguments);
+    try {
+      const input = arguments[0], url = typeof input === 'string' ? input : input?.url || '';
+      if (String(url).includes('/api/v5/analysis') && response.ok) {
+        response.clone().json().then(data => {
+          window.__v5LastAnalysis = data;
+          window.dispatchEvent(new CustomEvent('v5:analysis-ready', { detail: data }));
+        }).catch(() => {});
+        setTimeout(load, 50);
+      }
+    } catch (_) {}
+    return response;
+  };
+
+  // The original page owns the visual button handlers. We only enrich the
+  // clipboard payload after a successful final analysis response.
+  document.addEventListener('click', function (event) {
+    const target = event.target?.closest?.('#copyOwn,#copyOpp');
+    if (!target) return;
+    const kind = target.id === 'copyOpp' ? 'opp' : 'own';
+    setTimeout(() => copyLineup(kind), 30);
+  });
 })();
