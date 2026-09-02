@@ -16,8 +16,28 @@ public sealed class ReferenceMatchService
         if (teamId <= 0) throw new InvalidOperationException("Kullanıcı takım bilgisi alınamadı.");
 
         var ownMatches = await ReadMatches(teamId, ct);
+        var now = DateTimeOffset.UtcNow;
+        var upcomingLeague = ownMatches
+            .Where(m => m.Date > now && m.MatchType == 1)
+            .OrderBy(m => m.Date)
+            .Select(m => new
+            {
+                matchId = m.MatchId,
+                date = m.Date,
+                homeTeam = m.HomeTeam,
+                homeTeamId = m.HomeTeamId,
+                awayTeam = m.AwayTeam,
+                awayTeamId = m.AwayTeamId,
+                matchType = m.MatchType,
+                matchTypeName = m.MatchTypeName,
+                isHome = m.HomeTeamId == teamId,
+                opponentTeam = m.HomeTeamId == teamId ? m.AwayTeam : m.HomeTeam,
+                opponentTeamId = m.HomeTeamId == teamId ? m.AwayTeamId : m.HomeTeamId
+            })
+            .ToList();
+
         var next = ownMatches
-            .Where(m => m.Date > DateTimeOffset.UtcNow && IsCompetitiveMatchType(m.MatchType))
+            .Where(m => m.Date > now && IsCompetitiveMatchType(m.MatchType))
             .OrderBy(m => m.Date)
             .FirstOrDefault();
         if (next is null)
@@ -28,10 +48,7 @@ public sealed class ReferenceMatchService
 
         var opponentMatches = await ReadMatches(opponentId, ct);
         var last = opponentMatches
-            .Where(m => m.Date < DateTimeOffset.UtcNow
-                     && m.HomeGoals.HasValue
-                     && m.AwayGoals.HasValue
-                     && IsCompetitiveMatchType(m.MatchType))
+            .Where(m => m.Date < now && m.HomeGoals.HasValue && m.AwayGoals.HasValue && IsCompetitiveMatchType(m.MatchType))
             .OrderByDescending(m => m.Date)
             .FirstOrDefault();
         if (last is null)
@@ -49,12 +66,12 @@ public sealed class ReferenceMatchService
             matchTypeName = last.MatchTypeName,
             opponentTeam = opponentId == last.HomeTeamId ? last.HomeTeam : last.AwayTeam,
             opponentWasHome = opponentId == last.HomeTeamId,
-            finished = last.HomeGoals.HasValue && last.AwayGoals.HasValue
+            finished = last.HomeGoals.HasValue && last.AwayGoals.HasValue,
+            upcomingMatches = upcomingLeague
         };
     }
 
-    private static bool IsCompetitiveMatchType(int type)
-        => type is 1 or 2 or 7 or 10 or 11;
+    private static bool IsCompetitiveMatchType(int type) => type is 1 or 2 or 7 or 10 or 11;
 
     private async Task<List<ReferenceMatch>> ReadMatches(int teamId, CancellationToken ct)
     {
@@ -72,17 +89,7 @@ public sealed class ReferenceMatchService
             var awayId = XmlV5.Int(m,"AwayTeamID");
             if (id <= 0 || date == default || (homeId != teamId && awayId != teamId)) continue;
             var type = XmlV5.Int(m,"MatchType");
-            result.Add(new ReferenceMatch(
-                id,
-                date,
-                XmlV5.Text(m,"HomeTeamName"),
-                homeId,
-                XmlV5.Text(m,"AwayTeamName"),
-                awayId,
-                NullableInt(m,"HomeGoals"),
-                NullableInt(m,"AwayGoals"),
-                type,
-                MatchTypeName(type)));
+            result.Add(new ReferenceMatch(id,date,XmlV5.Text(m,"HomeTeamName"),homeId,XmlV5.Text(m,"AwayTeamName"),awayId,NullableInt(m,"HomeGoals"),NullableInt(m,"AwayGoals"),type,MatchTypeName(type)));
         }
         return result;
     }
@@ -95,29 +102,10 @@ public sealed class ReferenceMatchService
 
     private static string MatchTypeName(int type) => type switch
     {
-        1 => "Lig",
-        2 => "Play-off / Qualification",
-        3 => "Kupa",
-        4 => "Hazırlık",
-        5 => "Hazırlık (kupa kuralları)",
-        7 => "Hattrick Masters",
-        8 => "Uluslararası hazırlık",
-        9 => "Uluslararası hazırlık (kupa kuralları)",
-        10 => "Milli takım resmi",
-        11 => "Milli takım resmi (kupa kuralları)",
-        12 => "Milli takım hazırlık",
-        _ => $"Maç türü {type}"
+        1 => "Lig", 2 => "Play-off / Qualification", 3 => "Kupa", 4 => "Hazırlık", 5 => "Hazırlık (kupa kuralları)",
+        7 => "Hattrick Masters", 8 => "Uluslararası hazırlık", 9 => "Uluslararası hazırlık (kupa kuralları)",
+        10 => "Milli takım resmi", 11 => "Milli takım resmi (kupa kuralları)", 12 => "Milli takım hazırlık", _ => $"Maç türü {type}"
     };
 
-    private sealed record ReferenceMatch(
-        int MatchId,
-        DateTimeOffset Date,
-        string HomeTeam,
-        int HomeTeamId,
-        string AwayTeam,
-        int AwayTeamId,
-        int? HomeGoals,
-        int? AwayGoals,
-        int MatchType,
-        string MatchTypeName);
+    private sealed record ReferenceMatch(int MatchId,DateTimeOffset Date,string HomeTeam,int HomeTeamId,string AwayTeam,int AwayTeamId,int? HomeGoals,int? AwayGoals,int MatchType,string MatchTypeName);
 }
