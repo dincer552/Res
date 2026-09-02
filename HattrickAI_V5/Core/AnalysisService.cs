@@ -286,8 +286,10 @@ public sealed class AnalysisService
         return new Slot(map.Item1, map.Item2, map.Item2, name, id, rp, map.Item3, map.Item4, order, stars);
     }
 
-    private static int ParseStars(string value)
-        => int.TryParse(value.Replace(".", string.Empty, StringComparison.Ordinal).Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out var v) ? v : 0;
+    private static double ParseStars(string value)
+        => double.TryParse(value.Trim().Replace(',', '.'), NumberStyles.Float, CultureInfo.InvariantCulture, out var v)
+            ? Math.Clamp(v, 0, 10)
+            : 0;
 
     private static Lineup Formation(string teamName, IReadOnlyList<Slot> slots)
     {
