@@ -1,173 +1,417 @@
 # HattrickAI V5
 
-## V5 ÇALIŞMA DURUMU — 2026-09-01
+## V5 GÜNCEL ÇALIŞMA DURUMU — 2026-09-02
 
 Aktif branch: `v5`
 
-### Mevcut aşama
+V5 artık yalnızca M3-M6 prototipi değil; **canlı analiz isteği üzerinde M3 → M10 motor zinciri bağlanmış durumdadır.** Mevcut hedef, zincirin gerçek web analizinde güvenilir şekilde çalışmasını sağlamak ve ardından kalibrasyon / optimizasyon derinliğini artırmaktır.
+
+### Güncel motor durumu
 
 ```text
-M3  Oyuncu analizi                 ✅ LOCK
+M3   Oyuncu Analizi                    ✅ LOCK / LIVE
  ↓
-M4  Formasyon / legal adaylar      ✅ VALIDATED
+M4   Formasyon adayları                ✅ LIVE
  ↓
-M5  XI candidate sistemi           ✅ VALIDATED
+M5   XI / pozisyon adayları            ✅ LIVE
  ↓
-M6  Global XI + behaviour          🔴 ACTIVE ← ŞU AN BURADAYIZ
+M6   Global XI + behaviour             🟡 ACTIVE / LIVE
  ↓
-M7  Rating integration              🟠 NEXT
+M7   Regional Rating Scenario          ✅ INTEGRATED
  ↓
-M7.1 Calibration altyapısı         🟠 NEXT
+M7.2 Advanced Tactical Scenario        ✅ INTEGRATED
  ↓
-M7.2 Taktik modeli                 🟠 NEXT
+M8   Chance / Matchup                  ✅ INTEGRATED
  ↓
-M8  Matchup                        🟡 NEXT
+M9   Match Prediction                  ✅ INTEGRATED
  ↓
-M3→M8 full regression              🟡 PENDING
+M10  Final Decision                    ✅ INTEGRATED
  ↓
-Gerçek maç calibration             🟢 PENDING
- ↓
-M9                                🟢 PENDING
- ↓
-M10                               🟢 PENDING
+WEB  Final M10 XI + Individual Order   ✅ CONNECTED
 ```
 
-### Son doğrulama
+### En önemli mevcut durum
 
-- M3 stabilize edildi ve kilitli çalışma temeli olarak korunuyor.
-- M4 offline fixture üzerinde legal formation/candidate kontrolleriyle doğrulandı.
-- M5 revizyonları tamamlandı: eligibility, 11/11 slot, distinct player assignment, M3 suitability continuity, M4→M5 contract ve alternatif adayların erken elenmemesi korunuyor.
-- Exact Hungarian assignment korunuyor; geniş aday/beam yaklaşımı sonraki adayları yaşatmak için kullanılıyor.
-- Son GitHub Actions regression çalıştırmasında `M7-M8 Offline Regression` başarılı oldu; aynı workflow'da Docker build ve Azure deploy da başarılı tamamlandı.
-- M5 şu an yeni matematiksel değişiklik beklemiyor; bir sonraki geliştirme odağı M6 optimizasyon döngüsü.
+- `AnalysisService` artık eski doğrudan XI yerleştirme yolunu kullanmıyor.
+- `/api/v5/analysis` çağrısı M3 → M4 → M5 → M6 → M7 → M7.2 → M8 → M9 → M10 zincirinden geçiyor.
+- Web arayüzünde gösterilen **önerilen kendi 11'i M10'un `FinalPlan` çıktısından geliyor.**
+- M10 seçiminin ardından final lineup aynı zamanda saha üzerinde çiziliyor.
+- Her oyuncunun saha kutusunda **RP değeri + Individual Order** gösteriliyor.
+- Individual Order seçenekleri motor tarafından seçilen final lineup üzerinde korunuyor.
+- Eski sabit/doğrudan XI placement yolu final önerinin kaynağı olmaktan çıkarıldı.
 
-## M3-M6 STABILIZATION ACTION PLAN
+## Motorların mevcut görevleri
 
-M8'e kadar yapılan genel analiz sonucunda, yeni özellik eklemekten önce aşağıdaki dört aşama sırayla stabilize edilecektir. Amaç M7/M8'i yanlış veya eksik adaylar üzerine kurmamak ve her katmanda deterministik, izlenebilir veri üretmektir.
+### M3 — Player Analysis
 
-### 1. M3 — Oyuncu / Regional Rating temeli
+Oyuncu havuzunu analiz eder ve oyuncu → pozisyon suitability profillerini üretir.
 
-- 7 bölgesel rating deterministik olmalı.
-- Oyuncu → pozisyon katkısı, Individual Order, form, loyalty, experience ve stamina kontrol edilmeli.
-- Overcrowding ve home/away doğru katmanda kalmalı.
-- Team Spirit / attitude oyuncu temel hesabına yanlışlıkla gömülmemeli.
-- Aynı input her çalıştırmada aynı ratingi vermeli.
+Kontrol edilen temel alanlar:
 
-**Kural:** M3 temel katsayıları yeni gerçek maç verisiyle doğrulanmadan değiştirilmemeli.
-
-### 2. M4 — Legal role / behaviour adayları
-
-M4 oyuncu için legal pozisyon/rol ve Individual Behaviour adaylarını eksiksiz üretmeli.
-
-Kontrol: GK, Central Defender, Wing Back, Inner Midfielder, Winger, Forward ile Normal, Offensive, Defensive, Towards Middle, Towards Wing ve pozisyona bağlı diğer legal seçenekler.
-
-**Hedef:** Illegal candidate = 0, legal seçenek kaybı = 0. M4 nihai davranış seçmez; aday üretir.
-
-### 3. M5 — XI Candidate üretimi — VALIDATED
-
-M5'in çıktısı M6'nın gerçek aday havuzu olacak.
-
-Kontrol:
-- 11/11 slot doluluğu
-- aynı oyuncunun aynı XI içinde iki kez kullanılmaması
 - eligibility
-- formation/slot uyumu
-- M3 suitability kaybı olmaması
-- M4 role/behaviour bilgilerinin kaybolmaması
-- CandidateId/FormationId/LineupId izlenebilirliği
-- alternatif XI'ların gereksiz erken elenmemesi
+- pozisyon suitability
+- oyuncu becerileri
+- form
+- loyalty
+- experience
+- stamina
+- Individual Order etkisine temel oluşturacak oyuncu profili
 
-Exact Hungarian assignment korunacak; alternatif adaylar geniş aday/beam yaklaşımıyla tutulacak.
+**Durum:** LOCK. M3 temel katsayıları yeni gerçek maç verisiyle doğrulanmadan gereksiz şekilde değiştirilmemelidir.
 
-**Hedef:** M5 → M6 veri kaybı = 0.
+### M4 — Formation Candidate Engine
 
-### 4. M6 — Global XI + Behaviour optimizasyon döngüsü — ACTIVE
+M3 çıktısından doldurulabilir ve legal formasyon adayları üretir.
 
-M6 tek bir oyuncu/behaviour skoruna göre karar vermemeli. M5 XI adayları ve legal behaviour adayları gerçek rating/matchup zincirinde değerlendirilmelidir.
+Amaç:
+
+- legal formation üretmek
+- 11 slotluk yapıyı korumak
+- structural score üretmek
+- M5'e deterministik formation handoff yapmak
+
+**Durum:** LIVE / validated.
+
+### M5 — Position / XI Candidate Generator
+
+Her legal formasyon için oyuncu-slot eşleşmelerinden XI adayları üretir.
+
+Korunan kurallar:
+
+- 11/11 slot
+- aynı oyuncunun XI içinde iki kez kullanılmaması
+- eligibility
+- M3 suitability continuity
+- formation / slot uyumu
+- CandidateId / FormationId / LineupId izlenebilirliği
+- alternatif adayların erken elenmemesi
+- exact assignment yaklaşımı
+
+Canlı web isteğinde request-time maliyetini sınırlamak için **formasyon başına en güçlü 6 XI adayı** M6'ya aktarılır.
+
+**Durum:** LIVE / validated.
+
+### M6 — Global Optimization
+
+M6, M5'ten gelen XI adaylarını daha sonraki rating / tactical / matchup değerlendirmesiyle birlikte optimize eder.
+
+Mevcut canlı zincir:
 
 ```text
-M5 XI Candidate
+M5 XI
  ↓
-M4/M6 Legal Behaviour Candidates
+M6 behaviour / global search
  ↓
-M3 Rating
+M7 Regional Rating
  ↓
-M7 / M7.2 Scenario
+M7.2 Advanced Tactical
  ↓
-M8 Matchup
+M8 Chance / Matchup
  ↓
-Candidate Score
- ↓
-Best candidates retained
- ↓
-Controlled iteration
+Tactical Candidate Score
 ```
 
-248.832 gibi büyük uzaylar körlemesine RAM'e doldurulmamalı. Legal/basic structural pruning ve dominance kontrollerinden sonra pahalı M7/M8 değerlendirmesine geçilmeli.
+Mevcut canlı arama sınırları:
 
-**Database/learning bu aşamada kullanılmayacak.** Historical evidence ancak yeterli gerçek maç verisi oluştuğunda M9/M10 tarafında değerlendirilecek.
+- beam width: `6`
+- maksimum iteration: `4`
+- M5: formasyon başına maksimum `6` XI
 
-**M6 mevcut teknik temel:** `BehaviourEngine` legal order matrixini üretir; `BehaviourCandidateEngine` sabit XI için slot bazlı aday matrisini ve kombinasyon sayısını üretir. Bu katman şu anda aday üretir; final winner seçimi yapmaz. Büyük Cartesian uzaylarda kör exhaustive enumeration yapılmaz.
+Amaç, devasa Cartesian behaviour uzayını körlemesine RAM'e yüklemek yerine kontrollü arama yapmaktır.
 
-**M6 hedefi:** M5 XI adayları + legal behaviour adayları, M7/M7.2 rating/scenario ve M8 matchup değerlendirmesine kontrollü şekilde taşınmalı; sonuç deterministik, izlenebilir ve tekrar üretilebilir olmalıdır.
+**Durum:** ACTIVE. Matematiksel ve davranışsal optimizasyonun daha derin kalibrasyonu sonraki geliştirme alanıdır.
 
-## M3-M6 ortak regression kapısı
+### M7 — Regional Rating Scenario
 
-Aynı offline CHPP fixture üzerinde tam zincir:
+Tam lineup için bölgesel rating senaryosu hesaplar.
+
+7 ana sektör:
+
+- Left Defence
+- Central Defence
+- Right Defence
+- Midfield
+- Left Attack
+- Central Attack
+- Right Attack
+
+M7 ayrıca match state üzerinden:
+
+- home / away
+- team attitude
+- team tactic
+- team spirit
+- maç dakikası
+- gol farkı
+
+gibi bağlamları taşıyabilecek yapıdadır.
+
+**Durum:** INTEGRATED. Mevcut canlı pipeline'da `TeamTactic.Normal` kullanılıyor; takım taktiğinin ayrıca optimize edilmesi sonraki aşamadır.
+
+### M7.2 — Advanced Tactical Scenario
+
+M7 rating çıktısı üzerinde gelişmiş taktik senaryosunu hesaplar.
+
+Mevcut modelde:
+
+- tactic skill
+- tactical level
+- chance distribution
+- tactical input totals
+- pressing / counter / long shots / creative gibi taktik yapıların veri modeli
+
+bulunur.
+
+**Durum:** INTEGRATED. Gerçek maç kalibrasyonu henüz tamamlanmış değildir.
+
+### M8 — Chance / Matchup
+
+M7 + M7.2 senaryosunu rakibin bölgesel ratingleriyle karşılaştırarak yapısal şans üretir.
+
+Pipeline'da kullanılan temel çıktılar:
+
+- midfield share
+- left attack vs right defence
+- central attack vs central defence
+- right attack vs left defence
+- structural chance index
+
+Bunlardan ayrıca lineup'ın savunma tarafı için matchup marjları oluşturulur.
+
+**Durum:** INTEGRATED.
+
+### M9 — Match Prediction
+
+M8 structural chance çıktısını sınırlı ve deterministik bir maç tahminine dönüştürür.
+
+Çıktılar:
+
+- expected goals
+- win probability
+- draw probability
+- loss probability
+- possession / midfield probability
+
+**Önemli:** M9 şu an yapısal modeldir; yeterli gerçek maç verisiyle tarihsel calibration henüz tamamlanmamıştır.
+
+**Durum:** INTEGRATED / calibration bekliyor.
+
+### M10 — Final Decision
+
+M10, daha önce değerlendirilmiş tactical candidate'lar arasından deterministik final karar katmanıdır.
+
+Composite karar yapısında:
+
+- tactical score
+- prediction win probability
+- structural chance
+
+birlikte kullanılır.
+
+M10 çıktısı:
+
+- `BestPlan`
+- final lineup
+- final rating
+- matchup
+- tactical score
+- prediction
+- ranking
+
+**Mevcut sınırlama:** Canlı pipeline şu anda M6'nın en iyi adayını M9'dan geçirip M10'a tek aday olarak veriyor. Dolayısıyla M10 bugün gerçek anlamda çoklu aday havuzunu yeniden sıralayan geniş bir global optimizer değil; **M6'nın en iyi sonucunu deterministik şekilde final plana çeviren son karar katmanıdır.** İleride M10'a birden fazla güçlü M6 adayı verilmesi planlanmaktadır.
+
+**Durum:** INTEGRATED / ACTIVE.
+
+---
+
+# Web sitesi — mevcut durum
+
+## Analiz butonu
+
+Mevcut analiz butonu `/api/v5/analysis` endpoint'ini kullanır.
+
+Akış:
 
 ```text
-M3 → M4 → M5 → M6
+Kullanıcı → Analiz
+       ↓
+CHPP veri toplama
+       ↓
+M3
+       ↓
+M4
+       ↓
+M5
+       ↓
+M6
+       ↓
+M7
+       ↓
+M7.2
+       ↓
+M8
+       ↓
+M9
+       ↓
+M10
+       ↓
+FinalPlan
+       ↓
+Web saha
 ```
 
-Her aşama şunları raporlamalı:
+Böylece web arayüzünün önerdiği XI ile motor zincirinin ürettiği XI aynı final kaynaktan gelir.
 
-- Input count
-- Output count
-- Invalid candidate count
-- Missing data count
-- Duplicate candidate count
+## V5 Motor Logları
+
+Siteye mevcut `Deploy logları` kutusunun üzerine yeni bir:
+
+**🧠 V5 Motor Logları • M3 → M10**
+
+kutusu eklenmiştir.
+
+Bu kutu analiz sonrasında gerçek API cevabındaki `motorPipeline` verisini okuyarak şunları gösterir:
+
+- **M3:** analiz edilen oyuncu sayısı
+- **M4:** formation aday sayısı ve lider aday
+- **M5:** XI aday sayısı ve suitability
+- **M6:** iterations / evaluated / retained / convergence
+- **M7:** bölgesel ratingler ve confidence
+- **M7.2:** tactic / level / chance distribution
+- **M8:** structural chance / midfield / L-C-R attack shares
+- **M9:** xG / win / draw / loss
+- **M10:** ranking / seçilen formasyon / final Individual Orders
+
+Log kutusu collapsible'dır ve analiz cevabı geldikten sonra otomatik olarak güncellenir.
+
+## Saha üzerindeki oyuncu kutuları
+
+Final M10 lineup'ındaki oyuncuların saha kutularında artık:
+
+```text
+Oyuncu adı
+RP = ...
+OFANSİF / DEFANSİF / MERKEZE / KANA / Normal
+```
+
+bilgileri gösterilir.
+
+Individual Order görsel olarak da ayırt edilir:
+
+- Ofansif
+- Defansif
+- Merkeze
+- Kana
+- Normal
+
+Bu bilgiler doğrudan final `Lineup.Slots[].Order` değerinden gelir.
+
+## Frontend entegrasyonu
+
+Yeni frontend katmanları:
+
+- `motor-logs.js` → gerçek M3-M10 pipeline sonucunu webde gösterir.
+- `motor-render.js` → final lineup üzerindeki Individual Order bilgisini saha kutularına taşır.
+- Docker build sırasında bu scriptler `index.html` içine otomatik olarak eklenir.
+
+---
+
+# Regression / Build durumu
+
+Son derlemede eski pipeline sözleşmelerinden kaynaklanan üç compile hatası tespit edildi ve düzeltildi:
+
+1. M10 içindeki eksik `RankedCandidate` tipi
+2. `TacticalCandidate.StructuralScore` yerine mevcut contract'a uygun structural chance kullanımı
+3. `RatingContext.TeamAttitude` yerine doğru `RatingContext.Attitude` kullanımı
+
+Düzeltmelerden sonra `v5` branch üzerinde yeni GitHub Actions çalışması başlatıldı.
+
+**README güncellemesi sırasında son workflow hâlâ çalışıyordu; bu nedenle burada build/deploy PASS ilan edilmemektedir.** Sonraki kapı:
+
+```text
+Offline Regression
+      ↓
+Docker Build
+      ↓
+Azure Deploy
+      ↓
+Gerçek Web Analizi
+      ↓
+M3→M10 Motor Log doğrulaması
+      ↓
+Final XI + Individual Order doğrulaması
+```
+
+---
+
+# Regression kapısı
+
+Offline CHPP fixture üzerinde korunması gereken temel zincir:
+
+```text
+M3 → M4 → M5 → M6 → M7 → M7.2 → M8 → M9 → M10
+```
+
+Her katmanda mümkün olduğunca:
+
+- input count
+- output count
+- invalid candidate count
+- missing data
+- duplicate candidate
 - CandidateId continuity
+- deterministik tekrar üretilebilirlik
 - PASS / FAIL
 
-Bir aşama FAIL olursa sonraki aşamaya geçilmeyecek; düzeltme sonrası aynı fixture tekrar çalıştırılacak.
+kontrol edilmelidir.
 
-### Güncel sonraki sıra
+Bir aşama FAIL olursa sonraki aşamaya geçilmemelidir.
+
+---
+
+# Mevcut geliştirme sırası
 
 ```text
 M3 LOCK
  ↓
-M4 VALIDATED
+M4 VALIDATED / LIVE
  ↓
-M5 VALIDATED
+M5 VALIDATED / LIVE
  ↓
 M6 ACTIVE
  ↓
-M7 integration
+M7 INTEGRATED
  ↓
-M7.1 calibration infrastructure
+M7.2 INTEGRATED
  ↓
-M7.2 tactical model
+M8 INTEGRATED
  ↓
-M8 matchup
+M9 INTEGRATED
  ↓
-M3→M8 full regression
+M10 INTEGRATED
+ ↓
+WEB FINAL XI CONNECTION        ← TAMAMLANDI
+ ↓
+WEB MOTOR LOGS                 ← TAMAMLANDI
+ ↓
+INDIVIDUAL ORDER UI            ← TAMAMLANDI
+ ↓
+BUILD / DEPLOY VALIDATION      ← DEVAM EDİYOR
+ ↓
+M10 MULTI-CANDIDATE RANKING
  ↓
 Gerçek maç calibration
  ↓
-M9
+M9/M10 historical calibration
  ↓
-M10
+Daha derin global optimization
 ```
-
-Bu dört aşama tamamlanmadan gerçek maç calibration ve sonraki global optimizasyon katmanlarına geçilmeyecek.
 
 ---
 
-# Aktif geliştirme hattı
+# Nihai mimari hedef
 
-V5, Hattrick maç analizini tek bir büyük formül yerine birbirine bağlı, aday üreten ve gerektiğinde geri beslemeli motor mimarisiyle geliştirir.
-
-## Nihai hedef akış — V5.1 mimari planı
+V5'in nihai hedefi tek bir büyük formül yerine, her katmanın görevini net biçimde ayırdığı deterministik ve izlenebilir bir motor zinciridir:
 
 ```text
 M1  Veri / CHPP
@@ -176,23 +420,24 @@ M1  Veri / CHPP
  │
  └──────────────→ M3  Oyuncu Analizi
                          ↓
-                  M4 Diziliş Adayları
+                  M4 Formasyon Adayları
                          ↓
                   M5 XI Adayları
                          ↓
-                  M6 Individual Behaviour Adayları
-                         ↓
-                  M6B Maç Ayarı Adayları
+                  M6 Global XI + Behaviour
                          ↓
                   M7 Rating Simulation
                          ↓
-                  M8 Matchup Engine
+                  M7.2 Tactical Scenario
                          ↓
-                  M9 Tactical Value
+                  M8 Matchup / Chance
                          ↓
-                  M10 Global Match Optimizer
+                  M9 Match Prediction
                          ↓
-                  M11 Prediction
+                  M10 Final Decision
+                         ↓
+                  WEB Final XI
 ```
 
-**Not:** Nihai V5.1 mimari akışı korunmaktadır. Bu README güncellemesi yalnızca mevcut çalışma durumunu ve M3→M10 ilerleme sırasını günceller; M6 tamamlanmadan M7/M8 tarafında yeni optimizasyon mantığı eklenmeyecektir.
+**Temel prensip:** Web arayüzü kendi başına XI seçmez. Motorların final çıktısını gösterir. M3 → M10 zinciri tamamlandıkça her katmanın çıktısı bir sonraki katmanın girdisi olur.
+
