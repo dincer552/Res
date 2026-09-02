@@ -34,6 +34,8 @@
     if (sub) sub.remove();
     const note = document.querySelector('.question-card .skip-note');
     if (note) note.remove();
+    const options = document.querySelector('.question-card .options');
+    if (options) options.style.gridTemplateColumns = '1fr';
   }
 
   simplifyQuestionCard();
