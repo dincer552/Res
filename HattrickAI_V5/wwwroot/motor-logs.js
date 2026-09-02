@@ -24,6 +24,37 @@
   const motors = ['M3','M4','M5','M6','M7','M7.2','M8','M9','M10','M6-B','M11'];
   const orderName = value => ({0:'Normal',1:'Ofansif',2:'Defansif',3:'Merkeze',4:'Kanada'}[Number(value)] || String(value ?? ''));
 
+  function ensureProgress() {
+    let progress = document.getElementById('v5AnalysisProgress');
+    if (progress) return progress;
+    const analyze = document.getElementById('analyze');
+    if (!analyze || !analyze.parentNode) return null;
+    progress = document.createElement('div');
+    progress.id = 'v5AnalysisProgress';
+    progress.style.cssText = 'display:none;margin-top:10px;padding:11px 12px;background:#f7faf8;border:1px solid #dfe7e1;border-radius:10px';
+    progress.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px;font:800 11px Arial;color:#59625d"><span id="v5AnalysisProgressText">Analiz hazırlanıyor…</span><span id="v5AnalysisProgressPct">0%</span></div><div style="height:8px;background:#dfe7e1;border-radius:8px;overflow:hidden"><div id="v5AnalysisProgressBar" style="height:100%;width:0%;background:#21804a;border-radius:8px;transition:width .35s ease"></div></div>';
+    analyze.parentNode.insertBefore(progress, analyze.nextSibling);
+    return progress;
+  }
+
+  function setProgress(percent, text) {
+    const progress = ensureProgress();
+    if (!progress) return;
+    const pct = Math.max(0, Math.min(100, Math.round(percent)));
+    progress.style.display = 'block';
+    const bar = document.getElementById('v5AnalysisProgressBar');
+    const pctEl = document.getElementById('v5AnalysisProgressPct');
+    const textEl = document.getElementById('v5AnalysisProgressText');
+    if (bar) bar.style.width = pct + '%';
+    if (pctEl) pctEl.textContent = pct + '%';
+    if (textEl) textEl.textContent = text || 'Analiz çalışıyor…';
+  }
+
+  function hideBusy() {
+    const busy = document.getElementById('busy');
+    if (busy) busy.style.display = 'none';
+  }
+
   function fmt(value) { return Number.isFinite(Number(value)) ? Number(value).toFixed(2) : '—'; }
   function icon(status) { if (status === 'completed') return '<span style="color:#267448;font-weight:900">✓</span>'; if (status === 'failed') return '<span style="color:#b33b32;font-weight:900">✕</span>'; if (status === 'running') return '<span style="color:#2f7d4f;font-weight:900">●</span>'; return '<span style="color:#a3aaa5;font-weight:900">○</span>'; }
   function label(status) { return status === 'completed' ? 'Tamamlandı' : status === 'failed' ? 'Hata' : status === 'running' ? 'Çalışıyor' : 'Bekliyor'; }
@@ -55,6 +86,9 @@
     const completed = (log.stages || []).filter(x => x.status === 'completed').length;
     const failed = (log.stages || []).find(x => x.status === 'failed');
     const active = (log.stages || []).find(x => x.status === 'running');
+    if (log.status === 'completed') setProgress(100, 'Analiz tamamlandı');
+    else if (failed) setProgress(Math.round((completed / motors.length) * 100), 'Analiz hata verdi');
+    else if (running || active) setProgress(Math.round(((completed + (active ? 0.35 : 0)) / motors.length) * 100), active ? `${active.motor} çalışıyor…` : 'Analiz çalışıyor…');
     state.textContent = failed ? `❌ ${failed.motor} durdu • ${failed.message}` : log.status === 'completed' ? `🟢 Analiz tamamlandı • ${completed}/${motors.length} motor` : active ? `${active.motor} ● Çalışıyor • ${active.message}` : 'Analiz çalışıyor…';
     state.style.color = failed ? '#b33b32' : log.status === 'completed' ? '#267448' : '#707872';
     list.innerHTML = motors.map(m => {
@@ -111,8 +145,8 @@
     }
   }
 
-  function start() { running = true; open = true; body.style.display = 'block'; arrow.textContent = '⌃'; renderUnavailable(); load(); if (!timer) timer = setInterval(load, 700); }
-  function stop() { running = false; if (timer) { clearInterval(timer); timer = null; } load(); }
+  function start() { running = true; hideBusy(); setProgress(1, 'Analiz başlatıldı…'); open = true; body.style.display = 'block'; arrow.textContent = '⌃'; renderUnavailable(); load(); if (!timer) timer = setInterval(load, 700); }
+  function stop() { running = false; setProgress(100, 'Analiz tamamlandı'); if (timer) { clearInterval(timer); timer = null; } load(); }
   toggle.onclick = function () { open = !open; body.style.display = open ? 'block' : 'none'; arrow.textContent = open ? '⌃' : '⌄'; if (open) load(); };
   refresh.onclick = load;
   exportButton.onclick = exportResults;
