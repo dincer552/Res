@@ -5,7 +5,7 @@ namespace HattrickAI.V5.Core;
 
 /// <summary>
 /// M11, ikinci aday database'inden gelen finalistleri son kez karşılaştırır.
-/// M10 artık finali kilitlemez; M11 gerçek final selector'dür.
+/// M10 finali kilitlemez; M11 gerçek final selector'dür.
 /// </summary>
 public sealed class M11FinalSelectorEngine
 {
@@ -18,17 +18,17 @@ public sealed class M11FinalSelectorEngine
 
         var ranked = candidates
             .Where(IsValid)
-            .Select(x => x with { FinalScore = FinalScore(x) })
+            .Select(x => new RankedFinalist(x, FinalScore(x)))
             .OrderByDescending(x => x.FinalScore)
-            .ThenByDescending(x => x.Prediction.WinProbability)
-            .ThenByDescending(x => x.TacticalCandidate.TacticalScore)
-            .ThenBy(x => x.TacticalCandidate.Lineup.Formation, StringComparer.Ordinal)
-            .ThenBy(x => Signature(x.TacticalCandidate.Lineup), StringComparer.Ordinal)
+            .ThenByDescending(x => x.Candidate.Prediction.WinProbability)
+            .ThenByDescending(x => x.Candidate.TacticalCandidate.TacticalScore)
+            .ThenBy(x => x.Candidate.TacticalCandidate.Lineup.Formation, StringComparer.Ordinal)
+            .ThenBy(x => Signature(x.Candidate.TacticalCandidate.Lineup), StringComparer.Ordinal)
             .ToList();
 
         if (ranked.Count == 0) throw new InvalidOperationException("M11 geçerli finalist bulamadı.");
 
-        var winner = ranked[0];
+        var winner = ranked[0].Candidate;
         var plan = new FinalMatchPlan(
             winner.TacticalCandidate.Lineup.Formation,
             winner.TacticalCandidate.Lineup,
@@ -40,13 +40,13 @@ public sealed class M11FinalSelectorEngine
             plan,
             winner.Prediction,
             ranked.Take(Math.Max(1, topRankingCount)).Select(x => new M11RankedCandidate(
-                x.TacticalCandidate.Lineup.Formation,
-                Signature(x.TacticalCandidate.Lineup),
-                x.TacticalCandidate.TacticalScore,
-                x.Prediction.WinProbability,
+                x.Candidate.TacticalCandidate.Lineup.Formation,
+                Signature(x.Candidate.TacticalCandidate.Lineup),
+                x.Candidate.TacticalCandidate.TacticalScore,
+                x.Candidate.Prediction.WinProbability,
                 x.FinalScore)).ToList(),
             ranked.Count,
-            ranked.Select(x => x.TacticalCandidate.Lineup.Formation).Distinct(StringComparer.Ordinal).Count());
+            ranked.Select(x => x.Candidate.TacticalCandidate.Lineup.Formation).Distinct(StringComparer.Ordinal).Count());
     }
 
     private static bool IsValid(M11CandidateEvaluation x)
@@ -67,6 +67,8 @@ public sealed class M11FinalSelectorEngine
             .OrderBy(s => s.Code, StringComparer.Ordinal)
             .ThenBy(s => s.PlayerId)
             .Select(s => $"{s.Code}:{s.PlayerId}:{(int)s.Order}"));
+
+    private sealed record RankedFinalist(M11CandidateEvaluation Candidate, double FinalScore);
 }
 
 public sealed record M11CandidateEvaluation(
