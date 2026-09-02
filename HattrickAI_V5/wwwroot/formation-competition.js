@@ -17,6 +17,15 @@
   const esc = value => String(value ?? '').replace(/[&<>\"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#039;'}[m]));
   const fmt = value => Number.isFinite(Number(value)) ? Number(value).toFixed(3) : '—';
 
+  function hideAnalysisTitle() {
+    const title = document.querySelector('.panel.analysis .panel-head .panel-title');
+    if (title) title.style.display = 'none';
+  }
+  hideAnalysisTitle();
+  window.addEventListener('DOMContentLoaded', hideAnalysisTitle);
+  setTimeout(hideAnalysisTitle, 100);
+  setTimeout(hideAnalysisTitle, 500);
+
   let open = true;
   toggle.onclick = function () {
     open = !open;
