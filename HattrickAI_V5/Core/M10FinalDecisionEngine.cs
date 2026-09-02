@@ -95,7 +95,7 @@ public sealed class M10FinalDecisionEngine
         => x.TacticalCandidate is not null && x.Prediction is not null && double.IsFinite(x.TacticalCandidate.TacticalScore);
 
     private static bool IsValidApproach(M10ApproachEvaluation x)
-        => x.Attitude is TeamAttitude.Normal or TeamAttitude.PlayItCool or TeamAttitude.MatchOfTheSeason &&
+        => (x.Attitude is TeamAttitude.Normal or TeamAttitude.PlayItCool or TeamAttitude.MatchOfTheSeason) &&
            x.TacticalCandidate is not null && x.Prediction is not null && double.IsFinite(x.TacticalCandidate.TacticalScore);
 
     private static double CompositeScore(
