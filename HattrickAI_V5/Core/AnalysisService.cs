@@ -46,11 +46,7 @@ public sealed class AnalysisService
         if (!int.TryParse(selectedText, NumberStyles.Integer, CultureInfo.InvariantCulture, out var selectedMatchId) || selectedMatchId <= 0)
             throw new InvalidOperationException("Önce analiz edilecek lig maçını seçmelisin.");
 
-        var next = matches.FirstOrDefault(x =>
-            x.MatchId == selectedMatchId &&
-            x.Date > now &&
-            x.MatchType == 1);
-
+        var next = matches.FirstOrDefault(x => x.MatchId == selectedMatchId && x.Date > now && x.MatchType == 1);
         if (next.MatchId <= 0)
             throw new InvalidOperationException("Seçilen maç geçersiz, geçmişte kalmış veya lig maçı değil. Lütfen yaklaşan lig maçlarından birini seç.");
 
@@ -103,6 +99,7 @@ public sealed class AnalysisService
         var pipeline = await _motors.RunAsync(context, ownPlayers, ct);
         var finalLineup = pipeline.FinalPlan.Lineup;
         var finalRating = ConfidenceRatingAdjuster.Apply(pipeline.FinalPlan.Rating, selfConfidence);
+        var appliedQuestionnaire = questionnaire with { MatchImportance = pipeline.SelectedMatchApproach };
 
         var location = next.HomeId == teamId ? "Ev sahibi" : "Deplasman";
         var title = $"{next.Date.ToLocalTime():dd.MM.yyyy HH:mm} • {opponentName} • {location}";
@@ -116,7 +113,7 @@ public sealed class AnalysisService
             opponentLineup,
             finalRating,
             opponentHistoricalRating,
-            questionnaire)
+            appliedQuestionnaire)
         {
             M7Scenario = pipeline.M7,
             M72Scenario = pipeline.M72,
