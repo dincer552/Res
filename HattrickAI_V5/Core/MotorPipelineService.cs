@@ -52,7 +52,7 @@ public sealed class MotorPipelineService
                     async (lineup, token) =>
                     {
                         token.ThrowIfCancellationRequested();
-                        var evaluation = Evaluate(lineup, runId);
+                        var evaluation = Evaluate(lineup, runId, context.RatingContext.Attitude, logStages: true);
                         cache[Signature(lineup)] = evaluation;
                         await Task.CompletedTask;
                         return evaluation.Tactical;
@@ -78,21 +78,70 @@ public sealed class MotorPipelineService
             var bestKey = Signature(m6.BestCandidate.Lineup);
             if (!cache.TryGetValue(bestKey, out var bestEvaluation))
             {
-                bestEvaluation = Evaluate(m6.BestCandidate.Lineup, runId);
+                bestEvaluation = Evaluate(m6.BestCandidate.Lineup, runId, context.RatingContext.Attitude, logStages: true);
                 cache[bestKey] = bestEvaluation;
+            }
+
+            var selectedApproach = context.RatingContext.Attitude;
+            M10ApproachDecision? autoApproach = null;
+            var selectedEvaluation = bestEvaluation;
+
+            if (context.RatingContext.Attitude == TeamAttitude.Auto)
+            {
+                sw.Restart();
+                LogStart(runId, "M10", "Auto yaklaşım: Normal / PIC / MOTS karşılaştırılıyor");
+                var approachEvaluations = new List<M10ApproachEvaluation>(3);
+                foreach (var attitude in new[] { TeamAttitude.Normal, TeamAttitude.PlayItCool, TeamAttitude.MatchOfTheSeason })
+                {
+                    var evaluation = Evaluate(m6.BestCandidate.Lineup, runId, attitude, logStages: false);
+                    var prediction = _m9.Predict(evaluation.Tactical, evaluation.Chance, context.RatingContext.MatchLocation);
+                    approachEvaluations.Add(new M10ApproachEvaluation(
+                        attitude,
+                        evaluation.Tactical,
+                        prediction.Prediction,
+                        evaluation.Chance.StructuralChanceIndex));
+                }
+
+                autoApproach = _m10.SelectApproach(approachEvaluations);
+                selectedApproach = autoApproach.SelectedApproach;
+                selectedEvaluation = approachEvaluations.First(x => x.Attitude == selectedApproach) switch
+                {
+                    var chosen => new CandidateEvaluation(
+                        chosen.TacticalCandidate,
+                        Evaluate(m6.BestCandidate.Lineup, runId, selectedApproach, logStages: false).Scenario,
+                        Evaluate(m6.BestCandidate.Lineup, runId, selectedApproach, logStages: false).Advanced,
+                        Evaluate(m6.BestCandidate.Lineup, runId, selectedApproach, logStages: false).Chance)
+                };
+
+                var autoSummary = string.Join(" • ", autoApproach.Ranking.Select(x =>
+                    $"{ApproachLabel(x.Attitude)} {x.CompositeScore:0.000}"));
+                LogComplete(runId, "M10", $"Auto seçim: {ApproachLabel(selectedApproach)} • {autoSummary}", sw.ElapsedMilliseconds);
+            }
+
+            if (context.RatingContext.Attitude != TeamAttitude.Auto)
+            {
+                selectedEvaluation = bestEvaluation;
             }
 
             sw.Restart();
             LogStart(runId, "M9", "Çalışıyor");
-            var m9 = _m9.Predict(m6.BestCandidate, bestEvaluation.Chance, context.RatingContext.MatchLocation);
+            var m9 = _m9.Predict(selectedEvaluation.Tactical, selectedEvaluation.Chance, context.RatingContext.MatchLocation);
             LogComplete(runId, "M9", "Maç tahmini üretildi", sw.ElapsedMilliseconds);
 
             sw.Restart();
             LogStart(runId, "M10", "Çalışıyor");
-            var m10 = _m10.Select([new M10CandidateEvaluation(m6.BestCandidate, m9.Prediction, bestEvaluation.Chance.StructuralChanceIndex)]);
-            LogComplete(runId, "M10", $"Final karar: {m10.BestPlan.Formation}", sw.ElapsedMilliseconds);
+            var m10 = _m10.Select([new M10CandidateEvaluation(selectedEvaluation.Tactical, m9.Prediction, selectedEvaluation.Chance.StructuralChanceIndex)]) with
+            {
+                SelectedApproach = selectedApproach == TeamAttitude.Auto ? TeamAttitude.Normal : selectedApproach,
+                ApproachRanking = autoApproach?.Ranking
+            };
+            LogComplete(runId, "M10", $"Final karar: {m10.BestPlan.Formation} • Yaklaşım: {ApproachLabel(selectedApproach)}", sw.ElapsedMilliseconds);
 
-            return new MotorPipelineResult(m3, m4, m5, m6, bestEvaluation.Scenario, bestEvaluation.Advanced, bestEvaluation.Chance, m9, m10, m10.BestPlan, m10.Prediction);
+            return new MotorPipelineResult(m3, m4, m5, m6, selectedEvaluation.Scenario, selectedEvaluation.Advanced, selectedEvaluation.Chance, m9, m10, m10.BestPlan, m10.Prediction)
+            {
+                SelectedMatchApproach = selectedApproach == TeamAttitude.Auto ? TeamAttitude.Normal : selectedApproach,
+                AutoApproachRanking = autoApproach?.Ranking
+            };
         }
         catch (Exception ex)
         {
@@ -105,31 +154,31 @@ public sealed class MotorPipelineService
             throw;
         }
 
-        CandidateEvaluation Evaluate(Lineup lineup, string? currentRunId)
+        CandidateEvaluation Evaluate(Lineup lineup, string? currentRunId, TeamAttitude attitude, bool logStages)
         {
             var signature = Signature(lineup);
-            var state = new MatchState(signature, lineup.Formation, signature, signature, context.RatingContext.MatchLocation, context.RatingContext.Attitude, TeamTactic.Normal, TeamSpiritValue(context.Questionnaire.TeamSpirit), context.Questionnaire.Coach);
+            var state = new MatchState(signature, lineup.Formation, signature, signature, context.RatingContext.MatchLocation, attitude, TeamTactic.Normal, TeamSpiritValue(context.Questionnaire.TeamSpirit), context.Questionnaire.Coach);
             var stageWatch = Stopwatch.StartNew();
             var stage = "M7";
             try
             {
-                LogStart(currentRunId, "M7", "Çalışıyor");
+                if (logStages) LogStart(currentRunId, "M7", "Çalışıyor");
                 var scenario = _m7.CalculateLineup(lineup, players, state);
-                LogComplete(currentRunId, "M7", "Bölgesel rating hesaplandı", stageWatch.ElapsedMilliseconds);
+                if (logStages) LogComplete(currentRunId, "M7", "Bölgesel rating hesaplandı", stageWatch.ElapsedMilliseconds);
 
                 stage = "M7.2";
                 stageWatch.Restart();
-                LogStart(currentRunId, "M7.2", "Çalışıyor");
+                if (logStages) LogStart(currentRunId, "M7.2", "Çalışıyor");
                 var opponentAverage = Average(context.Opponent.Rating);
                 var advanced = _m72.CalculateLineup(lineup, players, state, opponentAverage);
-                LogComplete(currentRunId, "M7.2", $"Taktik senaryo: {advanced.Tactic}", stageWatch.ElapsedMilliseconds);
+                if (logStages) LogComplete(currentRunId, "M7.2", $"Taktik senaryo: {advanced.Tactic}", stageWatch.ElapsedMilliseconds);
 
                 stage = "M8";
                 stageWatch.Restart();
-                LogStart(currentRunId, "M8", "Çalışıyor");
+                if (logStages) LogStart(currentRunId, "M8", "Çalışıyor");
                 var input = AdvancedTacticalScenarioEngine.BuildM8Input(scenario, advanced);
                 var chance = _m8.Calculate(input, context.Opponent.Rating);
-                LogComplete(currentRunId, "M8", $"Şans indeksi {chance.StructuralChanceIndex:0.###}", stageWatch.ElapsedMilliseconds);
+                if (logStages) LogComplete(currentRunId, "M8", $"Şans indeksi {chance.StructuralChanceIndex:0.###}", stageWatch.ElapsedMilliseconds);
 
                 var matchup = BuildMatchup(scenario.Rating, context.Opponent.Rating, chance);
                 var tacticalScore = (0.70 * chance.StructuralChanceIndex) + (0.30 * matchup.OverallScore);
@@ -137,7 +186,7 @@ public sealed class MotorPipelineService
             }
             catch (Exception ex)
             {
-                LogFail(currentRunId, stage, ex.Message, stageWatch.ElapsedMilliseconds);
+                if (logStages) LogFail(currentRunId, stage, ex.Message, stageWatch.ElapsedMilliseconds);
                 throw;
             }
         }
@@ -146,6 +195,13 @@ public sealed class MotorPipelineService
     private static void LogStart(string? runId, string motor, string message) { if (!string.IsNullOrWhiteSpace(runId)) MotorRunLogStore.StartMotor(runId, motor, message); }
     private static void LogComplete(string? runId, string motor, string message, long durationMs = 0, int? candidateCount = null) { if (!string.IsNullOrWhiteSpace(runId)) MotorRunLogStore.CompleteMotor(runId, motor, message, durationMs, candidateCount); }
     private static void LogFail(string? runId, string motor, string message, long durationMs = 0) { if (!string.IsNullOrWhiteSpace(runId)) MotorRunLogStore.FailMotor(runId, motor, message, durationMs); }
+
+    private static string ApproachLabel(TeamAttitude attitude) => attitude switch
+    {
+        TeamAttitude.PlayItCool => "PIC",
+        TeamAttitude.MatchOfTheSeason => "MOTS",
+        _ => "Normal"
+    };
 
     private static MatchupEvaluation BuildMatchup(RegionalRatingSnapshot own, RegionalRatingSnapshot opponent, M8ChanceResult chance)
     {
@@ -181,4 +237,8 @@ public sealed class MotorPipelineService
     private sealed record CandidateEvaluation(TacticalCandidate Tactical, RatingScenarioResult Scenario, AdvancedTacticalScenarioResult Advanced, M8ChanceResult Chance);
 }
 
-public sealed record MotorPipelineResult(PlayerAnalysisResult M3, FormationCandidateSet M4, IReadOnlyList<PositionAssignmentCandidate> M5, M6OptimizationResult M6, RatingScenarioResult M7, AdvancedTacticalScenarioResult M72, M8ChanceResult M8, M9PredictionResult M9, M10DecisionResult M10, FinalMatchPlan FinalPlan, MatchPrediction FinalPrediction);
+public sealed record MotorPipelineResult(PlayerAnalysisResult M3, FormationCandidateSet M4, IReadOnlyList<PositionAssignmentCandidate> M5, M6OptimizationResult M6, RatingScenarioResult M7, AdvancedTacticalScenarioResult M72, M8ChanceResult M8, M9PredictionResult M9, M10DecisionResult M10, FinalMatchPlan FinalPlan, MatchPrediction FinalPrediction)
+{
+    public TeamAttitude SelectedMatchApproach { get; init; } = TeamAttitude.Normal;
+    public IReadOnlyList<M10ApproachRanking>? AutoApproachRanking { get; init; }
+}
