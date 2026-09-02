@@ -19,7 +19,8 @@ public sealed class M6GlobalOptimizationEngine
         Func<Lineup, CancellationToken, Task<TacticalCandidate>> evaluator,
         int beamWidth = 12,
         int maxIterations = 8,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        Action<int, int, int, int>? progress = null)
     {
         ArgumentNullException.ThrowIfNull(xiCandidates);
         ArgumentNullException.ThrowIfNull(players);
@@ -51,6 +52,7 @@ public sealed class M6GlobalOptimizationEngine
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 iterations = Math.Max(iterations, iteration);
+                progress?.Invoke(iteration, maxIterations, evaluated, retained);
 
                 var frontier = new List<Lineup>();
                 foreach (var lineup in beam)
