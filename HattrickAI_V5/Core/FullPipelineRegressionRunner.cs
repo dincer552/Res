@@ -3,7 +3,7 @@ using System.Text.Json;
 namespace HattrickAI.V5.Core;
 
 /// <summary>
-/// FAZ9: gerçek offline fixture ile M3→M11 entegrasyonunu regression olarak doğrular.
+/// FAZ9: gerçek offline fixture ile M3→M11 entegrasyonunu ve M9 Monte Carlo katmanını regression olarak doğrular.
 /// </summary>
 public static class FullPipelineRegressionRunner
 {
@@ -109,10 +109,24 @@ public static class FullPipelineRegressionRunner
             else if (p.ExpectedHomeGoals < p.ExpectedAwayGoals)
                 Check(p.WinProbability <= p.LossProbability, "M9 probability direction follows expected goals", failures);
 
-            // S4MSUNFC gerçek maç sanity guardrail: bu fixture, kullanıcının
-            // deplasmanda Zeytinburnu Sahil Spor'u 4-0 yendiği eşleşmedir.
-            // Skor M9'a input olarak verilmez; yalnızca refactor sonrası açıkça
-            // üstün eşleşmenin anlamsız biçimde "rakip kazanır"a dönmesini yakalar.
+            // M9 1000x Monte Carlo: farklı sektör şans dağılımları + venue duyarlılığı
+            // ile aynı M9 çekirdeğini tekrarlar. Ham database motor içinde tutulur,
+            // API yalnızca özet dağılımı döndürür.
+            var simulation = result.M9.Simulation;
+            Check(simulation.SimulationCount == M9SimulationEngine.DefaultSimulationCount,
+                "M9 simulation count = 1000", failures);
+            var simulationOutcomeSum = simulation.Outcome.WinProbability + simulation.Outcome.DrawProbability + simulation.Outcome.LossProbability;
+            Check(Math.Abs(simulationOutcomeSum - 1.0) < 1e-9, "M9 simulation W/D/L sum = 1", failures);
+            Check(simulation.ScoreFrequencies.Count > 0, "M9 simulation score distribution exists", failures);
+            Check(!string.IsNullOrWhiteSpace(simulation.MostLikelyScore), "M9 simulation most likely score exists", failures);
+            Check(simulation.MostLikelyScoreProbability > 0, "M9 simulation most likely score probability > 0", failures);
+            Check(simulation.Scenarios.Count >= 5, "M9 simulation has multiple chance scenarios", failures);
+            Check(simulation.Scenarios.Sum(x => x.Count) == simulation.SimulationCount,
+                "M9 simulation scenario database count = 1000", failures);
+
+            // Gerçek fixture sanity guardrail: güçlü olduğu bilinen eşleşmede
+            // M9'un tekil çekirdeği de Monte Carlo toplamı da anlamsız biçimde
+            // rakip tarafına kilitlenmemeli.
             if (teamName.Equals("S4MSUNFC", StringComparison.OrdinalIgnoreCase) &&
                 opponentName.Equals("Zeytinburnu Sahil Spor", StringComparison.OrdinalIgnoreCase))
             {
@@ -121,6 +135,8 @@ public static class FullPipelineRegressionRunner
                 Console.WriteLine($"Historical sanity fixture: {historicalOwnGoals}-{historicalOpponentGoals} away win");
                 Check(p.WinProbability >= p.LossProbability,
                     "M9 real-match sanity: previous 4-0 winner is not predicted to lose", failures);
+                Check(simulation.Outcome.WinProbability >= simulation.Outcome.LossProbability,
+                    "M9 simulation sanity: previous 4-0 winner remains non-losing favorite", failures);
             }
 
             var resultAgain = await pipeline.RunAsync(context, players, cancellationToken, "offline-faz9-repeat");
@@ -130,10 +146,18 @@ public static class FullPipelineRegressionRunner
             Check(Math.Abs(result.M9.Prediction.WinProbability - resultAgain.M9.Prediction.WinProbability) < 1e-12,
                 "full pipeline deterministic M9", failures);
 
+            var simulationAgain = resultAgain.M9.Simulation;
+            Check(simulation.MostLikelyScore == simulationAgain.MostLikelyScore,
+                "M9 simulation deterministic most likely score", failures);
+            Check(Math.Abs(simulation.Outcome.WinProbability - simulationAgain.Outcome.WinProbability) < 1e-12,
+                "M9 simulation deterministic outcome", failures);
+
             Console.WriteLine($"M3={result.M3.Players.Count} | M4={legalFormations.Count} formations | M5={result.M5.Count}");
             Console.WriteLine($"M6-A evaluated={result.M6.EvaluatedCandidates} | DB1={result.CandidateDatabase1Count}");
             Console.WriteLine($"M10 formations={competition.Count} | DB2={result.CandidateDatabase2Count} | M11 formations={result.M11?.FormationCount ?? 0}");
             Console.WriteLine($"M9 xG={p.ExpectedHomeGoals:0.###}-{p.ExpectedAwayGoals:0.###} | W/D/L={p.WinProbability:P1}/{p.DrawProbability:P1}/{p.LossProbability:P1} | Result={result.M9.PredictedResult} | Score={result.M9.MostLikelyScore}");
+            Console.WriteLine($"M9 1000x={simulation.MostLikelyScore} ({simulation.MostLikelyScoreProbability:P1}) | W/D/L={simulation.Outcome.WinProbability:P1}/{simulation.Outcome.DrawProbability:P1}/{simulation.Outcome.LossProbability:P1} | Result={simulation.MostLikelyResult}");
+            Console.WriteLine($"M9 scenarios={string.Join(", ", simulation.Scenarios.Select(x => $"{x.Scenario}:{x.Count}/{x.MostLikelyScore}"))}");
             Console.WriteLine($"FINAL={result.FinalPlan.Formation} | formations={string.Join(", ", legalFormations)}");
 
             if (failures.Count > 0)
@@ -150,7 +174,7 @@ public static class FullPipelineRegressionRunner
             Console.WriteLine("PASS: FAZ6 DB2 formation depth");
             Console.WriteLine("PASS: FAZ7 M11 final comparison");
             Console.WriteLine("PASS: FAZ8 web finalist/alternative pipeline contract");
-            Console.WriteLine("PASS: FAZ9 full offline regression");
+            Console.WriteLine("PASS: FAZ9 full offline regression + M9 Monte Carlo");
             return 0;
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
