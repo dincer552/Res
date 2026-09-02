@@ -96,7 +96,8 @@ public sealed class MotorPipelineService
                 context.RatingContext.MatchLocation,
                 context.RatingContext.Attitude,
                 TeamTactic.Normal,
-                TeamSpiritValue(context.Questionnaire.TeamSpirit));
+                TeamSpiritValue(context.Questionnaire.TeamSpirit),
+                context.Questionnaire.Coach);
 
             var scenario = _m7.CalculateLineup(lineup, players, state);
             var opponentAverage = Average(context.Opponent.Rating);
