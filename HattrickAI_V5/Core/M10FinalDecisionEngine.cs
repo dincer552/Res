@@ -5,11 +5,14 @@ using System.Linq;
 namespace HattrickAI.V5.Core;
 
 /// <summary>
-/// M10: final deterministic decision layer. M10 ranks evaluated candidates and,
-/// when requested, can also rank Normal/PIC/MOTS for the same final XI.
+/// M10: formation-aware candidate review and deterministic decision layer.
+/// It does not hide search depth; every represented formation receives an
+/// explicit rank, candidate count, depth status and margin versus the next one.
 /// </summary>
 public sealed class M10FinalDecisionEngine
 {
+    public const int RequiredFormationDepth = CandidateEvaluationDatabase.MinimumPerFormation;
+
     public M10DecisionResult Select(
         IReadOnlyList<M10CandidateEvaluation> candidates,
         double tacticalWeight = 0.55,
@@ -34,6 +37,45 @@ public sealed class M10FinalDecisionEngine
         if (ranked.Count == 0)
             throw new InvalidOperationException("M10 geçerli bir aday değerlendirmesi bulamadı.");
 
+        var formationGroups = ranked
+            .GroupBy(x => x.Candidate.TacticalCandidate.Lineup.Formation, StringComparer.Ordinal)
+            .Select(group => new
+            {
+                Formation = group.Key,
+                Best = group.First(),
+                Candidates = group.Count()
+            })
+            .OrderByDescending(x => x.Best.CompositeScore)
+            .ThenByDescending(x => x.Best.Candidate.TacticalCandidate.TacticalScore)
+            .ThenBy(x => x.Formation, StringComparer.Ordinal)
+            .ToList();
+
+        var formationCompetition = formationGroups
+            .Select((group, index) =>
+            {
+                var nextScore = index + 1 < formationGroups.Count
+                    ? formationGroups[index + 1].Best.CompositeScore
+                    : 0d;
+                var margin = index + 1 < formationGroups.Count
+                    ? group.Best.CompositeScore - nextScore
+                    : 0d;
+                return new M10FormationCompetition(
+                    group.Formation,
+                    Signature(group.Best.Candidate.TacticalCandidate.Lineup),
+                    group.Best.Candidate.TacticalCandidate.TacticalScore,
+                    group.Best.Candidate.Prediction.WinProbability,
+                    group.Best.CompositeScore,
+                    group.Candidates)
+                {
+                    Rank = index + 1,
+                    MarginVsNext = margin,
+                    SearchDepthStatus = group.Candidates >= RequiredFormationDepth
+                        ? M10SearchDepthStatus.Sufficient
+                        : M10SearchDepthStatus.Insufficient
+                };
+            })
+            .ToList();
+
         var winner = ranked[0].Candidate;
         var plan = new FinalMatchPlan(
             winner.TacticalCandidate.Lineup.Formation,
@@ -41,24 +83,6 @@ public sealed class M10FinalDecisionEngine
             winner.TacticalCandidate.Rating,
             winner.TacticalCandidate.Matchup,
             winner.TacticalCandidate.TacticalScore);
-
-        var formationCompetition = ranked
-            .GroupBy(x => x.Candidate.TacticalCandidate.Lineup.Formation, StringComparer.Ordinal)
-            .Select(group =>
-            {
-                var best = group.First();
-                return new M10FormationCompetition(
-                    group.Key,
-                    Signature(best.Candidate.TacticalCandidate.Lineup),
-                    best.Candidate.TacticalCandidate.TacticalScore,
-                    best.Candidate.Prediction.WinProbability,
-                    best.CompositeScore,
-                    group.Count());
-            })
-            .OrderByDescending(x => x.CompositeScore)
-            .ThenByDescending(x => x.TacticalScore)
-            .ThenBy(x => x.Formation, StringComparer.Ordinal)
-            .ToList();
 
         return new M10DecisionResult(
             plan,
@@ -77,9 +101,7 @@ public sealed class M10FinalDecisionEngine
 
     /// <summary>
     /// Auto mode: M10 compares the three legal competitive-match attitudes for
-    /// the already selected XI. It uses the same tactical/prediction/structural
-    /// composite as normal M10, so the choice is made by the motor rather than
-    /// by a hard-coded PIC/MOTS threshold.
+    /// the already selected XI using the same composite scoring model.
     /// </summary>
     public M10ApproachDecision SelectApproach(
         IReadOnlyList<M10ApproachEvaluation> candidates,
@@ -179,7 +201,18 @@ public sealed record M10FormationCompetition(
     double TacticalScore,
     double WinProbability,
     double CompositeScore,
-    int CandidateCount);
+    int CandidateCount)
+{
+    public int Rank { get; init; }
+    public double MarginVsNext { get; init; }
+    public M10SearchDepthStatus SearchDepthStatus { get; init; }
+}
+
+public enum M10SearchDepthStatus
+{
+    Insufficient,
+    Sufficient
+}
 
 public sealed record M10ApproachRanking(
     TeamAttitude Attitude,
