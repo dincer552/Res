@@ -1,76 +1,104 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace HattrickAI.V5.Core;
 
 /// <summary>
-/// M9: converts the M7/M8 matchup into a bounded match prediction.
-/// The model follows the useful Hattrick match-engine structure: midfield
-/// drives chance allocation, while sector attack/defence margins drive the
-/// chance of converting those attacks. Home advantage is applied explicitly.
-/// Historical calibration can replace coefficients later without changing M7/M8.
+/// M9: rating-merkezli maç çekirdeği.
+/// Oyuncu seviyesi M7'de takımın 7 bölgesel ratingine indirgenir; M9 bu
+/// kanonik ratingleri kullanarak midfield -> chance -> sector attack/defence
+/// akışını çözer. Rakibin hücum riski ayrı hesaplanır ve aynı xG çifti üzerinden
+/// W/D/L üretilir. M8 yapısal şans indeksi yalnızca teşhis/kalibrasyon girdisidir;
+/// ana maç olasılığını ikinci kez şişirmez.
 /// </summary>
 public sealed class M9MatchPredictionEngine
 {
-    private const double BaseGoals = 0.35;
-    private const double ChanceScale = 2.25;
+    private const double BaseGoals = 0.25;
+    private const double GoalScale = 3.0;
     private const double MaxGoals = 5.0;
     private const int PoissonGoalCutoff = 20;
 
-    private const double MidfieldWeight = 0.25;
-    private const double AttackWeight = 0.45;
-    private const double DefenceWeight = 0.30;
-    private const double MatchupLogitScale = 4.5;
-    private const double StructuralChanceWeight = 0.20;
-    private const double MatchupChanceWeight = 0.80;
-    private const double HomeGoalBonus = 0.08;
-    private const double AwayOpponentGoalBonus = 0.04;
+    // Hattrick çekirdeğinde regular chance dağılımının temel ağırlıkları:
+    // merkez %35, sol/sağ %25, duran top %15.
+    private const double CentreChanceWeight = 0.35;
+    private const double SideChanceWeight = 0.25;
+    private const double SetPieceChanceWeight = 0.15;
+
+    // M8 structural index sonucu yeniden üretmek için kullanılmaz. Yalnızca
+    // modelin dışarıdan gelen yapısal sinyali ne kadar gördüğünü raporlamak için
+    // düşük ağırlıklı yardımcı bir diagnostik olarak tutulur.
 
     public M9PredictionResult Predict(
         TacticalCandidate candidate,
         M8ChanceResult chance,
+        RegionalRatingSnapshot opponent,
         MatchLocation location)
     {
         ArgumentNullException.ThrowIfNull(candidate);
         ArgumentNullException.ThrowIfNull(chance);
+        ArgumentNullException.ThrowIfNull(opponent);
 
+        var own = candidate.Rating;
+
+        // 1) MIDFIELD -> CHANCE VOLUME
+        // M7, venue/attitude dahil rating bağlamını zaten uyguladığı için M9
+        // ikinci kez home bonus eklemez. Böylece ev avantajı double-count edilmez.
+        var ownChanceShare = Clamp01(chance.MidfieldShare);
+        var opponentChanceShare = 1.0 - ownChanceShare;
+
+        // 2) OWN ATTACK -> OPPONENT DEFENCE
+        // Sol -> rakip sağ savunma, merkez -> rakip merkez savunma,
+        // sağ -> rakip sol savunma. Bu mapping M8 ile birebir korunur.
+        var ownLeft = Share(own.LeftAttack, opponent.RightDefence);
+        var ownCentre = Share(own.CentralAttack, opponent.CentralDefence);
+        var ownRight = Share(own.RightAttack, opponent.LeftDefence);
+        var ownAttackQuality = WeightedAttackQuality(
+            ownLeft,
+            ownCentre,
+            ownRight,
+            chance.LeftChanceShare,
+            chance.CentreChanceShare,
+            chance.RightChanceShare,
+            chance.SetPieceChanceShare);
+
+        // 3) OPPONENT ATTACK -> OWN DEFENCE
+        // Rakibin tehdidi ayrı hesaplanır; M9 sadece "biz kaç gol atarız?"
+        // sorusuna değil, "rakip hangi koridordan bizi deler?" sorusuna da bakar.
+        var opponentLeft = Share(opponent.LeftAttack, own.RightDefence);
+        var opponentCentre = Share(opponent.CentralAttack, own.CentralDefence);
+        var opponentRight = Share(opponent.RightAttack, own.LeftDefence);
+        var opponentAttackQuality = WeightedAttackQuality(
+            opponentLeft,
+            opponentCentre,
+            opponentRight,
+            SideChanceWeight,
+            CentreChanceWeight,
+            SideChanceWeight,
+            SetPieceChanceWeight);
+
+        // M8'deki dağılım kendi taktiğinin sonucudur. Rakip için doğrudan bir
+        // taktik girdisi yoksa Hattrick'in temel 35/25/25/15 dağılımını kullan.
+        // Set-piece quality için rating katmanında ayrı bir FK ratingi olmadığı
+        // için nötr 0.50 kullanılır.
+        ownAttackQuality = Clamp01(ownAttackQuality);
+        opponentAttackQuality = Clamp01(opponentAttackQuality);
+
+        // M8 structural index yalnızca kalibrasyon görünürlüğü sağlar; M9'un
+        // beklenen gollerini aynı bilgiyi iki kez kullanarak bozmaz.
         var structuralChance = Clamp01(chance.StructuralChanceIndex);
-        var midfieldShare = Clamp01(chance.MidfieldShare);
 
-        var midfieldSignal = ClampSigned((midfieldShare * 2.0) - 1.0);
-        var attackSignal = AverageSigned(
-            chance.LeftAttackVsRightDefence,
-            chance.CentreAttackVsCentreDefence,
-            chance.RightAttackVsLeftDefence);
-        var defenceSignal = AverageSigned(
-            candidate.Matchup.LeftDefenceMargin,
-            candidate.Matchup.CentralDefenceMargin,
-            candidate.Matchup.RightDefenceMargin);
+        var ownExpected = ClampGoals(BaseGoals + GoalScale * ownChanceShare * ownAttackQuality);
+        var opponentExpected = ClampGoals(BaseGoals + GoalScale * opponentChanceShare * opponentAttackQuality);
 
-        var matchupSignal = ClampSigned(
-            (MidfieldWeight * midfieldSignal) +
-            (AttackWeight * attackSignal) +
-            (DefenceWeight * defenceSignal));
-
-        var matchupShare = LogisticShare(matchupSignal);
-        var effectiveChance = Clamp01(
-            (StructuralChanceWeight * structuralChance) +
-            (MatchupChanceWeight * matchupShare));
-
-        var ownExpected = ClampGoals(BaseGoals + ChanceScale * effectiveChance);
-        var opponentExpected = ClampGoals(BaseGoals + ChanceScale * (1.0 - effectiveChance));
-
-        // M7 already models the main venue/possession effect. Keep only a
-        // small residual goal bonus here to avoid double-counting home advantage.
-        if (location == MatchLocation.Home)
-            ownExpected = ClampGoals(ownExpected + HomeGoalBonus);
-        else if (location == MatchLocation.Away)
-            opponentExpected = ClampGoals(opponentExpected + AwayOpponentGoalBonus);
+        // location bilinçli olarak sayısal bonus üretmiyor: Home/Away etkisi
+        // M7 rating context içinde zaten uygulanıyor. Burada sadece model
+        // sözleşmesinin explicit kalmasını sağlıyoruz.
+        _ = location;
 
         var probabilities = CalculatePoissonOutcomeProbabilities(ownExpected, opponentExpected);
-
         var prediction = new MatchPrediction(
-            midfieldShare,
+            ownChanceShare,
             ownExpected,
             opponentExpected,
             probabilities.Win,
@@ -81,7 +109,18 @@ public sealed class M9MatchPredictionEngine
             candidate.Lineup.Formation,
             CandidateId(candidate.Lineup),
             prediction,
-            effectiveChance,
+            structuralChance,
+            ownChanceShare,
+            opponentChanceShare,
+            ownAttackQuality,
+            opponentAttackQuality,
+            ownLeft,
+            ownCentre,
+            ownRight,
+            opponentLeft,
+            opponentCentre,
+            opponentRight,
+            location,
             M9CalibrationStatus.StructuralModelAwaitingHistoricalCalibration);
     }
 
@@ -112,13 +151,36 @@ public sealed class M9MatchPredictionEngine
         return (win / total, draw / total, loss / total);
     }
 
-    private static double AverageSigned(params double[] values)
-        => values.Length == 0 ? 0 : ClampSigned(values.Average());
-
-    private static double LogisticShare(double matchup)
+    private static double WeightedAttackQuality(
+        double left,
+        double centre,
+        double right,
+        double leftWeight,
+        double centreWeight,
+        double rightWeight,
+        double setPieceWeight)
     {
-        var exponent = Math.Clamp(-MatchupLogitScale * matchup, -20.0, 20.0);
-        return 1.0 / (1.0 + Math.Exp(exponent));
+        var regularWeight = leftWeight + centreWeight + rightWeight;
+        var weightedRegular = regularWeight <= 0
+            ? 0.5
+            : ((left * leftWeight) + (centre * centreWeight) + (right * rightWeight)) / regularWeight;
+
+        return Clamp01((regularWeight * weightedRegular) + (setPieceWeight * 0.5));
+    }
+
+    private static double Share(double own, double opponent)
+    {
+        var ownSafe = Math.Max(0, own);
+        var opponentSafe = Math.Max(0, opponent);
+        var total = ownSafe + opponentSafe;
+        return total <= 0 ? 0.5 : Clamp01(ownSafe / total);
+    }
+
+    private static double PoissonDistributionValue(double lambda, int goals)
+    {
+        var probability = Math.Exp(-Math.Max(0.05, lambda));
+        for (var i = 1; i <= goals; i++) probability *= lambda / i;
+        return probability;
     }
 
     private static double[] PoissonDistribution(double lambda, int maxGoals)
@@ -131,7 +193,6 @@ public sealed class M9MatchPredictionEngine
     }
 
     private static double Clamp01(double value) => Math.Clamp(value, 0.0, 1.0);
-    private static double ClampSigned(double value) => Math.Clamp(value, -1.0, 1.0);
     private static double ClampGoals(double value) => Math.Clamp(value, 0.05, MaxGoals);
 
     private static string CandidateId(Lineup lineup)
@@ -146,6 +207,17 @@ public sealed record M9PredictionResult(
     string CandidateId,
     MatchPrediction Prediction,
     double StructuralChanceIndex,
+    double OwnChanceShare,
+    double OpponentChanceShare,
+    double OwnAttackQuality,
+    double OpponentAttackQuality,
+    double OwnLeftAttackVsRightDefence,
+    double OwnCentreAttackVsCentreDefence,
+    double OwnRightAttackVsLeftDefence,
+    double OpponentLeftAttackVsOwnRightDefence,
+    double OpponentCentreAttackVsOwnCentreDefence,
+    double OpponentRightAttackVsOwnLeftDefence,
+    MatchLocation Location,
     M9CalibrationStatus CalibrationStatus)
 {
     public string PredictedResult => Prediction.WinProbability >= Prediction.LossProbability
@@ -184,6 +256,9 @@ public sealed record M9PredictionResult(
     }
 
     private static double PoissonProbability(double lambda, int goals)
+        => PoissonProbabilityCore(lambda, goals);
+
+    private static double PoissonProbabilityCore(double lambda, int goals)
     {
         var probability = Math.Exp(-Math.Max(0.05, lambda));
         for (var i = 1; i <= goals; i++) probability *= lambda / i;
