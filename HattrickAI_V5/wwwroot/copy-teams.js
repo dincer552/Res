@@ -11,9 +11,10 @@
       var name=clean(slot.querySelector('.slot-name')&&slot.querySelector('.slot-name').textContent);
       var raw=clean(slot.querySelector('.slot-rating')&&slot.querySelector('.slot-rating').textContent);
       var rp=raw.replace(/^RP\s*=\s*/i,'').replace(/^RP\s*/i,'');
+      var order=clean(slot.querySelector('.slot-order')&&slot.querySelector('.slot-order').textContent) || 'NORMAL';
       var code='';
       Object.keys(SLOT_MAP).some(function(cls){if(slot.classList.contains(cls)){code=SLOT_MAP[cls];return true;}return false;});
-      if(name) players.push({position:code,name:name,rp:rp});
+      if(name) players.push({position:code,name:name,rp:rp,order:order});
     });
     var ratings={};
     if(pitch){
@@ -33,7 +34,9 @@
   }
   function textBlock(prefix,opponent){
     var t=readTeam(prefix),labels=['DEF-L','DEF-C','DEF-R','MID','ATT-L','ATT-C','ATT-R'];
-    return [(opponent?'RAKİP ':'')+'HattrickAI V5 KOPYA','TAKIM: '+(t.title||'—'),'DİZİLİŞ: '+(t.formation||'—'),'','OYUNCULAR:',t.players.map(function(p){return (p.position?p.position+': ':'')+p.name+' | RP='+p.rp;}).join('\n'),'','BÖLGESEL RATING:'].concat(labels.map(function(l){return l+': '+(t.ratings[l]||'—');})).join('\n');
+    var header=(opponent?'RAKİP ':'')+'HattrickAI V5 KOPYA';
+    var playerLines=t.players.map(function(p){return (p.position?p.position+': ':'')+p.name+' | RP='+p.rp+' | '+p.order;}).join('\n');
+    return [header,'TAKIM: '+(t.title||'—'),'DİZİLİŞ: '+(t.formation||'—'),'','OYUNCULAR:',playerLines,'','OYUNCU TALİMATLARI / DAVRANIŞLAR:',t.players.map(function(p){return (p.position?p.position+': ':'')+p.order;}).join('\n'),'','BÖLGESEL RATING:'].concat(labels.map(function(l){return l+': '+(t.ratings[l]||'—');})).join('\n');
   }
   async function downloadJson(button){
     var old=button.textContent;
@@ -58,12 +61,12 @@
     if(opp) opp.remove();
     if(own&&own.dataset.combinedCopy!=='1'){
       own.dataset.combinedCopy='1';own.textContent='İKİ TAKIMI KOPYALA';own.title='Kendi takımını ve rakip takımı birlikte kopyala';
-      own.addEventListener('click',function(){
+      own.onclick=function(){
         var text=textBlock('own',false)+'\n\n'+textBlock('opp',true),button=own;
         function done(){button.textContent='KOPYALANDI ✓';button.classList.add('ok');setTimeout(function(){button.textContent='İKİ TAKIMI KOPYALA';button.classList.remove('ok');},1400);}
         function fallback(){var a=document.createElement('textarea');a.value=text;a.style.position='fixed';a.style.opacity='0';document.body.appendChild(a);a.focus();a.select();try{document.execCommand('copy');done();}finally{a.remove();}}
         if(navigator.clipboard&&window.isSecureContext) navigator.clipboard.writeText(text).then(done).catch(fallback); else fallback();
-      });
+      };
     }
     if(analyze&&!document.getElementById('offlineJsonExport')){
       var b=document.createElement('button');b.id='offlineJsonExport';b.type='button';b.className='copy-btn';b.textContent='CHPP VERİLERİNİ JSON AL';b.title='CHPP üzerinden offline motor testleri için gereken tüm verileri yeniden çek ve JSON indir';b.disabled=true;b.style.width='100%';b.style.marginTop='9px';b.style.opacity='.45';
