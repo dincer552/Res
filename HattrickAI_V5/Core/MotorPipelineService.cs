@@ -69,7 +69,7 @@ public sealed class MotorPipelineService
             new M10CandidateEvaluation(
                 m6.BestCandidate,
                 m9.Prediction,
-                Math.Clamp(m6.BestCandidate.StructuralScore / 20.0, 0.0, 1.0))
+                bestEvaluation.Chance.StructuralChanceIndex)
         ]);
 
         return new MotorPipelineResult(
@@ -94,7 +94,7 @@ public sealed class MotorPipelineService
                 signature,
                 signature,
                 context.RatingContext.MatchLocation,
-                context.RatingContext.TeamAttitude,
+                context.RatingContext.Attitude,
                 TeamTactic.Normal,
                 TeamSpiritValue(context.Questionnaire.TeamSpirit));
 
