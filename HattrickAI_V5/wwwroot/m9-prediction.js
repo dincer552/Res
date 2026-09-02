@@ -5,7 +5,7 @@
   const box = document.createElement('section');
   box.id = 'v5M9PredictionBox';
   box.style.cssText = 'margin-top:14px;background:#fff;border-radius:15px;box-shadow:0 2px 9px #0002;overflow:hidden;border:1px solid #dfe5e1';
-  box.innerHTML = '<div style="padding:13px 16px;border-bottom:1px solid #e5ebe7;font:900 14px Arial;color:#27322d">🎯 M9 Maç Tahmini + 1000x Simülasyon</div><div id="v5M9PredictionBody" style="padding:14px"></div>';
+  box.innerHTML = '<div style="padding:13px 16px;border-bottom:1px solid #e5ebe7;font:900 14px Arial;color:#27322d">🎯 M9 Maç Tahmini</div><div id="v5M9PredictionBody" style="padding:14px"></div>';
 
   const formationBox = document.getElementById('v5FormationCompetitionBox');
   const deployBox = document.getElementById('deployLogBox');
@@ -65,17 +65,15 @@
           '<b>Rakip tehdidi:</b> Sol '+rating(m9?.opponentLeftAttackVsOwnRightDefence)+' → Biz DEF-R &nbsp;|&nbsp; Merkez '+rating(m9?.opponentCentreAttackVsOwnCentreDefence)+' → DEF-C &nbsp;|&nbsp; Sağ '+rating(m9?.opponentRightAttackVsOwnLeftDefence)+' → DEF-L' +
         '</div></div>' +
       '<div style="margin-top:12px;padding:11px;background:#fafbfa;border-radius:10px;border:1px solid #edf0ee">' +
-        '<div style="font:900 12px Arial;color:#27322d">🎲 Monte Carlo Simülasyonu</div>' +
-        '<div style="margin-top:4px;color:#7a827d;font:10px Arial">'+esc(String(sim?.simulationCount || 0))+' farklı koşu • venue + chance dağılımı + Poisson gol örneklemesi</div>' +
+        '<div style="font:900 12px Arial;color:#27322d">🎲 1000x Simülasyon</div>' +
         '<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:9px">' +
           card('Sim. galibiyet', pct(simWin), '#267448') + card('Sim. beraberlik', pct(simDraw), '#8a6d1d') + card('Sim. rakip', pct(simLoss), '#b33b32') +
         '</div>' +
         '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:9px">' +
-          metric('1000x en sık skor', esc(simScore) + ' ('+esc(simScorePct)+')') + metric('1000x sonuç', esc(outcomeLabel(simResult))) +
+          metric('En sık skor', esc(simScore) + ' ('+esc(simScorePct)+')') + metric('En sık sonuç', esc(outcomeLabel(simResult))) +
         '</div>' +
         scenarioTable(sim?.scenarios) +
-      '</div>' +
-      '<div style="margin-top:10px;padding:9px 10px;background:#f7f9f7;border-radius:9px;color:#6d756f;font:11px/1.4 Arial">M9; M7’nin 7 takım ratingini maç çekirdeğine verir. Orta saha fırsat hacmini, karşı koridor hücum-savunma eşleşmesi gol kalitesini belirler. 1000x simülasyon sonucu tek bir rastgele skora değil, dağılımın en sık tekrarına dayanır.</div>';
+      '</div>';
   }
 
   function scenarioTable(scenarios) {
