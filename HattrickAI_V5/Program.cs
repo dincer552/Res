@@ -86,6 +86,14 @@ app.MapGet("/api/v5/status", (ChppV5 chpp) => Results.Ok(new
     connected = chpp.Connected,
     configured = !string.IsNullOrWhiteSpace(builder.Configuration["CHPP_CONSUMER_SECRET"])
 }));
+app.MapGet("/api/v5/motor-logs", (HttpContext http) =>
+{
+    var runId = http.Session.GetString("v5.motorRunId");
+    if (string.IsNullOrWhiteSpace(runId))
+        return Results.Ok(new { available = false });
+    var log = MotorRunLogStore.Get(runId);
+    return log is null ? Results.Ok(new { available = false }) : Results.Ok(new { available = true, log });
+});
 app.MapGet("/api/deploy/log", () =>
 {
     const string logPath = "/app/deploy.log";
@@ -112,32 +120,17 @@ app.MapPost("/api/deploy/manual", async (HttpContext http, ChppV5 chpp, Cancella
         client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
-        using var content = new StringContent(
-            JsonSerializer.Serialize(new { @ref = "v5" }),
-            System.Text.Encoding.UTF8,
-            "application/json");
-
-        var response = await client.PostAsync(
-            "https://api.github.com/repos/dincer552/ho-ai/actions/workflows/v5-build.yml/dispatches",
-            content,
-            ct);
-
+        using var content = new StringContent(JsonSerializer.Serialize(new { @ref = "v5" }), System.Text.Encoding.UTF8, "application/json");
+        var response = await client.PostAsync("https://api.github.com/repos/dincer552/ho-ai/actions/workflows/v5-build.yml/dispatches", content, ct);
         if (!response.IsSuccessStatusCode)
         {
             var body = await response.Content.ReadAsStringAsync(ct);
             return Results.Problem($"GitHub workflow_dispatch başarısız ({(int)response.StatusCode}): {body}", statusCode: 502);
         }
-
         return Results.Ok(new { ok = true, message = "v5 deploy workflow tetiklendi." });
     }
-    catch (OperationCanceledException) when (ct.IsCancellationRequested)
-    {
-        return Results.StatusCode(499);
-    }
-    catch (Exception ex)
-    {
-        return Results.Problem(ex.Message, statusCode: 502);
-    }
+    catch (OperationCanceledException) when (ct.IsCancellationRequested) { return Results.StatusCode(499); }
+    catch (Exception ex) { return Results.Problem(ex.Message, statusCode: 502); }
 });
 
 app.MapPost("/api/v5/questionnaire", (HttpContext http, QuestionnaireRequest request) =>
@@ -167,15 +160,25 @@ app.MapGet("/api/v5/questionnaire", (HttpContext http) =>
 app.MapGet("/api/v5/analysis", async (HttpContext http, AnalysisService service, ChppV5 chpp, CancellationToken ct) =>
 {
     if (!chpp.Connected) return Results.Unauthorized();
+    var runId = MotorRunLogStore.Start();
+    http.Session.SetString("v5.motorRunId", runId);
     try
     {
+        using var logScope = MotorRunLogContext.Push(runId);
+        MotorRunLogStore.StartMotor(runId, "M3", "CHPP verileri hazırlanıyor");
         var questionnaire = new MatchQuestionnaire(
             Enum.TryParse<CoachStyle>(http.Session.GetString("v5.coach"), true, out var coach) ? coach : CoachStyle.Neutral,
             Enum.TryParse<TeamSpiritLevel>(http.Session.GetString("v5.spirit"), true, out var spirit) ? spirit : TeamSpiritLevel.Composed,
             Enum.TryParse<TeamAttitude>(http.Session.GetString("v5.attitude"), true, out var attitude) ? attitude : TeamAttitude.Normal);
-        return Results.Ok(await service.RunAsync(build, questionnaire, ct));
+        var result = await service.RunAsync(build, questionnaire, ct);
+        MotorRunLogStore.Finish(runId, true, "Analiz tamamlandı");
+        return Results.Ok(result);
     }
-    catch (Exception ex) { return Results.Problem(ex.Message, statusCode: 502); }
+    catch (Exception ex)
+    {
+        MotorRunLogStore.Finish(runId, false, ex.Message);
+        return Results.Problem(ex.Message, statusCode: 502);
+    }
 });
 
 app.MapGet("/api/v5/offline-export", async (HttpContext http, AnalysisService service, ChppV5 chpp, CancellationToken ct) =>
@@ -190,7 +193,7 @@ app.MapGet("/api/v5/offline-export", async (HttpContext http, AnalysisService se
         var exporter = new OfflineExportService(chpp, service);
         return Results.Ok(await exporter.ExportAsync(build, questionnaire, ct));
     }
-    catch (UnauthorizedAccessException ex) { return Results.Unauthorized(); }
+    catch (UnauthorizedAccessException) { return Results.Unauthorized(); }
     catch (Exception ex) { return Results.Problem(ex.Message, statusCode: 502); }
 });
 
