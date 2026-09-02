@@ -30,74 +30,135 @@
   const toggle = document.getElementById('v5MotorLogToggle');
   const refresh = document.getElementById('v5MotorLogRefresh');
   let open = false;
-  let lastData = null;
+  let timer = null;
+  let running = false;
 
   const esc = value => String(value ?? '').replace(/[&<>\"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#039;'}[m]));
-  const n = value => Number(value || 0).toFixed(2);
-  const orderName = value => ({0:'Normal',1:'Ofansif',2:'Defansif',3:'Merkeze',4:'Kana'})[Number(value)] || String(value ?? '');
+  const motors = ['M3','M4','M5','M6','M7','M7.2','M8','M9','M10'];
 
-  function row(code, title, bodyText, good) {
-    return '<div style="border-bottom:1px solid #edf0ee;padding:10px 2px">' +
-      '<div style="display:flex;align-items:center;gap:8px"><span style="min-width:42px;padding:4px 6px;border-radius:6px;background:'+(good?'#e5f1e9':'#eef1ef')+';color:#1d7043;font:900 10px Arial;text-align:center">'+esc(code)+'</span><b style="font:800 12px Arial;color:#27322d">'+esc(title)+'</b></div>' +
-      '<div style="margin:5px 0 0 50px;color:#707872;font:11px/1.5 Arial">'+esc(bodyText)+'</div></div>';
+  function icon(status) {
+    if (status === 'completed') return '<span style="color:#267448;font-weight:900">✓</span>';
+    if (status === 'failed') return '<span style="color:#b33b32;font-weight:900">✕</span>';
+    if (status === 'running') return '<span style="color:#2f7d4f;font-weight:900;animation:v5motorpulse 1s infinite">●</span>';
+    return '<span style="color:#a3aaa5;font-weight:900">○</span>';
+  }
+
+  function label(status) {
+    return status === 'completed' ? 'Tamamlandı' : status === 'failed' ? 'Hata' : status === 'running' ? 'Çalışıyor' : 'Bekliyor';
+  }
+
+  function renderUnavailable() {
+    state.textContent = running ? 'Analiz başlatıldı • motor run bekleniyor…' : 'Analiz bekleniyor…';
+    list.innerHTML = motors.map(m =>
+      `<div style="display:flex;align-items:center;gap:10px;border-bottom:1px solid #edf0ee;padding:9px 2px">
+        <span style="width:22px;text-align:center;font-size:16px">○</span>
+        <b style="width:38px;font:900 12px Arial;color:#27322d">${m}</b>
+        <span style="color:#8a928d;font:11px Arial">Bekliyor</span>
+      </div>`).join('');
   }
 
   function render(data) {
-    lastData = data;
-    const p = data?.motorPipeline;
-    if (!p) {
-      state.textContent = 'Motor pipeline sonucu bekleniyor…';
-      list.innerHTML = row('M3→M10','Pipeline','Henüz tamamlanmış motor sonucu yok.',false);
-      return;
+    if (!data?.available || !data.log) return renderUnavailable();
+    const log = data.log;
+    const byMotor = Object.fromEntries((log.stages || []).map(x => [x.motor, x]));
+    const completed = (log.stages || []).filter(x => x.status === 'completed').length;
+    const failed = (log.stages || []).find(x => x.status === 'failed');
+    const active = (log.stages || []).find(x => x.status === 'running');
+
+    state.textContent = failed
+      ? `❌ ${failed.motor} durdu • ${failed.message}`
+      : log.status === 'completed'
+        ? `🟢 Analiz tamamlandı • ${completed}/${motors.length} motor`
+        : active
+          ? `${active.motor} ● Çalışıyor • ${active.message}`
+          : 'Analiz çalışıyor…';
+    state.style.color = failed ? '#b33b32' : log.status === 'completed' ? '#267448' : '#707872';
+
+    list.innerHTML = motors.map(m => {
+      const x = byMotor[m] || { motor:m, status:'pending', message:'Bekliyor', durationMs:0 };
+      const progress = x.currentIteration && x.maxIterations ? ` • ${x.currentIteration}/${x.maxIterations} iteration` : '';
+      const duration = x.durationMs > 0 ? ` • ${(x.durationMs / 1000).toFixed(2)} sn` : '';
+      return `<div style="display:flex;align-items:center;gap:10px;border-bottom:1px solid #edf0ee;padding:10px 2px">
+        <span style="width:22px;text-align:center;font-size:16px">${icon(x.status)}</span>
+        <b style="width:38px;font:900 12px Arial;color:#27322d">${esc(m)}</b>
+        <div style="flex:1;min-width:0">
+          <div style="font:800 11px Arial;color:${x.status === 'failed' ? '#b33b32' : x.status === 'running' ? '#267448' : '#59625d'}">${esc(label(x.status))}${esc(progress)}</div>
+          <div style="margin-top:2px;color:#7a827d;font:11px/1.35 Arial;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(x.message || 'Bekliyor')}${esc(duration)}</div>
+        </div>
+      </div>`;
+    }).join('');
+
+    if (log.finalMessage) {
+      list.innerHTML += `<div style="margin-top:9px;padding:8px 10px;background:#f7f9f7;border-radius:8px;color:${log.status === 'failed' ? '#b33b32' : '#59625d'};font:11px/1.4 Arial">${esc(log.finalMessage)}</div>`;
     }
-
-    const m3 = p.m3 || {};
-    const m4 = p.m4 || {};
-    const m5 = p.m5 || [];
-    const m6 = p.m6 || {};
-    const m7 = p.m7 || {};
-    const m72 = p.m72 || {};
-    const m8 = p.m8 || {};
-    const m9 = p.m9 || {};
-    const m10 = p.m10 || {};
-    const plan = p.finalPlan || {};
-    const pred = p.finalPrediction || {};
-
-    const orders = (plan.lineup?.slots || []).filter(x => Number(x.playerId) > 0).map(x => (x.playerName || x.playerId)+': '+orderName(x.order)).join(' • ');
-    const ratings = plan.rating ? 'DEF '+n(plan.rating.leftDefence)+' / '+n(plan.rating.centralDefence)+' / '+n(plan.rating.rightDefence)+' • MID '+n(plan.rating.midfield)+' • ATT '+n(plan.rating.leftAttack)+' / '+n(plan.rating.centralAttack)+' / '+n(plan.rating.rightAttack) : '—';
-    const ranking = (m10.ranking || []).map((x,i) => '#'+(i+1)+' '+(x.formation||'—')+' • composite '+n(x.compositeScore)).join(' | ') || '—';
-
-    list.innerHTML =
-      row('M3','Player Analysis',(m3.players?.length || 0)+' oyuncu analiz edildi; uygun pozisyon profilleri üretildi.',true) +
-      row('M4','Formation Candidate',(m4.candidates?.length || 0)+' yasal ve doldurulabilir diziliş adayı üretildi.'+(m4.candidates?.[0] ? ' Lider: '+m4.candidates[0].formation+' • structural '+n(m4.candidates[0].structuralScore):''),true) +
-      row('M5','Position / XI',m5.length+' XI adayı üretildi. Final M5 adayı: '+(m5[0]?.formation || '—')+' • suitability '+n(m5[0]?.suitabilityScore),true) +
-      row('M6','Global Optimization','iterations '+(m6.iterations||0)+' • evaluated '+(m6.evaluatedCandidates||0)+' • retained '+(m6.retainedCandidates||0)+' • '+(m6.converged?'converged':'search completed'),true) +
-      row('M7','Regional Ratings',ratings+' • confidence '+(m7.confidence||'—'),true) +
-      row('M7.2','Advanced Tactical','tactic '+(m72.tactic||'—')+' • level '+(m72.level?.name||'—')+' '+n(m72.level?.value)+' • chance distribution L/C/R '+n(m72.chanceDistribution?.leftShare)+' / '+n(m72.chanceDistribution?.centreShare)+' / '+n(m72.chanceDistribution?.rightShare),true) +
-      row('M8','Chance / Matchup','structural chance '+n(m8.structuralChanceIndex)+' • midfield '+n(m8.midfieldShare)+' • L/C/R attack shares '+n(m8.leftAttackVsRightDefence)+' / '+n(m8.centreAttackVsCentreDefence)+' / '+n(m8.rightAttackVsLeftDefence),true) +
-      row('M9','Match Prediction','xG '+n(pred.expectedHomeGoals)+' – '+n(pred.expectedAwayGoals)+' • win '+n(pred.winProbability*100)+'% • draw '+n(pred.drawProbability*100)+'% • loss '+n(pred.lossProbability*100)+'%',true) +
-      row('M10','Final Decision',ranking+' • seçilen '+(plan.formation||'—')+' • final orders: '+orders,true);
-
-    state.textContent = 'M3 → M10 tamamlandı • '+(plan.formation || '—')+' seçildi';
   }
 
   async function load() {
-    if (lastData) render(lastData);
+    try {
+      const response = await fetch('/api/v5/motor-logs?ts=' + Date.now(), { cache:'no-store' });
+      if (!response.ok) throw new Error('HTTP ' + response.status);
+      render(await response.json());
+    } catch (_) {
+      if (running) state.textContent = '⚠️ Motor log bağlantısı alınamadı';
+    }
   }
 
-  toggle.onclick = function () { open=!open; body.style.display=open?'block':'none'; arrow.textContent=open?'⌃':'⌄'; if(open)load(); };
-  refresh.onclick = load;
-  render(null);
+  function start() {
+    running = true;
+    open = true;
+    body.style.display = 'block';
+    arrow.textContent = '⌃';
+    renderUnavailable();
+    load();
+    if (!timer) timer = setInterval(load, 700);
+  }
 
+  function stop() {
+    running = false;
+    if (timer) { clearInterval(timer); timer = null; }
+    load();
+  }
+
+  toggle.onclick = function () {
+    open = !open;
+    body.style.display = open ? 'block' : 'none';
+    arrow.textContent = open ? '⌃' : '⌄';
+    if (open) load();
+  };
+  refresh.onclick = load;
+  renderUnavailable();
+
+  // The analysis page already exposes its runtime status. Start the live
+  // polling as soon as the analysis begins, without waiting for the final
+  // /api/v5/analysis response.
+  function watchRuntime() {
+    const runtime = document.getElementById('runtime');
+    if (!runtime) return;
+    let last = '';
+    const check = () => {
+      const text = runtime.textContent || '';
+      if (text === last) return;
+      last = text;
+      if (/CHPP verileri|analiz başlat|analiz çalışıyor/i.test(text)) start();
+      if (/analiz tamamlandı|analiz başarısız/i.test(text)) stop();
+    };
+    new MutationObserver(check).observe(runtime, {subtree:true, childList:true, characterData:true});
+    check();
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', watchRuntime); else watchRuntime();
+
+  // Also refresh after the final analysis response so the panel remains
+  // correct if the runtime text is changed before the DOM mutation arrives.
   const originalFetch = window.fetch;
   window.fetch = async function () {
     const response = await originalFetch.apply(this, arguments);
     try {
       const input = arguments[0];
       const url = typeof input === 'string' ? input : input?.url || '';
-      if (String(url).includes('/api/v5/analysis') && response.ok) {
-        const clone = response.clone();
-        clone.json().then(render).catch(()=>{});
+      if (String(url).includes('/api/v5/analysis')) {
+        if (response.ok) setTimeout(load, 50);
+        else setTimeout(load, 50);
       }
     } catch (_) {}
     return response;
