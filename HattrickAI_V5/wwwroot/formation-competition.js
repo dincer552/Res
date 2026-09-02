@@ -25,6 +25,20 @@
     toggle.setAttribute('aria-expanded', String(open));
   };
 
+  function simplifyQuestionCard() {
+    const kicker = document.querySelector('.question-card .question-kicker');
+    if (kicker) kicker.textContent = 'SEÇİMLER';
+    const title = document.querySelector('.question-card .question-title');
+    if (title) title.remove();
+    const sub = document.querySelector('.question-card .question-sub');
+    if (sub) sub.remove();
+    const note = document.querySelector('.question-card .skip-note');
+    if (note) note.remove();
+  }
+
+  simplifyQuestionCard();
+  window.addEventListener('DOMContentLoaded', simplifyQuestionCard);
+
   function markAnalysisButton() {
     const button = document.getElementById('analyze');
     if (button && !button.disabled) button.textContent = 'TEKRAR ANALİZ ET';
