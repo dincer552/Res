@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Diagnostics;
 
 namespace HattrickAI.V5.Core;
 
@@ -22,55 +23,84 @@ public sealed class MotorPipelineService
     public async Task<MotorPipelineResult> RunAsync(
         MatchDataContext context,
         IReadOnlyList<Player> players,
-        CancellationToken ct)
+        CancellationToken ct,
+        string? runId = null)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(players);
 
+        var sw = Stopwatch.StartNew();
+        LogStart(runId, "M3", "Çalışıyor");
         var m3 = _m3.Analyze(players);
+        LogComplete(runId, "M3", $"{m3.Players.Count} oyuncu analiz edildi", sw.ElapsedMilliseconds, m3.Players.Count);
+
+        sw.Restart();
+        LogStart(runId, "M4", "Çalışıyor");
         var m4 = _m4.Generate(context, m3);
         if (m4.Candidates.Count == 0)
+        {
+            LogFail(runId, "M4", "Geçerli diziliş üretilemedi", sw.ElapsedMilliseconds);
             throw new InvalidOperationException("M4 geçerli bir diziliş adayı üretemedi.");
+        }
+        LogComplete(runId, "M4", $"{m4.Candidates.Count} diziliş üretildi", sw.ElapsedMilliseconds, m4.Candidates.Count);
 
-        // Every legal formation is evaluated by M5. The live request keeps the
-        // strongest six XI candidates per formation so M6 remains bounded.
+        sw.Restart();
+        LogStart(runId, "M5", "Çalışıyor");
         var m5 = _m5.GenerateCandidates(context, m3, m4, maxCandidatesPerFormation: 6);
         if (m5.Count == 0)
+        {
+            LogFail(runId, "M5", "Geçerli XI adayı üretilemedi", sw.ElapsedMilliseconds);
             throw new InvalidOperationException("M5 geçerli bir XI adayı üretemedi.");
+        }
+        LogComplete(runId, "M5", $"{m5.Count} XI adayı üretildi", sw.ElapsedMilliseconds, m5.Count);
 
-        var cache = new ConcurrentDictionary<string, CandidateEvaluation>(StringComparer.Ordinal);
+        sw.Restart();
+        LogStart(runId, "M6", "1/4 iteration");
         var m6 = await _m6.OptimizeAsync(
             m5,
             players,
             async (lineup, token) =>
             {
                 token.ThrowIfCancellationRequested();
-                var evaluation = Evaluate(lineup);
+                var evaluation = Evaluate(lineup, runId);
                 cache[Signature(lineup)] = evaluation;
                 await Task.CompletedTask;
                 return evaluation.Tactical;
             },
             beamWidth: 6,
             maxIterations: 4,
-            ct);
+            ct,
+            progress: (iteration, maximum, evaluated, retained) =>
+                MotorRunLogStore.Progress(runId!, "M6", $"{iteration}/{maximum} iteration • {evaluated} değerlendirildi", iteration, maximum));
 
         if (m6.BestCandidate is null)
+        {
+            LogFail(runId, "M6", "Final davranış adayı üretilemedi", sw.ElapsedMilliseconds);
             throw new InvalidOperationException("M6 geçerli bir final davranış adayı üretemedi.");
+        }
+        LogComplete(runId, "M6", $"{m6.Iterations}/4 iteration • {m6.EvaluatedCandidates} değerlendirildi • {m6.RetainedCandidates} tutuldu", sw.ElapsedMilliseconds, m6.EvaluatedCandidates);
 
         var bestKey = Signature(m6.BestCandidate.Lineup);
         if (!cache.TryGetValue(bestKey, out var bestEvaluation))
         {
-            bestEvaluation = Evaluate(m6.BestCandidate.Lineup);
+            bestEvaluation = Evaluate(m6.BestCandidate.Lineup, runId);
             cache[bestKey] = bestEvaluation;
         }
 
+        sw.Restart();
+        LogStart(runId, "M9", "Çalışıyor");
         var m9 = _m9.Predict(m6.BestCandidate, bestEvaluation.Chance, context.RatingContext.MatchLocation);
+        LogComplete(runId, "M9", "Maç tahmini üretildi", sw.ElapsedMilliseconds);
+
+        sw.Restart();
+        LogStart(runId, "M10", "Çalışıyor");
         var m10 = _m10.Select([
             new M10CandidateEvaluation(
                 m6.BestCandidate,
                 m9.Prediction,
                 bestEvaluation.Chance.StructuralChanceIndex)
         ]);
+        LogComplete(runId, "M10", $"Final karar: {m10.BestPlan.Formation}", sw.ElapsedMilliseconds);
 
         return new MotorPipelineResult(
             m3,
@@ -85,7 +115,9 @@ public sealed class MotorPipelineService
             m10.BestPlan,
             m10.Prediction);
 
-        CandidateEvaluation Evaluate(Lineup lineup)
+        var cache = new ConcurrentDictionary<string, CandidateEvaluation>(StringComparer.Ordinal);
+
+        CandidateEvaluation Evaluate(Lineup lineup, string? currentRunId)
         {
             var signature = Signature(lineup);
             var state = new MatchState(
@@ -99,16 +131,43 @@ public sealed class MotorPipelineService
                 TeamSpiritValue(context.Questionnaire.TeamSpirit),
                 context.Questionnaire.Coach);
 
+            var stageWatch = Stopwatch.StartNew();
+            LogStart(currentRunId, "M7", "Çalışıyor");
             var scenario = _m7.CalculateLineup(lineup, players, state);
+            LogComplete(currentRunId, "M7", "Bölgesel rating hesaplandı", stageWatch.ElapsedMilliseconds);
+
+            stageWatch.Restart();
+            LogStart(currentRunId, "M7.2", "Çalışıyor");
             var opponentAverage = Average(context.Opponent.Rating);
             var advanced = _m72.CalculateLineup(lineup, players, state, opponentAverage);
+            LogComplete(currentRunId, "M7.2", $"Taktik senaryo: {advanced.Tactic}", stageWatch.ElapsedMilliseconds);
+
+            stageWatch.Restart();
+            LogStart(currentRunId, "M8", "Çalışıyor");
             var input = AdvancedTacticalScenarioEngine.BuildM8Input(scenario, advanced);
             var chance = _m8.Calculate(input, context.Opponent.Rating);
+            LogComplete(currentRunId, "M8", $"Şans indeksi {chance.StructuralChanceIndex:0.###}", stageWatch.ElapsedMilliseconds);
+
             var matchup = BuildMatchup(scenario.Rating, context.Opponent.Rating, chance);
             var tacticalScore = (0.70 * chance.StructuralChanceIndex) + (0.30 * matchup.OverallScore);
             var tactical = new TacticalCandidate(lineup, scenario.Rating, matchup, tacticalScore);
             return new CandidateEvaluation(tactical, scenario, advanced, chance);
         }
+    }
+
+    private static void LogStart(string? runId, string motor, string message)
+    {
+        if (!string.IsNullOrWhiteSpace(runId)) MotorRunLogStore.StartMotor(runId, motor, message);
+    }
+
+    private static void LogComplete(string? runId, string motor, string message, long durationMs = 0, int? candidateCount = null)
+    {
+        if (!string.IsNullOrWhiteSpace(runId)) MotorRunLogStore.CompleteMotor(runId, motor, message, durationMs, candidateCount);
+    }
+
+    private static void LogFail(string? runId, string motor, string message, long durationMs = 0)
+    {
+        if (!string.IsNullOrWhiteSpace(runId)) MotorRunLogStore.FailMotor(runId, motor, message, durationMs);
     }
 
     private static MatchupEvaluation BuildMatchup(RegionalRatingSnapshot own, RegionalRatingSnapshot opponent, M8ChanceResult chance)
