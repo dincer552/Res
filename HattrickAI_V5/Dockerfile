@@ -11,8 +11,6 @@ ENV ASPNETCORE_URLS=http://+:10000
 ARG BUILD_SHA=dev
 ENV V5_BUILD=${BUILD_SHA}
 COPY --from=build /app/publish .
-# Hattrick's Turkish team-spirit names are not the English enum translations.
-# Keep the wire values stable, but render the official Turkish labels in V5.
 RUN sed -i \
   -e 's#\[\x27Murderous\x27,\x27Öldürücü\x27\]#[\x27Murderous\x27,\x27Öldürücü\x27]#' \
   -e 's#\[\x27Furious\x27,\x27Öfkeli\x27\]#[\x27Furious\x27,\x27Köpürmüş\x27]#' \
@@ -32,5 +30,6 @@ COPY HattrickAI_V5/wwwroot/motor-logs.js /app/wwwroot/motor-logs.js
 COPY HattrickAI_V5/wwwroot/motor-render.js /app/wwwroot/motor-render.js
 COPY HattrickAI_V5/wwwroot/match-select.js /app/wwwroot/match-select.js
 COPY HattrickAI_V5/wwwroot/formation-competition.js /app/wwwroot/formation-competition.js
-RUN sed -i 's#</body>#<script src="/copy-teams.js"></script><script src="/offline-export.js"></script><script src="/motor-logs.js"></script><script src="/motor-render.js"></script><script src="/match-select.js"></script><script src="/formation-competition.js"></script></body>#' /app/wwwroot/index.html
+COPY HattrickAI_V5/wwwroot/m9-prediction.js /app/wwwroot/m9-prediction.js
+RUN sed -i 's#</body>#<script src="/copy-teams.js"></script><script src="/offline-export.js"></script><script src="/motor-logs.js"></script><script src="/motor-render.js"></script><script src="/match-select.js"></script><script src="/formation-competition.js"></script><script src="/m9-prediction.js"></script></body>#' /app/wwwroot/index.html
 ENTRYPOINT ["dotnet","HattrickAI.V5.dll","--hostBuilder:reloadConfigOnChange=false"]
