@@ -17,6 +17,15 @@ public sealed class M9MatchPredictionEngine
     private const double MaxGoals = 5.0;
     private const int PoissonGoalCutoff = 20;
 
+    // M8 structural chance is intentionally blended with the full matchup.
+    // The old M9 let a compressed structural index dominate the goal split;
+    // that could turn a clearly positive M7/M8 matchup into a loss prediction.
+    private const double StructuralChanceWeight = 0.25;
+    private const double MatchupChanceWeight = 0.75;
+    private const double MatchupLogitScale = 6.0;
+    private const double HomeGoalBonus = 0.08;
+    private const double AwayOpponentGoalBonus = 0.04;
+
     public M9PredictionResult Predict(
         TacticalCandidate candidate,
         M8ChanceResult chance,
@@ -25,23 +34,25 @@ public sealed class M9MatchPredictionEngine
         ArgumentNullException.ThrowIfNull(candidate);
         ArgumentNullException.ThrowIfNull(chance);
 
-        var ownChance = Clamp01(chance.StructuralChanceIndex);
+        var structuralChance = Clamp01(chance.StructuralChanceIndex);
         var midfieldShare = Clamp01(chance.MidfieldShare);
         var matchup = ClampSigned(candidate.Matchup.OverallScore);
 
-        var ownExpected = ClampGoals(BaseGoals + ChanceScale * ownChance);
-        var opponentExpected = ClampGoals(BaseGoals + ChanceScale * (1.0 - ownChance));
+        // Convert the signed M7/M8 matchup into a smooth scoring-share signal.
+        // This preserves the structural M8 information but prevents its
+        // compressed 0..1 index from overpowering a materially positive matchup.
+        var matchupShare = LogisticShare(matchup);
+        var effectiveChance = Clamp01(
+            (StructuralChanceWeight * structuralChance) +
+            (MatchupChanceWeight * matchupShare));
 
-        // Keep matchup and venue effects small because M7/M8 already own the
-        // underlying rating and chance structure.
-        var correction = 0.20 * matchup;
-        ownExpected = ClampGoals(ownExpected + correction);
-        opponentExpected = ClampGoals(opponentExpected - correction);
+        var ownExpected = ClampGoals(BaseGoals + ChanceScale * effectiveChance);
+        var opponentExpected = ClampGoals(BaseGoals + ChanceScale * (1.0 - effectiveChance));
 
         if (location == MatchLocation.Home)
-            ownExpected = ClampGoals(ownExpected + 0.08);
+            ownExpected = ClampGoals(ownExpected + HomeGoalBonus);
         else if (location == MatchLocation.Away)
-            opponentExpected = ClampGoals(opponentExpected + 0.04);
+            opponentExpected = ClampGoals(opponentExpected + AwayOpponentGoalBonus);
 
         var probabilities = CalculatePoissonOutcomeProbabilities(ownExpected, opponentExpected);
 
@@ -57,7 +68,7 @@ public sealed class M9MatchPredictionEngine
             candidate.Lineup.Formation,
             CandidateId(candidate.Lineup),
             prediction,
-            ownChance,
+            effectiveChance,
             M9CalibrationStatus.StructuralModelAwaitingHistoricalCalibration);
     }
 
@@ -88,6 +99,12 @@ public sealed class M9MatchPredictionEngine
 
         var total = Math.Max(1e-12, win + draw + loss);
         return (win / total, draw / total, loss / total);
+    }
+
+    private static double LogisticShare(double matchup)
+    {
+        var exponent = Math.Clamp(-MatchupLogitScale * matchup, -20.0, 20.0);
+        return 1.0 / (1.0 + Math.Exp(exponent));
     }
 
     private static double[] PoissonDistribution(double lambda, int maxGoals)
