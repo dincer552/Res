@@ -38,6 +38,8 @@
 
   simplifyQuestionCard();
   window.addEventListener('DOMContentLoaded', simplifyQuestionCard);
+  setTimeout(simplifyQuestionCard, 100);
+  setTimeout(simplifyQuestionCard, 500);
 
   function markAnalysisButton() {
     const button = document.getElementById('analyze');
