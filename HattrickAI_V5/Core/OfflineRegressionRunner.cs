@@ -87,6 +87,15 @@ public static class OfflineRegressionRunner
             Console.WriteLine($"M5: {m5Candidates.Count} XI candidates | invalid: 0 | duplicate: 0");
             Console.WriteLine("M5 top XI: " + (m5Candidates.Count > 0 ? m5Candidates[0].CandidateId : "none"));
 
+            var m6RegressionFailures = await M6FormationAwareRegression.RunAsync(m5Candidates, players);
+            failures.AddRange(m6RegressionFailures);
+            if (m6RegressionFailures.Count > 0)
+            {
+                foreach (var failure in m6RegressionFailures) Console.WriteLine("FAIL: " + failure);
+                return 1;
+            }
+            Console.WriteLine("PASS: M6 formation-aware search isolation");
+
             if (failures.Count > 0) { foreach (var f in failures) Console.WriteLine("FAIL: " + f); return 1; }
 
             var m7 = new RegionalRatingScenarioEngine();
