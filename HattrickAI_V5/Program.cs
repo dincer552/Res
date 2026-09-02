@@ -70,63 +70,41 @@ if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',
 app.UseDefaultFiles();
 app.UseStaticFiles();
 
-// Build identity is baked into the Docker image by the V5 deployment workflow.
 var build = Environment.GetEnvironmentVariable("V5_BUILD")
     ?? Environment.GetEnvironmentVariable("BUILD_SHA")
     ?? Environment.GetEnvironmentVariable("GITHUB_SHA")
     ?? "dev";
-
-if (build.Length > 7)
-    build = build[..7];
+if (build.Length > 7) build = build[..7];
 
 app.MapGet("/health", () => Results.Ok(new { ok = true, service = "HattrickAI V5", build }));
 app.MapGet("/api/v5/build", () => Results.Ok(new { build }));
-app.MapGet("/api/v5/status", (ChppV5 chpp) => Results.Ok(new
-{
-    connected = chpp.Connected,
-    configured = !string.IsNullOrWhiteSpace(builder.Configuration["CHPP_CONSUMER_SECRET"])
-}));
+app.MapGet("/api/v5/status", (ChppV5 chpp) => Results.Ok(new { connected = chpp.Connected, configured = !string.IsNullOrWhiteSpace(builder.Configuration["CHPP_CONSUMER_SECRET"]) }));
 app.MapGet("/api/v5/motor-logs", (HttpContext http) =>
 {
-    var runId = http.Session.GetString("v5.motorRunId");
-    if (string.IsNullOrWhiteSpace(runId))
-        return Results.Ok(new { available = false });
-    var log = MotorRunLogStore.Get(runId);
+    var log = MotorRunLogStore.GetLatest(http.Session.Id);
     return log is null ? Results.Ok(new { available = false }) : Results.Ok(new { available = true, log });
 });
 app.MapGet("/api/deploy/log", () =>
 {
     const string logPath = "/app/deploy.log";
-    if (!File.Exists(logPath))
-        return Results.Ok(new { lines = Array.Empty<string>(), updated = false });
-
-    var lines = File.ReadLines(logPath).TakeLast(150).ToArray();
-    return Results.Ok(new { lines, updated = true });
+    if (!File.Exists(logPath)) return Results.Ok(new { lines = Array.Empty<string>(), updated = false });
+    return Results.Ok(new { lines = File.ReadLines(logPath).TakeLast(150).ToArray(), updated = true });
 });
 
 app.MapPost("/api/deploy/manual", async (HttpContext http, ChppV5 chpp, CancellationToken ct) =>
 {
-    if (!chpp.Connected)
-        return Results.Unauthorized();
-
+    if (!chpp.Connected) return Results.Unauthorized();
     var token = builder.Configuration["GITHUB_ACTIONS_TOKEN"]?.Trim();
-    if (string.IsNullOrWhiteSpace(token))
-        return Results.Problem("GITHUB_ACTIONS_TOKEN Azure Environment Variables içinde tanımlı değil.", statusCode: 503);
-
+    if (string.IsNullOrWhiteSpace(token)) return Results.Problem("GITHUB_ACTIONS_TOKEN Azure Environment Variables içinde tanımlı değil.", statusCode: 503);
     try
     {
         using var client = new HttpClient();
         client.DefaultRequestHeaders.UserAgent.ParseAdd("HattrickAI-V5");
         client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/vnd.github+json"));
         client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-
         using var content = new StringContent(JsonSerializer.Serialize(new { @ref = "v5" }), System.Text.Encoding.UTF8, "application/json");
         var response = await client.PostAsync("https://api.github.com/repos/dincer552/ho-ai/actions/workflows/v5-build.yml/dispatches", content, ct);
-        if (!response.IsSuccessStatusCode)
-        {
-            var body = await response.Content.ReadAsStringAsync(ct);
-            return Results.Problem($"GitHub workflow_dispatch başarısız ({(int)response.StatusCode}): {body}", statusCode: 502);
-        }
+        if (!response.IsSuccessStatusCode) return Results.Problem($"GitHub workflow_dispatch başarısız ({(int)response.StatusCode}): {await response.Content.ReadAsStringAsync(ct)}", statusCode: 502);
         return Results.Ok(new { ok = true, message = "v5 deploy workflow tetiklendi." });
     }
     catch (OperationCanceledException) when (ct.IsCancellationRequested) { return Results.StatusCode(499); }
@@ -135,13 +113,9 @@ app.MapPost("/api/deploy/manual", async (HttpContext http, ChppV5 chpp, Cancella
 
 app.MapPost("/api/v5/questionnaire", (HttpContext http, QuestionnaireRequest request) =>
 {
-    if (!Enum.TryParse<CoachStyle>(request.CoachStyle, true, out var coach))
-        return Results.BadRequest(new { message = "Teknik direktör seçimi geçersiz." });
-    if (!Enum.TryParse<TeamSpiritLevel>(request.TeamSpirit, true, out var spirit))
-        return Results.BadRequest(new { message = "Takım ruhu seçimi geçersiz." });
-    if (!Enum.TryParse<TeamAttitude>(request.MatchImportance, true, out var attitude))
-        return Results.BadRequest(new { message = "Maç önemi geçersiz." });
-
+    if (!Enum.TryParse<CoachStyle>(request.CoachStyle, true, out var coach)) return Results.BadRequest(new { message = "Teknik direktör seçimi geçersiz." });
+    if (!Enum.TryParse<TeamSpiritLevel>(request.TeamSpirit, true, out var spirit)) return Results.BadRequest(new { message = "Takım ruhu seçimi geçersiz." });
+    if (!Enum.TryParse<TeamAttitude>(request.MatchImportance, true, out var attitude)) return Results.BadRequest(new { message = "Maç önemi geçersiz." });
     http.Session.SetString("v5.coach", coach.ToString());
     http.Session.SetString("v5.spirit", spirit.ToString());
     http.Session.SetString("v5.attitude", attitude.ToString());
@@ -160,8 +134,7 @@ app.MapGet("/api/v5/questionnaire", (HttpContext http) =>
 app.MapGet("/api/v5/analysis", async (HttpContext http, AnalysisService service, ChppV5 chpp, CancellationToken ct) =>
 {
     if (!chpp.Connected) return Results.Unauthorized();
-    var runId = MotorRunLogStore.Start();
-    http.Session.SetString("v5.motorRunId", runId);
+    var runId = MotorRunLogStore.Start(http.Session.Id);
     try
     {
         using var logScope = MotorRunLogContext.Push(runId);
@@ -208,8 +181,7 @@ app.MapGet("/auth/chpp/start", async (HttpContext http, ChppV5 chpp, Cancellatio
 {
     try
     {
-        if (string.IsNullOrWhiteSpace(builder.Configuration["CHPP_CONSUMER_SECRET"]))
-            return Results.Redirect("/?error=" + Uri.EscapeDataString("CHPP_CONSUMER_SECRET Azure Environment Variables içinde tanımlı değil."));
+        if (string.IsNullOrWhiteSpace(builder.Configuration["CHPP_CONSUMER_SECRET"])) return Results.Redirect("/?error=" + Uri.EscapeDataString("CHPP_CONSUMER_SECRET Azure Environment Variables içinde tanımlı değil."));
         var proto = http.Request.Headers["X-Forwarded-Proto"].FirstOrDefault() ?? http.Request.Scheme;
         var callback = $"{proto}://{http.Request.Host}/auth/chpp/callback";
         return Results.Redirect(await chpp.StartAsync(callback, ct));
@@ -220,13 +192,8 @@ app.MapGet("/auth/chpp/start", async (HttpContext http, ChppV5 chpp, Cancellatio
 app.MapGet("/auth/chpp/callback", async (HttpContext http, ChppV5 chpp, CancellationToken ct) =>
 {
     var verifier = http.Request.Query["oauth_verifier"].ToString();
-    if (string.IsNullOrWhiteSpace(verifier))
-        return Results.Redirect("/?error=" + Uri.EscapeDataString("CHPP doğrulama kodu alınamadı."));
-    try
-    {
-        await chpp.FinishAsync(verifier, ct);
-        return Results.Redirect("/?connected=1");
-    }
+    if (string.IsNullOrWhiteSpace(verifier)) return Results.Redirect("/?error=" + Uri.EscapeDataString("CHPP doğrulama kodu alınamadı."));
+    try { await chpp.FinishAsync(verifier, ct); return Results.Redirect("/?connected=1"); }
     catch (Exception ex) { return Results.Redirect("/?error=" + Uri.EscapeDataString(ex.Message)); }
 });
 
