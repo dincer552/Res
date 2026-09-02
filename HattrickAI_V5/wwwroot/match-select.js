@@ -4,7 +4,7 @@
     {key:MATCH_Q_KEY,title:'Hangi lig maçını analiz etmek istiyorsun?',options:[]},
     {key:'coachStyle',title:'Teknik direktör tarzın nasıl?',options:[['Neutral','Dengeli'],['Offensive','Hücum'],['Defensive','Defans']]},
     {key:'teamSpirit',title:'Takım ruhu hangi seviyede?',options:[['Murderous','Öldürücü'],['Furious','Köpürmüş'],['Irritated','Rahatsız'],['Composed','Kaynaşık'],['Calm','Huzurlu'],['Content','Hoşnut'],['Satisfied','Memnun'],['Delirious','Coşkulu'],['WalkingOnClouds','Bulutların Üzerinde'],['ParadiseOnEarth','Yeryüzünde Cennet']]},
-    {key:'matchImportance',title:'Bu maçta hangi yaklaşımı kullanıyorsun?',options:[['Normal','Normal'],['PlayItCool','PIC • Rahat'],['MatchOfTheSeason','MOTS • Çok önemli']]}
+    {key:'matchImportance',title:'Bu maçta hangi yaklaşımı kullanıyorsun?',options:[['Normal','Normal'],['PlayItCool','PIC • Rahat'],['MatchOfTheSeason','MOTS • Çok önemli'],['Auto','OTOMATİK • V5 seçsin']]}
   ];
   let matchOptions=[];
   let q=0;
