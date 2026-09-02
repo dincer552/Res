@@ -2,12 +2,9 @@ namespace HattrickAI.V5.Core;
 
 /// <summary>
 /// M6 bounded global behaviour optimizer.
-/// Starts from the supplied XI candidates and performs deterministic beam search
-/// over legal individual orders. Search is formation-aware: each legal formation
-/// gets its own beam/search pass before the results are merged. This prevents a
-/// strong early formation from consuming the entire global search budget.
-/// M6-A performs a fresh search from Normal orders; M6-B preserves input orders
-/// and refines the diversified DB1 seeds.
+/// Search is formation-aware: each formation gets an independent beam/search pass
+/// before results are merged. Optional per-formation budgets allow M10 to steer
+/// M6-B toward targeted refinement and exploration without changing M6-A defaults.
 /// </summary>
 public sealed class M6GlobalOptimizationEngine
 {
@@ -25,7 +22,8 @@ public sealed class M6GlobalOptimizationEngine
         int maxIterations = 8,
         CancellationToken cancellationToken = default,
         Action<int, int, int, int>? progress = null,
-        bool preserveInputOrders = false)
+        bool preserveInputOrders = false,
+        IReadOnlyDictionary<string, M6FormationSearchBudget>? formationBudgets = null)
     {
         ArgumentNullException.ThrowIfNull(xiCandidates);
         ArgumentNullException.ThrowIfNull(players);
@@ -49,7 +47,11 @@ public sealed class M6GlobalOptimizationEngine
         foreach (var formationGroup in formationGroups)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            var formationBest = await OptimizeFormationAsync(formationGroup.ToList());
+            var formationBudget = formationBudgets is not null && formationBudgets.TryGetValue(formationGroup.Key, out var configured)
+                ? configured
+                : new M6FormationSearchBudget(beamWidth, maxIterations);
+
+            var formationBest = await OptimizeFormationAsync(formationGroup.ToList(), formationBudget);
             if (formationBest.BestCandidate is not null)
                 globalBest = globalBest is null ? formationBest.BestCandidate : Better(globalBest, formationBest.BestCandidate);
 
@@ -69,7 +71,8 @@ public sealed class M6GlobalOptimizationEngine
         return new M6OptimizationResult(globalBest, topCandidates, iterations, evaluated, retained, converged);
 
         async Task<FormationSearchResult> OptimizeFormationAsync(
-            IReadOnlyList<PositionAssignmentCandidate> formationCandidates)
+            IReadOnlyList<PositionAssignmentCandidate> formationCandidates,
+            M6FormationSearchBudget budget)
         {
             TacticalCandidate? localBest = null;
             var localIterations = 0;
@@ -93,11 +96,11 @@ public sealed class M6GlobalOptimizationEngine
                 TacticalCandidate? xiBest = await EvaluateAndStore(baseline);
                 localEvaluated++;
 
-                for (var iteration = 1; iteration <= maxIterations; iteration++)
+                for (var iteration = 1; iteration <= budget.MaxIterations; iteration++)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
                     localIterations = Math.Max(localIterations, iteration);
-                    progress?.Invoke(iteration, maxIterations, evaluated + localEvaluated, retained + localRetained);
+                    progress?.Invoke(iteration, budget.MaxIterations, evaluated + localEvaluated, retained + localRetained);
 
                     var frontier = new List<Lineup>();
                     foreach (var lineup in beam)
@@ -138,7 +141,7 @@ public sealed class M6GlobalOptimizationEngine
                     var ranked = scored
                         .OrderByDescending(x => x.TacticalScore)
                         .ThenBy(x => Signature(x.Lineup), StringComparer.Ordinal)
-                        .Take(beamWidth)
+                        .Take(budget.BeamWidth)
                         .ToList();
 
                     localRetained += ranked.Count;
@@ -221,6 +224,15 @@ public sealed class M6GlobalOptimizationEngine
         int EvaluatedCandidates,
         int RetainedCandidates,
         bool Converged);
+}
+
+public sealed record M6FormationSearchBudget(int BeamWidth, int MaxIterations)
+{
+    public M6FormationSearchBudget : this()
+    {
+        if (BeamWidth < 1) throw new ArgumentOutOfRangeException(nameof(BeamWidth));
+        if (MaxIterations < 1) throw new ArgumentOutOfRangeException(nameof(MaxIterations));
+    }
 }
 
 public sealed record M6OptimizationResult(
