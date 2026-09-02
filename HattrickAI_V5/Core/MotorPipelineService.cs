@@ -43,8 +43,16 @@ public sealed class MotorPipelineService
             if (m5.Count == 0) throw new InvalidOperationException("M5 geçerli bir XI adayı üretemedi.");
             LogComplete(runId, "M5", $"{m5.Count} XI adayı üretildi", sw.ElapsedMilliseconds, m5.Count);
 
+            // M6-A arama sırasında M7 → M7.2 → M8 → M9 her aday için downstream
+            // evaluator olarak çalışır. Log sırası da artık bu gerçek bağımlılığı
+            // yansıtır: DB1 ancak M9 tahmini oluştuğunda kapanır, sonra M10 başlar.
             sw.Restart();
             LogStart(runId, "M6", "M6-A: geniş global search + Candidate DB #1");
+            LogStart(runId, "M7", "M6-A downstream evaluator: bölgesel rating");
+            LogStart(runId, "M7.2", "M6-A downstream evaluator: taktik senaryo");
+            LogStart(runId, "M8", "M6-A downstream evaluator: matchup / şans");
+            LogStart(runId, "M9", "M6-A downstream evaluator: maç tahmini");
+
             var m6 = await _m6.OptimizeAsync(
                 m5,
                 players,
@@ -52,8 +60,10 @@ public sealed class MotorPipelineService
                 {
                     token.ThrowIfCancellationRequested();
                     var evaluation = Evaluate(lineup, runId, context.RatingContext.Attitude, false);
+                    var prediction = _m9.Predict(evaluation.Tactical, evaluation.Chance, context.RatingContext.MatchLocation);
                     cache[Signature(lineup)] = evaluation;
                     var source = m5.FirstOrDefault(x => Signature(x.Lineup) == Signature(lineup));
+                    var rankingScore = (0.70 * evaluation.Tactical.TacticalScore) + (0.30 * prediction.Prediction.WinProbability);
                     databases.FirstPass.Add(new CandidateEvaluationRecord(
                         Signature(lineup), lineup.Formation, lineup,
                         source?.SuitabilityScore ?? 0,
@@ -62,8 +72,8 @@ public sealed class MotorPipelineService
                         evaluation.Scenario.Rating,
                         evaluation.Advanced,
                         evaluation.Chance,
-                        null,
-                        evaluation.Tactical.TacticalScore,
+                        prediction.Prediction,
+                        rankingScore,
                         "M6-A"));
                     await Task.CompletedTask;
                     return evaluation.Tactical;
@@ -79,16 +89,24 @@ public sealed class MotorPipelineService
 
             if (m6.BestCandidate is null || m6.TopCandidates.Count == 0)
                 throw new InvalidOperationException("M6-A geçerli aday database'i oluşturamadı.");
-            LogComplete(runId, "M6", $"M6-A • {m6.Iterations}/4 iteration • {m6.EvaluatedCandidates} değerlendirildi • DB1 {databases.FirstPass.Count} aday", sw.ElapsedMilliseconds, m6.EvaluatedCandidates);
+
+            var downstreamElapsed = sw.ElapsedMilliseconds;
+            LogComplete(runId, "M7", $"M6-A içinde {m6.EvaluatedCandidates} aday değerlendirildi", downstreamElapsed, m6.EvaluatedCandidates);
+            LogComplete(runId, "M7.2", $"M6-A taktik senaryo değerlendirmesi tamamlandı", downstreamElapsed, m6.EvaluatedCandidates);
+            LogComplete(runId, "M8", $"M6-A matchup / şans değerlendirmesi tamamlandı", downstreamElapsed, m6.EvaluatedCandidates);
+            LogComplete(runId, "M9", $"M6-A maç tahmini tamamlandı • DB1 {databases.FirstPass.Count}", downstreamElapsed, m6.EvaluatedCandidates);
+            LogComplete(runId, "M6", $"M6-A • {m6.Iterations}/4 iteration • {m6.EvaluatedCandidates} değerlendirildi • DB1 {databases.FirstPass.Count} aday", downstreamElapsed, m6.EvaluatedCandidates);
 
             var db1 = databases.FirstPass.TopWithFormationDiversity(100, CandidateEvaluationDatabase.MaxPerFormation);
             var firstPassCandidates = db1
                 .Select(record =>
                 {
-                    var tactical = m6.TopCandidates.First(x => Signature(x.Lineup) == record.CandidateId);
-                    var prediction = _m9.Predict(tactical, record.Chance, context.RatingContext.MatchLocation);
-                    return new M10CandidateEvaluation(tactical, prediction.Prediction, record.Chance.StructuralChanceIndex);
+                    var tactical = m6.TopCandidates.FirstOrDefault(x => Signature(x.Lineup) == record.CandidateId);
+                    if (tactical is null || record.Prediction is null) return null;
+                    return new M10CandidateEvaluation(tactical, record.Prediction, record.Chance.StructuralChanceIndex);
                 })
+                .Where(x => x is not null)
+                .Cast<M10CandidateEvaluation>()
                 .ToList();
 
             if (firstPassCandidates.Count == 0) throw new InvalidOperationException("Candidate DB #1 M10 değerlendirmesi için boş.");
@@ -103,7 +121,7 @@ public sealed class MotorPipelineService
                 .ToList();
 
             sw.Restart();
-            LogStart(runId, "M6-B", $"İkinci search • {searchSeeds.Count} seed");
+            LogStart(runId, "M6-B", $"İkinci search • {searchSeeds.Count} seed • M7→M9 evaluator tekrar kullanılıyor");
             var m6b = await _m6.OptimizeAsync(
                 searchSeeds,
                 players,
@@ -111,7 +129,9 @@ public sealed class MotorPipelineService
                 {
                     token.ThrowIfCancellationRequested();
                     var evaluation = Evaluate(lineup, runId, context.RatingContext.Attitude, false);
+                    var prediction = _m9.Predict(evaluation.Tactical, evaluation.Chance, context.RatingContext.MatchLocation);
                     cache["B:" + Signature(lineup)] = evaluation;
+                    var rankingScore = (0.70 * evaluation.Tactical.TacticalScore) + (0.30 * prediction.Prediction.WinProbability);
                     databases.SecondPass.Add(new CandidateEvaluationRecord(
                         Signature(lineup), lineup.Formation, lineup,
                         0, 0,
@@ -119,8 +139,8 @@ public sealed class MotorPipelineService
                         evaluation.Scenario.Rating,
                         evaluation.Advanced,
                         evaluation.Chance,
-                        null,
-                        evaluation.Tactical.TacticalScore,
+                        prediction.Prediction,
+                        rankingScore,
                         "M6-B"));
                     await Task.CompletedTask;
                     return evaluation.Tactical;
@@ -142,9 +162,8 @@ public sealed class MotorPipelineService
                 .Select(record =>
                 {
                     var tactical = m6b.TopCandidates.FirstOrDefault(x => Signature(x.Lineup) == record.CandidateId);
-                    if (tactical is null) return null;
-                    var prediction = _m9.Predict(tactical, record.Chance, context.RatingContext.MatchLocation);
-                    return new M11CandidateEvaluation(tactical, prediction.Prediction, record.Chance.StructuralChanceIndex, 1.0);
+                    if (tactical is null || record.Prediction is null) return null;
+                    return new M11CandidateEvaluation(tactical, record.Prediction, record.Chance.StructuralChanceIndex, 1.0);
                 })
                 .Where(x => x is not null)
                 .Cast<M11CandidateEvaluation>()
@@ -158,9 +177,10 @@ public sealed class MotorPipelineService
             LogComplete(runId, "M11", $"FINAL: {m11.BestPlan.Formation} • {m11.CandidateCount} aday • {m11.FormationCount} formasyon", sw.ElapsedMilliseconds, m11.CandidateCount);
 
             var selectedKey = Signature(m11.BestPlan.Lineup);
+            var selectedRecord = db2.First(x => x.CandidateId == selectedKey);
             var selected = finalists.First(x => Signature(x.TacticalCandidate.Lineup) == selectedKey);
-            var selectedEval = Evaluate(selected.TacticalCandidate.Lineup, runId, context.RatingContext.Attitude, false);
-            var selectedM9 = _m9.Predict(selected.TacticalCandidate, selectedEval.Chance, context.RatingContext.MatchLocation);
+            var selectedEval = new CandidateEvaluation(selected.TacticalCandidate, selectedRecord.Rating, selectedRecord.Advanced, selectedRecord.Chance);
+            var selectedM9 = selectedRecord.Prediction ?? m11.Prediction;
 
             return new MotorPipelineResult(
                 m3,
@@ -170,7 +190,7 @@ public sealed class MotorPipelineService
                 selectedEval.Scenario,
                 selectedEval.Advanced,
                 selectedEval.Chance,
-                selectedM9,
+                new M9PredictionResult(selectedM9, selectedEval.Chance.StructuralChanceIndex),
                 m10,
                 m11.BestPlan,
                 m11.Prediction)
