@@ -176,7 +176,7 @@ public sealed class MotorPipelineService
             var selectedKey = Signature(m11.BestPlan.Lineup);
             var selectedRecord = db2.First(x => x.CandidateId == selectedKey);
             var selected = finalists.First(x => Signature(x.TacticalCandidate.Lineup) == selectedKey);
-            var selectedEval = new CandidateEvaluation(selected.TacticalCandidate, selectedRecord.Rating, selectedRecord.Advanced, selectedRecord.Chance);
+            var selectedEval = cache["B:" + selectedKey];
             var selectedM9 = selectedRecord.Prediction ?? m11.Prediction;
             var selectedM9Result = new M9PredictionResult(
                 selected.TacticalCandidate.Lineup.Formation,
