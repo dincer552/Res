@@ -316,6 +316,96 @@ Yeni frontend katmanları:
 
 ---
 
+# 2026-09-02 — Canlı analiz hatası ve questionnaire etkisi
+
+## Tespit edilen canlı hata
+
+Kullanıcı web arayüzünde `ANALİZİ ÇALIŞTIR` akışını başlatıp üç maç koşulunu girdikten sonra son adımda **`Failed to fetch`** hatası görülebilmektedir.
+
+Mevcut frontend akışı mantıksal olarak doğrudur:
+
+```text
+ANALİZİ ÇALIŞTIR
+      ↓
+questionnaire POST
+      ↓
+/api/v5/analysis
+      ↓
+CHPP + M3 → M10
+      ↓
+FinalPlan
+```
+
+`Failed to fetch` normal bir HTTP 4xx/5xx cevabından farklı olarak tarayıcı seviyesinde isteğin tamamlanamadığını gösterir. Kod seviyesinde bunun kesin nedeni henüz kanıtlanmış değildir. Özellikle `/api/v5/analysis` içindeki çok sayıdaki CHPP çağrısı ve M6'nın M7→M8 değerlendirmeli araması nedeniyle request süresi / bağlantı kopması / hosting timeout ihtimali araştırılmalıdır.
+
+Bu nedenle gerçek web oturumunda **sunucu tarafı motor logları ve request timing** eklenmeden hatanın belirli bir motordan kaynaklandığı varsayılmamalıdır.
+
+## Questionnaire etkisi — önemli bug
+
+Web kullanıcıdan üç veri almaktadır:
+
+1. `CoachStyle` — Dengeli / Hücum / Defans
+2. `TeamSpirit` — takım ruhu
+3. `MatchImportance` — Normal / PIC / MOTS
+
+Bu veriler session'a kaydedilip `MatchQuestionnaire` olarak pipeline'a aktarılmaktadır.
+
+### Önceki durum
+
+- **TeamSpirit:** M7'de `MatchState.TeamSpirit` üzerinden midfield ratingini etkiliyordu.
+- **MatchImportance:** `RatingContext.Attitude` üzerinden M7/base rating hesabına giriyordu.
+- **CoachStyle:** questionnaire'dan okunmasına rağmen `QuestionnaireRatingAdjuster.Apply(...)` hiçbir canlı pipeline noktasında çağrılmıyordu. Dolayısıyla kullanıcı Hücum veya Defans seçse bile M3→M10 sonucu bu seçimden etkilenmiyordu.
+
+### Yapılan düzeltme
+
+CoachStyle artık pipeline içinde M7'ye açık şekilde taşınmaktadır:
+
+```text
+Questionnaire.Coach
+       ↓
+MatchState.CoachStyle
+       ↓
+M7 Regional Rating
+       ↓
+M8 Matchup / Chance
+       ↓
+M9 Prediction
+       ↓
+M10 Final Decision
+```
+
+M7'de coach etkisi TeamSpirit'ten ayrı uygulanır; böylece TeamSpirit'in midfield etkisi **iki kez uygulanmaz**.
+
+Kullanılan coach katsayıları:
+
+| Coach | Attack | Defence |
+|---|---:|---:|
+| Dengeli | ×1.00 | ×1.00 |
+| Hücum | ×1.08 | ×0.89 |
+| Defans | ×0.92 | ×1.14 |
+
+Bu katsayıların tarihsel gerçek maç sonuçlarıyla calibration'ı ayrıca yapılmalıdır; burada amaç öncelikle kullanıcı seçiminin motor zincirine gerçekten bağlanmasını sağlamaktır.
+
+## Sonraki düzeltme kapısı
+
+Canlı hatanın teşhis ve çözümü için sıra:
+
+```text
+1. Questionnaire etkisini pipeline'a bağla             ✅
+2. CoachStyle'ın M7→M10 sonucunu regression ile doğrula 🔄
+3. /api/v5/analysis request timing ekle                🔜
+4. M3 → M10 gerçek server-side motor logları ekle     🔜
+5. CHPP / pipeline timeout noktasını tespit et         🔜
+6. Frontend'de raw "Failed to fetch" yerine açıklayıcı hata göster 🔜
+7. Offline Regression                                  🔜
+8. Docker Build / Deploy                               🔜
+9. Gerçek CHPP web analizi                             🔜
+```
+
+**Kural:** Önce hata gözlemlenebilir hale getirilecek, sonra performans/timeout ve motor davranışı düzeltilecek. M3 temel katsayıları bu hata nedeniyle değiştirilmemelidir.
+
+---
+
 # Regression / Build durumu
 
 Son derlemede eski pipeline sözleşmelerinden kaynaklanan üç compile hatası tespit edildi ve düzeltildi:
@@ -396,7 +486,11 @@ WEB MOTOR LOGS                 ← TAMAMLANDI
  ↓
 INDIVIDUAL ORDER UI            ← TAMAMLANDI
  ↓
+QUESTIONNAIRE → M7 WIRING     ← TAMAMLANDI
+ ↓
 BUILD / DEPLOY VALIDATION      ← DEVAM EDİYOR
+ ↓
+LIVE ANALYSIS TIMEOUT / ERROR DIAGNOSTICS
  ↓
 M10 MULTI-CANDIDATE RANKING
  ↓
@@ -440,4 +534,3 @@ M1  Veri / CHPP
 ```
 
 **Temel prensip:** Web arayüzü kendi başına XI seçmez. Motorların final çıktısını gösterir. M3 → M10 zinciri tamamlandıkça her katmanın çıktısı bir sonraki katmanın girdisi olur.
-
