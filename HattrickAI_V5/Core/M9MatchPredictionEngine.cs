@@ -9,7 +9,8 @@ namespace HattrickAI.V5.Core;
 /// Oyuncu seviyesi M7'de takımın 7 bölgesel ratingine indirgenir; M9 bu
 /// kanonik ratingleri kullanarak midfield -> chance -> sector attack/defence
 /// akışını çözer. Rakibin hücum riski ayrı hesaplanır ve aynı xG çifti üzerinden
-/// W/D/L üretilir. M8 yapısal şans indeksi ana maç olasılığını ikinci kez şişirmez.
+/// W/D/L üretilir. Ardından M9SimulationEngine aynı çekirdeği 1000 kez farklı
+/// venue/chance varyantlarıyla çalıştırarak Monte Carlo dağılımı üretir.
 /// </summary>
 public sealed class M9MatchPredictionEngine
 {
@@ -21,20 +22,9 @@ public sealed class M9MatchPredictionEngine
     private const double CentreChanceWeight = 0.35;
     private const double SideChanceWeight = 0.25;
     private const double SetPieceChanceWeight = 0.15;
-
-    // Hattrick'te regular chance'ların bir kısmı iki takıma açıkken bir kısmı
-    // takıma özel olabilir. Bu nedenle possession/chance share'i doğrudan xG ile
-    // çarparak sıfıra doğru aşırı bastırmıyoruz. 0.35 tabanı, midfield avantajını
-    // korurken güçlü attack-vs-defence eşleşmesinin sonucu taşımasına izin verir.
     private const double ExclusiveChanceFloor = 0.35;
-
-    // Attack-vs-defence sonucu ham rating oranıyla lineerleştirilmez. Kontrollü
-    // sigmoid, belirgin rating farklarını 0.5'e aşırı sıkıştırmayı önler.
     private const double SectorBreakthroughScale = 1.5;
 
-    /// <summary>
-    /// Ana M9 yolu: M7'nin iki takım 7-rating çıktısını doğrudan kullanır.
-    /// </summary>
     public M9PredictionResult Predict(
         TacticalCandidate candidate,
         M8ChanceResult chance,
@@ -70,8 +60,6 @@ public sealed class M9MatchPredictionEngine
             chance.SetPieceChanceShare);
 
         // 3) OPPONENT ATTACK -> OWN DEFENCE
-        // Rakip tehdidi ayrı hesaplanır; böylece M9 sadece kendi golünü değil,
-        // rakibin hangi koridordan bizi zorladığını da görür.
         var opponentLeft = SectorBreakthrough(opponent.LeftAttack, own.RightDefence);
         var opponentCentre = SectorBreakthrough(opponent.CentralAttack, own.CentralDefence);
         var opponentRight = SectorBreakthrough(opponent.RightAttack, own.LeftDefence);
@@ -86,14 +74,13 @@ public sealed class M9MatchPredictionEngine
 
         var structuralChance = Clamp01(chance.StructuralChanceIndex);
 
-        // M9 rating-merkezlidir: midfield kaç fırsat geldiğini, sektör ratingi
-        // ise fırsatın gole dönüşme kalitesini belirler. M8 structural index
-        // burada tekrar xG'ye eklenmez; aksi halde aynı bilgiyi iki kez sayarız.
+        // M9 rating-merkezlidir: midfield fırsat hacmini, sektör ratingleri
+        // fırsatın gole dönüşme kalitesini belirler. M8 structural index burada
+        // tekrar xG'ye eklenmez; aynı bilgi iki kez sayılmaz.
         var ownExpected = ClampGoals(BaseGoals + GoalScale * ownChanceVolume * ownAttackQuality);
         var opponentExpected = ClampGoals(BaseGoals + GoalScale * opponentChanceVolume * opponentAttackQuality);
 
-        // Home advantage M7 rating katmanında zaten uygulanıyor. M9 ikinci bir
-        // home-goal bonusu eklemez.
+        // Home advantage M7 rating katmanında zaten uygulanıyor.
         _ = location;
 
         var probabilities = CalculatePoissonOutcomeProbabilities(ownExpected, opponentExpected);
@@ -189,7 +176,8 @@ public sealed class M9MatchPredictionEngine
         double opponentCentre,
         double opponentRight,
         MatchLocation location)
-        => new(
+    {
+        var result = new M9PredictionResult(
             formation,
             CandidateId(lineup),
             prediction,
@@ -206,6 +194,11 @@ public sealed class M9MatchPredictionEngine
             opponentRight,
             location,
             M9CalibrationStatus.StructuralModelAwaitingHistoricalCalibration);
+
+        // 1000x Monte Carlo: M9 çekirdeğinin farklı chance/venue varyantlarındaki
+        // davranışını tekrarlar. Seed deterministiktir; aynı aday aynı sonucu verir.
+        return result with { Simulation = new M9SimulationEngine().Simulate(result) };
+    }
 
     private static double WeightedAttackQuality(
         double left,
@@ -241,13 +234,6 @@ public sealed class M9MatchPredictionEngine
         var logRatio = Math.Log(share / (1.0 - share)) / SectorBreakthroughScale;
         var ratio = Math.Exp(logRatio);
         return Math.Max(0.0, own / Math.Max(0.001, ratio));
-    }
-
-    private static double PoissonDistributionValue(double lambda, int goals)
-    {
-        var probability = Math.Exp(-Math.Max(0.05, lambda));
-        for (var i = 1; i <= goals; i++) probability *= lambda / i;
-        return probability;
     }
 
     private static double[] PoissonDistribution(double lambda, int maxGoals)
@@ -287,6 +273,10 @@ public sealed record M9PredictionResult(
     MatchLocation Location,
     M9CalibrationStatus CalibrationStatus)
 {
+    // Monte Carlo database sonucu. Ham 1000 kayıt veriyi API'ye şişirmemesi için
+    // özet dağılımlar public, ham kayıtlar internal tutulur.
+    public M9SimulationResult? Simulation { get; init; }
+
     public string PredictedResult => Prediction.WinProbability >= Prediction.LossProbability
         ? (Prediction.WinProbability >= Prediction.DrawProbability ? "Galibiyet" : "Beraberlik")
         : (Prediction.LossProbability >= Prediction.DrawProbability ? "Rakip Galibiyeti" : "Beraberlik");
