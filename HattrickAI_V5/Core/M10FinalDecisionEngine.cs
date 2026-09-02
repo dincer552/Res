@@ -42,6 +42,24 @@ public sealed class M10FinalDecisionEngine
             winner.TacticalCandidate.Matchup,
             winner.TacticalCandidate.TacticalScore);
 
+        var formationCompetition = ranked
+            .GroupBy(x => x.Candidate.TacticalCandidate.Lineup.Formation, StringComparer.Ordinal)
+            .Select(group =>
+            {
+                var best = group.First();
+                return new M10FormationCompetition(
+                    group.Key,
+                    Signature(best.Candidate.TacticalCandidate.Lineup),
+                    best.Candidate.TacticalCandidate.TacticalScore,
+                    best.Candidate.Prediction.WinProbability,
+                    best.CompositeScore,
+                    group.Count());
+            })
+            .OrderByDescending(x => x.CompositeScore)
+            .ThenByDescending(x => x.TacticalScore)
+            .ThenBy(x => x.Formation, StringComparer.Ordinal)
+            .ToList();
+
         return new M10DecisionResult(
             plan,
             winner.Prediction,
@@ -51,7 +69,10 @@ public sealed class M10FinalDecisionEngine
                 x.Candidate.TacticalCandidate.TacticalScore,
                 x.Candidate.Prediction.WinProbability,
                 x.CompositeScore)).ToList(),
-            M10DecisionStatus.SelectedDeterministically);
+            M10DecisionStatus.SelectedDeterministically)
+        {
+            FormationCompetition = formationCompetition
+        };
     }
 
     /// <summary>
@@ -152,6 +173,14 @@ public sealed record M10RankedCandidate(
     double WinProbability,
     double CompositeScore);
 
+public sealed record M10FormationCompetition(
+    string Formation,
+    string BestCandidateId,
+    double TacticalScore,
+    double WinProbability,
+    double CompositeScore,
+    int CandidateCount);
+
 public sealed record M10ApproachRanking(
     TeamAttitude Attitude,
     double WinProbability,
@@ -171,6 +200,7 @@ public sealed record M10DecisionResult(
 {
     public TeamAttitude? SelectedApproach { get; init; }
     public IReadOnlyList<M10ApproachRanking>? ApproachRanking { get; init; }
+    public IReadOnlyList<M10FormationCompetition>? FormationCompetition { get; init; }
 }
 
 public enum M10DecisionStatus
