@@ -3,12 +3,13 @@ namespace HattrickAI.V5.Core;
 /// <summary>
 /// M6 bounded global behaviour optimizer.
 /// Starts from the all-Normal baseline and performs deterministic beam search
-/// over legal individual orders. M6 itself is opponent-blind: all tactical
-/// scoring is delegated to the injected downstream evaluator (M7/M8).
+/// over legal individual orders. M6 artık tek BestCandidate yanında ilk 100
+/// güçlü sonucu da Candidate Database #1 için dışarı verir.
 /// </summary>
 public sealed class M6GlobalOptimizationEngine
 {
     private readonly BehaviourCandidateEngine _candidateEngine;
+    private const int CandidateDatabaseCapacity = 100;
 
     public M6GlobalOptimizationEngine(BehaviourCandidateEngine? candidateEngine = null)
         => _candidateEngine = candidateEngine ?? new BehaviourCandidateEngine();
@@ -29,6 +30,8 @@ public sealed class M6GlobalOptimizationEngine
         if (maxIterations < 1) throw new ArgumentOutOfRangeException(nameof(maxIterations));
 
         TacticalCandidate? globalBest = null;
+        var database = new List<TacticalCandidate>(CandidateDatabaseCapacity);
+        var seenDatabase = new HashSet<string>(StringComparer.Ordinal);
         var evaluated = 0;
         var retained = 0;
         var iterations = 0;
@@ -45,7 +48,7 @@ public sealed class M6GlobalOptimizationEngine
             var baseline = ToNormalLineup(xi.Lineup, matrix);
             var beam = new List<Lineup> { baseline };
             var seen = new HashSet<string>(StringComparer.Ordinal) { Signature(baseline) };
-            TacticalCandidate? localBest = await Evaluate(baseline);
+            TacticalCandidate? localBest = await EvaluateAndStore(baseline);
             evaluated++;
 
             for (var iteration = 1; iteration <= maxIterations; iteration++)
@@ -86,7 +89,7 @@ public sealed class M6GlobalOptimizationEngine
                 foreach (var candidate in frontier)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    scored.Add(await Evaluate(candidate));
+                    scored.Add(await EvaluateAndStore(candidate));
                     evaluated++;
                 }
 
@@ -113,12 +116,26 @@ public sealed class M6GlobalOptimizationEngine
             globalBest = globalBest is null ? localBest : Better(globalBest, localBest!);
         }
 
-        return new M6OptimizationResult(globalBest, iterations, evaluated, retained, converged);
+        var topCandidates = database
+            .OrderByDescending(x => x.TacticalScore)
+            .ThenBy(x => x.Lineup.Formation, StringComparer.Ordinal)
+            .ThenBy(x => Signature(x.Lineup), StringComparer.Ordinal)
+            .Take(CandidateDatabaseCapacity)
+            .ToList();
 
-        async Task<TacticalCandidate> Evaluate(Lineup lineup)
+        return new M6OptimizationResult(globalBest, topCandidates, iterations, evaluated, retained, converged);
+
+        async Task<TacticalCandidate> EvaluateAndStore(Lineup lineup)
         {
             var result = await evaluator(lineup, cancellationToken);
             ArgumentNullException.ThrowIfNull(result);
+            var key = Signature(result.Lineup);
+            if (seenDatabase.Add(key))
+            {
+                database.Add(result);
+                database.Sort((a, b) => b.TacticalScore.CompareTo(a.TacticalScore));
+                if (database.Count > CandidateDatabaseCapacity) database.RemoveAt(database.Count - 1);
+            }
             return result;
         }
     }
@@ -148,6 +165,7 @@ public sealed class M6GlobalOptimizationEngine
 
 public sealed record M6OptimizationResult(
     TacticalCandidate? BestCandidate,
+    IReadOnlyList<TacticalCandidate> TopCandidates,
     int Iterations,
     int EvaluatedCandidates,
     int RetainedCandidates,
