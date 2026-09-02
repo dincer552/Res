@@ -6,7 +6,7 @@ namespace HattrickAI.V5.Core;
 /// <summary>
 /// V5.1 M7 scenario layer.
 /// Keeps the proven RegionalRatingEngine contribution model intact while adding
-/// an explicit match-state contract and Team Spirit as a midfield context input.
+/// an explicit match-state contract and questionnaire context effects.
 /// M7 evaluates a complete scenario; it does not choose the scenario.
 /// </summary>
 public sealed class RegionalRatingScenarioEngine
@@ -28,17 +28,13 @@ public sealed class RegionalRatingScenarioEngine
         };
 
         var baseRating = _baseEngine.Calculate(players, context);
-        var adjusted = ApplyTeamSpirit(baseRating, state.TeamSpirit);
+        var adjusted = ApplyQuestionnaireContext(baseRating, state);
 
         return new RatingScenarioResult(
             adjusted,
             state,
             RatingConfidence.High,
-            new RatingModifiers(
-                TeamSpiritMultiplier(state.TeamSpirit),
-                state.MatchLocation,
-                state.TeamAttitude,
-                state.TeamTactic));
+            BuildModifiers(state));
     }
 
     public RatingScenarioResult CalculateLineup(
@@ -58,17 +54,13 @@ public sealed class RegionalRatingScenarioEngine
         };
 
         var baseRating = _baseEngine.CalculateLineup(lineup, players, context);
-        var adjusted = ApplyTeamSpirit(baseRating, state.TeamSpirit);
+        var adjusted = ApplyQuestionnaireContext(baseRating, state);
 
         return new RatingScenarioResult(
             adjusted,
             state,
             RatingConfidence.High,
-            new RatingModifiers(
-                TeamSpiritMultiplier(state.TeamSpirit),
-                state.MatchLocation,
-                state.TeamAttitude,
-                state.TeamTactic));
+            BuildModifiers(state));
     }
 
     /// <summary>
@@ -83,6 +75,50 @@ public sealed class RegionalRatingScenarioEngine
         return 0.10 + 0.425 * Math.Sqrt(Math.Clamp(teamSpirit, 0.0, 10.0));
     }
 
+    /// <summary>
+    /// Coach style is applied after the base rating and Team Spirit adjustment.
+    /// This avoids applying Team Spirit twice while making the questionnaire's
+    /// Offensive / Defensive choice observable by M7 -> M8 -> M9 -> M10.
+    /// </summary>
+    public static (double AttackMultiplier, double DefenceMultiplier) CoachStyleMultipliers(CoachStyle coach)
+        => coach switch
+        {
+            CoachStyle.Offensive => (1.08, 0.89),
+            CoachStyle.Defensive => (0.92, 1.14),
+            _ => (1.0, 1.0)
+        };
+
+    private static RegionalRatingSnapshot ApplyQuestionnaireContext(
+        RegionalRatingSnapshot rating,
+        MatchState state)
+    {
+        var withSpirit = ApplyTeamSpirit(rating, state.TeamSpirit);
+        var (attack, defence) = CoachStyleMultipliers(state.CoachStyle);
+
+        return Rebuild(
+            withSpirit,
+            ld => ld * defence,
+            cd => cd * defence,
+            rd => rd * defence,
+            _ => withSpirit.RawMidfield,
+            la => la * attack,
+            ca => ca * attack,
+            ra => ra * attack);
+    }
+
+    private static RatingModifiers BuildModifiers(MatchState state)
+    {
+        var (attack, defence) = CoachStyleMultipliers(state.CoachStyle);
+        return new RatingModifiers(
+            TeamSpiritMultiplier(state.TeamSpirit),
+            state.MatchLocation,
+            state.TeamAttitude,
+            state.TeamTactic,
+            state.CoachStyle,
+            attack,
+            defence);
+    }
+
     private static RegionalRatingSnapshot ApplyTeamSpirit(
         RegionalRatingSnapshot rating,
         double teamSpirit)
@@ -90,21 +126,44 @@ public sealed class RegionalRatingScenarioEngine
         var factor = TeamSpiritMultiplier(teamSpirit);
         var rawMidfield = rating.RawMidfield * factor;
 
+        return Rebuild(
+            rating,
+            ld => ld,
+            cd => cd,
+            rd => rd,
+            _ => rawMidfield,
+            la => la,
+            ca => ca,
+            ra => ra);
+    }
+
+    private static RegionalRatingSnapshot Rebuild(
+        RegionalRatingSnapshot rating,
+        Func<double, double> ld,
+        Func<double, double> cd,
+        Func<double, double> rd,
+        Func<double, double> mid,
+        Func<double, double> la,
+        Func<double, double> ca,
+        Func<double, double> ra)
+    {
+        var rawLd = ld(rating.RawLeftDefence);
+        var rawCd = cd(rating.RawCentralDefence);
+        var rawRd = rd(rating.RawRightDefence);
+        var rawMid = mid(rating.RawMidfield);
+        var rawLa = la(rating.RawLeftAttack);
+        var rawCa = ca(rating.RawCentralAttack);
+        var rawRa = ra(rating.RawRightAttack);
+
         return new RegionalRatingSnapshot(
-            rating.RawLeftDefence,
-            rating.RawCentralDefence,
-            rating.RawRightDefence,
-            rawMidfield,
-            rating.RawLeftAttack,
-            rating.RawCentralAttack,
-            rating.RawRightAttack,
-            RegionalRatingEngine.Display(rating.RawLeftDefence),
-            RegionalRatingEngine.Display(rating.RawCentralDefence),
-            RegionalRatingEngine.Display(rating.RawRightDefence),
-            RegionalRatingEngine.Display(rawMidfield),
-            RegionalRatingEngine.Display(rating.RawLeftAttack),
-            RegionalRatingEngine.Display(rating.RawCentralAttack),
-            RegionalRatingEngine.Display(rating.RawRightAttack));
+            rawLd, rawCd, rawRd, rawMid, rawLa, rawCa, rawRa,
+            RegionalRatingEngine.Display(rawLd),
+            RegionalRatingEngine.Display(rawCd),
+            RegionalRatingEngine.Display(rawRd),
+            RegionalRatingEngine.Display(rawMid),
+            RegionalRatingEngine.Display(rawLa),
+            RegionalRatingEngine.Display(rawCa),
+            RegionalRatingEngine.Display(rawRa));
     }
 }
 
@@ -120,7 +179,8 @@ public sealed record MatchState(
     MatchLocation MatchLocation,
     TeamAttitude TeamAttitude,
     TeamTactic TeamTactic,
-    double TeamSpirit)
+    double TeamSpirit,
+    CoachStyle CoachStyle)
 {
     public int MatchMinute { get; init; }
     public int GoalDifference { get; init; }
@@ -140,7 +200,10 @@ public sealed record RatingModifiers(
     double TeamSpiritMultiplier,
     MatchLocation MatchLocation,
     TeamAttitude TeamAttitude,
-    TeamTactic TeamTactic);
+    TeamTactic TeamTactic,
+    CoachStyle CoachStyle,
+    double CoachAttackMultiplier,
+    double CoachDefenceMultiplier);
 
 public sealed record RatingScenarioResult(
     RegionalRatingSnapshot Rating,
