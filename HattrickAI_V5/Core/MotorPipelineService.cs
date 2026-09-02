@@ -134,12 +134,13 @@ public sealed class MotorPipelineService
             sw.Restart();
             LogStart(runId, "M10", $"DB1 review: {firstPassCandidates.Count} finalist adayı karşılaştırılıyor • {legalFormations.Count} formasyon yarışta");
             var m10 = _m10.Select(firstPassCandidates);
+            var m10FormationCompetition = m10.FormationCompetition ?? [];
             var missingM10Formations = legalFormations
-                .Where(f => !m10.FormationCompetition.Any(x => x.Formation.Equals(f, StringComparison.Ordinal)))
+                .Where(f => !m10FormationCompetition.Any(x => x.Formation.Equals(f, StringComparison.Ordinal)))
                 .ToList();
             if (missingM10Formations.Count > 0)
                 throw new InvalidOperationException($"Anti-lock ihlali: M10 karşılaştırmasında formasyon yok: {string.Join(", ", missingM10Formations)}");
-            LogComplete(runId, "M10", $"DB1 review tamamlandı • lider {m10.BestPlan.Formation} • {m10.FormationCompetition.Count} formasyon karşılaştırıldı", sw.ElapsedMilliseconds, firstPassCandidates.Count);
+            LogComplete(runId, "M10", $"DB1 review tamamlandı • lider {m10.BestPlan.Formation} • {m10FormationCompetition.Count} formasyon karşılaştırıldı", sw.ElapsedMilliseconds, firstPassCandidates.Count);
 
             // M6-B artık yalnızca ilk global winner'ı takip etmez. DB1'in formasyon
             // çeşitlendirilmiş tamamını seed alır ve seed davranışlarını koruyarak
@@ -301,7 +302,8 @@ public sealed class MotorPipelineService
     private static string FormatFormationCounts(IEnumerable<CandidateEvaluationRecord> records)
         => string.Join(" | ", records
             .GroupBy(x => x.Formation, StringComparer.Ordinal)
-            .OrderBy(x => x.Key, StringComparer.Ordinal)
+            .OrderByDescending(x => x.Count())
+            .ThenBy(x => x.Key, StringComparer.Ordinal)
             .Select(x => $"{x.Key}:{x.Count()}"));
 
     private static void LogStart(string? runId, string motor, string message) { if (!string.IsNullOrWhiteSpace(runId)) MotorRunLogStore.StartMotor(runId, motor, message); }
