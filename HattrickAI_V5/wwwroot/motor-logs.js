@@ -5,7 +5,7 @@
   const box = document.createElement('section');
   box.id = 'v5MotorLogBox';
   box.style.cssText = 'margin-top:14px;background:#fff;border-radius:15px;box-shadow:0 2px 9px #0002;overflow:hidden;border:1px solid #dfe5e1';
-  box.innerHTML = `<button id="v5MotorLogToggle" type="button" style="width:100%;border:0;background:#fff;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;color:#27322d;font:800 13px Arial;cursor:pointer"><span>🧠 V5 Motor Logları • M3 → M10</span><span id="v5MotorLogArrow">⌄</span></button><div id="v5MotorLogBody" style="display:none;border-top:1px solid #e5ebe7"><div style="padding:9px 12px;display:flex;justify-content:space-between;align-items:center;color:#747c76;font:11px Arial"><span id="v5MotorLogState">Analiz bekleniyor…</span><button id="v5MotorLogRefresh" type="button" style="border:1px solid #d5ddd8;background:#f7f9f7;border-radius:7px;padding:5px 8px;cursor:pointer">↻ Yenile</button></div><div id="v5MotorLogList" style="padding:0 12px 12px"></div></div>`;
+  box.innerHTML = `<button id="v5MotorLogToggle" type="button" style="width:100%;border:0;background:#fff;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;color:#27322d;font:800 13px Arial;cursor:pointer"><span>🧠 V5 Motor Logları • M3 → M11</span><span id="v5MotorLogArrow">⌄</span></button><div id="v5MotorLogBody" style="display:none;border-top:1px solid #e5ebe7"><div style="padding:9px 12px;display:flex;justify-content:space-between;align-items:center;color:#747c76;font:11px Arial"><span id="v5MotorLogState">Analiz bekleniyor…</span><button id="v5MotorLogRefresh" type="button" style="border:1px solid #d5ddd8;background:#f7f9f7;border-radius:7px;padding:5px 8px;cursor:pointer">↻ Yenile</button></div><div id="v5MotorLogList" style="padding:0 12px 12px"></div></div>`;
   const deployBox = document.getElementById('deployLogBox');
   if (deployBox && deployBox.parentNode) deployBox.parentNode.insertBefore(box, deployBox);
   else (document.querySelector('main.page') || document.querySelector('main') || document.body).appendChild(box);
@@ -18,7 +18,7 @@
   const refresh = document.getElementById('v5MotorLogRefresh');
   let open = false, timer = null, running = false;
   const esc = value => String(value ?? '').replace(/[&<>\"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#039;'}[m]));
-  const motors = ['M3','M4','M5','M6','M7','M7.2','M8','M9','M10'];
+  const motors = ['M3','M4','M5','M6','M7','M7.2','M8','M9','M10','M6-B','M11'];
   const orderName = value => ({0:'Normal',1:'Ofansif',2:'Defansif',3:'Merkeze',4:'Kanada'}[Number(value)] || String(value ?? ''));
 
   function copyLineup(kind) {
@@ -28,32 +28,15 @@
     const rating = kind === 'opp' ? (data.opponentRating || {}) : (data.ownRating || {});
     const players = (lineup.slots || []).filter(x => Number(x.playerId) > 0);
     if (!players.length) return;
-
     const title = kind === 'opp' ? 'RAKİP' : 'KULLANICI TAKIMI';
-    const lines = [
-      'HattrickAI V5 KOPYA',
-      `TAKIM: ${lineup.teamName || data.teamName || '—'}`,
-      `DİZİLİŞ: ${lineup.formation || '—'}`,
-      '',
-      'OYUNCULAR:'
-    ];
+    const lines = ['HattrickAI V5 KOPYA',`TAKIM: ${lineup.teamName || data.teamName || '—'}`,`DİZİLİŞ: ${lineup.formation || '—'}`,'','OYUNCULAR:'];
     players.forEach(p => lines.push(`${p.code || p.positionCode || '—'}: ${p.playerName || '—'} | RP=${Number(p.rating || 0).toFixed(1)} | ${orderName(p.order)}`));
     lines.push('', 'OYUNCU TALİMATLARI / DAVRANIŞLAR:');
     players.forEach(p => lines.push(`${p.code || p.positionCode || '—'}: ${orderName(p.order)}`));
-    lines.push('', 'BÖLGESEL RATING:');
-    lines.push(`DEF-L: ${fmt(rating.leftDefence)}`);
-    lines.push(`DEF-C: ${fmt(rating.centralDefence)}`);
-    lines.push(`DEF-R: ${fmt(rating.rightDefence)}`);
-    lines.push(`MID: ${fmt(rating.midfield)}`);
-    lines.push(`ATT-L: ${fmt(rating.leftAttack)}`);
-    lines.push(`ATT-C: ${fmt(rating.centralAttack)}`);
-    lines.push(`ATT-R: ${fmt(rating.rightAttack)}`);
-    lines.push('', `KAYNAK: ${title} final M10 planı`);
-
+    lines.push('', 'BÖLGESEL RATING:',`DEF-L: ${fmt(rating.leftDefence)}`,`DEF-C: ${fmt(rating.centralDefence)}`,`DEF-R: ${fmt(rating.rightDefence)}`,`MID: ${fmt(rating.midfield)}`,`ATT-L: ${fmt(rating.leftAttack)}`,`ATT-C: ${fmt(rating.centralAttack)}`,`ATT-R: ${fmt(rating.rightAttack)}`,'',`KAYNAK: ${title} final M10 planı`);
     navigator.clipboard.writeText(lines.join('\n')).catch(() => {});
   }
   function fmt(value) { return Number.isFinite(Number(value)) ? Number(value).toFixed(2) : '—'; }
-
   function icon(status) { if (status === 'completed') return '<span style="color:#267448;font-weight:900">✓</span>'; if (status === 'failed') return '<span style="color:#b33b32;font-weight:900">✕</span>'; if (status === 'running') return '<span style="color:#2f7d4f;font-weight:900">●</span>'; return '<span style="color:#a3aaa5;font-weight:900">○</span>'; }
   function label(status) { return status === 'completed' ? 'Tamamlandı' : status === 'failed' ? 'Hata' : status === 'running' ? 'Çalışıyor' : 'Bekliyor'; }
   function renderUnavailable() {
@@ -104,9 +87,6 @@
     } catch (_) {}
     return response;
   };
-
-  // The original page owns the visual button handlers. We only enrich the
-  // clipboard payload after a successful final analysis response.
   document.addEventListener('click', function (event) {
     const target = event.target?.closest?.('#copyOwn,#copyOpp');
     if (!target) return;
