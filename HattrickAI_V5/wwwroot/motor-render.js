@@ -21,6 +21,7 @@
   window.makePitch = function (target, lineup, rating) {
     const p = document.getElementById(target);
     if (!p) return;
+    const isOpponent = target === 'oppPitch';
     p.innerHTML = '<div class="midline"></div><div class="circle"></div><div class="box top"></div><div class="box bot"></div><div class="goal top"></div><div class="goal bot"></div>'+board(rating)+'<div class="slots"></div>';
     const layer = p.querySelector('.slots');
     const players = new Map((lineup?.slots || []).map(s => [s.code, s]));
@@ -31,7 +32,11 @@
       if (x?.playerName) {
         const order = orderLabel(x.order);
         s.classList.add('filled');
-        s.innerHTML = '<span class="slot-name">'+esc(x.playerName)+'</span><span class="slot-rating">RP='+Number(x.rating||0).toFixed(1)+'</span><span class="slot-order '+(order==='OFANSİF'?'off':order==='DEFANSİF'?'def':'')+'">'+order+'</span>';
+        const stars = Number(x.historicalStars);
+        const playerValue = isOpponent && Number.isFinite(stars) && stars > 0
+          ? 'SP='+stars.toFixed(1)
+          : 'RP='+Number(x.rating||0).toFixed(1);
+        s.innerHTML = '<span class="slot-name">'+esc(x.playerName)+'</span><span class="slot-rating">'+playerValue+'</span><span class="slot-order '+(order==='OFANSİF'?'off':order==='DEFANSİF'?'def':'')+'">'+order+'</span>';
       } else {
         s.classList.add('empty');
         s.innerHTML = '<span class="slot-name"></span><span class="slot-rating"></span><span class="slot-order"></span>';
