@@ -53,7 +53,7 @@ public sealed class MotorPipelineService
             LogStart(runId, "M7", "M6-A downstream evaluator: bölgesel rating");
             LogStart(runId, "M7.2", "M6-A downstream evaluator: taktik senaryo");
             LogStart(runId, "M8", "M6-A downstream evaluator: matchup / şans");
-            LogStart(runId, "M9", "M6-A downstream evaluator: maç tahmini");
+            LogStart(runId, "M9", "M6-A downstream evaluator: rating-merkezli maç tahmini");
 
             var m6 = await _m6.OptimizeAsync(
                 m5,
@@ -62,7 +62,7 @@ public sealed class MotorPipelineService
                 {
                     token.ThrowIfCancellationRequested();
                     var evaluation = Evaluate(lineup, runId, context.RatingContext.Attitude, false);
-                    var prediction = _m9.Predict(evaluation.Tactical, evaluation.Chance, context.RatingContext.MatchLocation);
+                    var prediction = _m9.Predict(evaluation.Tactical, evaluation.Chance, context.Opponent.Rating, context.RatingContext.MatchLocation);
                     cache[Signature(lineup)] = evaluation;
                     var source = m5.FirstOrDefault(x => Signature(x.Lineup) == Signature(lineup));
                     var rankingScore = (0.70 * evaluation.Tactical.TacticalScore) + (0.30 * prediction.Prediction.WinProbability);
@@ -128,7 +128,7 @@ public sealed class MotorPipelineService
             LogComplete(runId, "M7", $"M6-A içinde {m6.EvaluatedCandidates} aday değerlendirildi", downstreamElapsed, m6.EvaluatedCandidates);
             LogComplete(runId, "M7.2", "M6-A taktik senaryo değerlendirmesi tamamlandı", downstreamElapsed, m6.EvaluatedCandidates);
             LogComplete(runId, "M8", "M6-A matchup / şans değerlendirmesi tamamlandı", downstreamElapsed, m6.EvaluatedCandidates);
-            LogComplete(runId, "M9", $"M6-A maç tahmini tamamlandı • DB1 {databases.FirstPass.Count} • {formationDb1Summary}", downstreamElapsed, m6.EvaluatedCandidates);
+            LogComplete(runId, "M9", $"M6-A rating-merkezli maç tahmini tamamlandı • DB1 {databases.FirstPass.Count} • {formationDb1Summary}", downstreamElapsed, m6.EvaluatedCandidates);
             LogComplete(runId, "M6", $"M6-A • {m6.Iterations}/4 iteration • {m6.EvaluatedCandidates} değerlendirildi • DB1 {databases.FirstPass.Count} aday • {formationDb1Summary}", downstreamElapsed, m6.EvaluatedCandidates);
 
             sw.Restart();
@@ -142,9 +142,6 @@ public sealed class MotorPipelineService
                 throw new InvalidOperationException($"Anti-lock ihlali: M10 karşılaştırmasında formasyon yok: {string.Join(", ", missingM10Formations)}");
             LogComplete(runId, "M10", $"DB1 review tamamlandı • lider {m10.BestPlan.Formation} • {m10FormationCompetition.Count} formasyon karşılaştırıldı", sw.ElapsedMilliseconds, firstPassCandidates.Count);
 
-            // M6-B artık yalnızca ilk global winner'ı takip etmez. DB1'in formasyon
-            // çeşitlendirilmiş tamamını seed alır ve seed davranışlarını koruyarak
-            // gerçek ikinci refinement/search turu yapar.
             var searchSeeds = db1
                 .Select(record => ToPositionCandidate(record.Lineup, record.Formation, record.RankingScore))
                 .ToList();
@@ -158,7 +155,7 @@ public sealed class MotorPipelineService
                 {
                     token.ThrowIfCancellationRequested();
                     var evaluation = Evaluate(lineup, runId, context.RatingContext.Attitude, false);
-                    var prediction = _m9.Predict(evaluation.Tactical, evaluation.Chance, context.RatingContext.MatchLocation);
+                    var prediction = _m9.Predict(evaluation.Tactical, evaluation.Chance, context.Opponent.Rating, context.RatingContext.MatchLocation);
                     cache["B:" + Signature(lineup)] = evaluation;
                     var rankingScore = (0.70 * evaluation.Tactical.TacticalScore) + (0.30 * prediction.Prediction.WinProbability);
                     databases.SecondPass.Add(new CandidateEvaluationRecord(
@@ -230,6 +227,17 @@ public sealed class MotorPipelineService
                 selectedKey,
                 selectedM9,
                 selectedEval.Chance.StructuralChanceIndex,
+                ComputeM9OwnChanceShare(selectedEval.Chance),
+                1.0 - ComputeM9OwnChanceShare(selectedEval.Chance),
+                ComputeM9OwnAttackQuality(selectedEval.Tactical.Rating, context.Opponent.Rating, selectedEval.Chance),
+                ComputeM9OpponentAttackQuality(selectedEval.Tactical.Rating, context.Opponent.Rating, selectedEval.Chance),
+                ComputeM9OwnLeft(selectedEval.Tactical.Rating, context.Opponent.Rating),
+                ComputeM9OwnCentre(selectedEval.Tactical.Rating, context.Opponent.Rating),
+                ComputeM9OwnRight(selectedEval.Tactical.Rating, context.Opponent.Rating),
+                ComputeM9OpponentLeft(selectedEval.Tactical.Rating, context.Opponent.Rating),
+                ComputeM9OpponentCentre(selectedEval.Tactical.Rating, context.Opponent.Rating),
+                ComputeM9OpponentRight(selectedEval.Tactical.Rating, context.Opponent.Rating),
+                context.RatingContext.MatchLocation,
                 M9CalibrationStatus.StructuralModelAwaitingHistoricalCalibration);
 
             return new MotorPipelineResult(
@@ -306,6 +314,32 @@ public sealed class MotorPipelineService
             .ThenBy(x => x.Key, StringComparer.Ordinal)
             .Select(x => $"{x.Key}:{x.Count()}"));
 
+    private static double ComputeM9OwnChanceShare(M8ChanceResult chance) => Math.Clamp(chance.MidfieldShare, 0, 1);
+    private static double Share(double own, double opponent)
+    {
+        var ownSafe = Math.Max(0, own);
+        var opponentSafe = Math.Max(0, opponent);
+        var total = ownSafe + opponentSafe;
+        return total <= 0 ? 0.5 : Math.Clamp(ownSafe / total, 0, 1);
+    }
+    private static double ComputeM9OwnLeft(RegionalRatingSnapshot own, RegionalRatingSnapshot opponent) => Share(own.LeftAttack, opponent.RightDefence);
+    private static double ComputeM9OwnCentre(RegionalRatingSnapshot own, RegionalRatingSnapshot opponent) => Share(own.CentralAttack, opponent.CentralDefence);
+    private static double ComputeM9OwnRight(RegionalRatingSnapshot own, RegionalRatingSnapshot opponent) => Share(own.RightAttack, opponent.LeftDefence);
+    private static double ComputeM9OpponentLeft(RegionalRatingSnapshot own, RegionalRatingSnapshot opponent) => Share(opponent.LeftAttack, own.RightDefence);
+    private static double ComputeM9OpponentCentre(RegionalRatingSnapshot own, RegionalRatingSnapshot opponent) => Share(opponent.CentralAttack, own.CentralDefence);
+    private static double ComputeM9OpponentRight(RegionalRatingSnapshot own, RegionalRatingSnapshot opponent) => Share(opponent.RightAttack, own.LeftDefence);
+
+    private static double WeightedAttackQuality(double left, double centre, double right, double leftWeight, double centreWeight, double rightWeight, double setPieceWeight)
+    {
+        var regularWeight = leftWeight + centreWeight + rightWeight;
+        var weightedRegular = regularWeight <= 0 ? 0.5 : ((left * leftWeight) + (centre * centreWeight) + (right * rightWeight)) / regularWeight;
+        return Math.Clamp((regularWeight * weightedRegular) + (setPieceWeight * 0.5), 0, 1);
+    }
+    private static double ComputeM9OwnAttackQuality(RegionalRatingSnapshot own, RegionalRatingSnapshot opponent, M8ChanceResult chance)
+        => WeightedAttackQuality(ComputeM9OwnLeft(own, opponent), ComputeM9OwnCentre(own, opponent), ComputeM9OwnRight(own, opponent), chance.LeftChanceShare, chance.CentreChanceShare, chance.RightChanceShare, chance.SetPieceChanceShare);
+    private static double ComputeM9OpponentAttackQuality(RegionalRatingSnapshot own, RegionalRatingSnapshot opponent, M8ChanceResult chance)
+        => WeightedAttackQuality(ComputeM9OpponentLeft(own, opponent), ComputeM9OpponentCentre(own, opponent), ComputeM9OpponentRight(own, opponent), .25, .35, .25, .15);
+
     private static void LogStart(string? runId, string motor, string message) { if (!string.IsNullOrWhiteSpace(runId)) MotorRunLogStore.StartMotor(runId, motor, message); }
     private static void LogComplete(string? runId, string motor, string message, long durationMs = 0, int? candidateCount = null) { if (!string.IsNullOrWhiteSpace(runId)) MotorRunLogStore.CompleteMotor(runId, motor, message, durationMs, candidateCount); }
     private static void LogFail(string? runId, string motor, string message, long durationMs = 0) { if (!string.IsNullOrWhiteSpace(runId)) MotorRunLogStore.FailMotor(runId, motor, message, durationMs); }
@@ -322,12 +356,6 @@ public sealed class MotorPipelineService
         var rightDef = signed(Share(own.RightDefence, opponent.LeftAttack));
         var overall = (midfield + left + centre + right + leftDef + centreDef + rightDef) / 7.0;
         return new MatchupEvaluation(midfield, left, centre, right, leftDef, centreDef, rightDef, overall);
-    }
-
-    private static double Share(double own, double opponent)
-    {
-        var total = Math.Max(0, own) + Math.Max(0, opponent);
-        return total <= 0 ? 0.5 : Math.Clamp(Math.Max(0, own) / total, 0, 1);
     }
 
     private static double Average(RegionalRatingSnapshot r) => (r.LeftDefence + r.CentralDefence + r.RightDefence + r.Midfield + r.LeftAttack + r.CentralAttack + r.RightAttack) / 7.0;
