@@ -1,0 +1,119 @@
+using System.Collections.Generic;
+using System.Linq;
+
+namespace HattrickAI.V5.Core;
+
+/// <summary>
+/// Tek analiz oturumu içindeki aday değerlendirmelerini sınırlar ve deterministik
+/// biçimde sıralar. Kalıcı ML modeli değildir; M6/M10/M11 arasındaki arama havuzudur.
+/// </summary>
+public sealed class CandidateEvaluationDatabase
+{
+    public const int DefaultCapacity = 100;
+    public const int MaxPerFormation = 30;
+
+    private readonly Dictionary<string, CandidateEvaluationRecord> _records = new(StringComparer.Ordinal);
+
+    public CandidateEvaluationDatabase(string name, int capacity = DefaultCapacity)
+    {
+        if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Database adı boş olamaz.", nameof(name));
+        if (capacity < 1) throw new ArgumentOutOfRangeException(nameof(capacity));
+        Name = name;
+        Capacity = capacity;
+    }
+
+    public string Name { get; }
+    public int Capacity { get; }
+    public IReadOnlyList<CandidateEvaluationRecord> Records => _records.Values
+        .OrderByDescending(x => x.RankingScore)
+        .ThenBy(x => x.Formation, StringComparer.Ordinal)
+        .ThenBy(x => x.CandidateId, StringComparer.Ordinal)
+        .ToList();
+
+    public int Count => _records.Count;
+
+    public void Add(CandidateEvaluationRecord record)
+    {
+        ArgumentNullException.ThrowIfNull(record);
+        if (string.IsNullOrWhiteSpace(record.CandidateId)) return;
+        if (!double.IsFinite(record.RankingScore)) return;
+
+        if (_records.TryGetValue(record.CandidateId, out var existing) && existing.RankingScore >= record.RankingScore)
+            return;
+
+        _records[record.CandidateId] = record;
+        Trim();
+    }
+
+    public void AddRange(IEnumerable<CandidateEvaluationRecord> records)
+    {
+        ArgumentNullException.ThrowIfNull(records);
+        foreach (var record in records) Add(record);
+    }
+
+    public IReadOnlyList<CandidateEvaluationRecord> Top(int count) => Records.Take(Math.Max(0, count)).ToList();
+
+    public IReadOnlyList<CandidateEvaluationRecord> TopWithFormationDiversity(int count, int maxPerFormation = MaxPerFormation)
+    {
+        if (count < 1) return [];
+        if (maxPerFormation < 1) throw new ArgumentOutOfRangeException(nameof(maxPerFormation));
+
+        var selected = new List<CandidateEvaluationRecord>(Math.Min(count, Capacity));
+        var perFormation = new Dictionary<string, int>(StringComparer.Ordinal);
+
+        foreach (var record in Records)
+        {
+            perFormation.TryGetValue(record.Formation, out var formationCount);
+            if (formationCount >= maxPerFormation) continue;
+            selected.Add(record);
+            perFormation[record.Formation] = formationCount + 1;
+            if (selected.Count >= count) break;
+        }
+
+        return selected;
+    }
+
+    public void Clear() => _records.Clear();
+
+    private void Trim()
+    {
+        foreach (var key in _records.Values
+                     .OrderByDescending(x => x.RankingScore)
+                     .ThenBy(x => x.Formation, StringComparer.Ordinal)
+                     .ThenBy(x => x.CandidateId, StringComparer.Ordinal)
+                     .Skip(Capacity)
+                     .Select(x => x.CandidateId)
+                     .ToList())
+            _records.Remove(key);
+    }
+}
+
+public sealed record CandidateEvaluationRecord(
+    string CandidateId,
+    string Formation,
+    Lineup Lineup,
+    double M5SuitabilityScore,
+    double M5StructuralScore,
+    double TacticalScore,
+    RegionalRatingSnapshot Rating,
+    AdvancedTacticalScenarioResult Advanced,
+    M8ChanceResult Chance,
+    MatchPrediction? Prediction,
+    double RankingScore,
+    string Stage);
+
+/// <summary>
+/// Bir analiz çalışmasının iki ayrı arama havuzunu birlikte taşır.
+/// Database #1 ilk M6 aramasından, Database #2 ikinci M6-B aramasından oluşur.
+/// </summary>
+public sealed class CandidateDatabaseSet
+{
+    public CandidateDatabaseSet(int capacity = CandidateEvaluationDatabase.DefaultCapacity)
+    {
+        FirstPass = new CandidateEvaluationDatabase("Candidate Database #1", capacity);
+        SecondPass = new CandidateEvaluationDatabase("Candidate Database #2", capacity);
+    }
+
+    public CandidateEvaluationDatabase FirstPass { get; }
+    public CandidateEvaluationDatabase SecondPass { get; }
+}
