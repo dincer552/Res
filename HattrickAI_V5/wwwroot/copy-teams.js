@@ -61,13 +61,14 @@
     if(opp) opp.remove();
     if(own&&own.dataset.combinedCopy!=='1'){
       own.dataset.combinedCopy='1';own.textContent='İKİ TAKIMI KOPYALA';own.title='Kendi takımını ve rakip takımı birlikte kopyala';
-      own.onclick=function(event){
-        if(event) event.stopPropagation();
-        var text=textBlock('own',false)+'\n\n'+textBlock('opp',true),button=own;
-        function done(){button.textContent='KOPYALANDI ✓';button.classList.add('ok');setTimeout(function(){button.textContent='İKİ TAKIMI KOPYALA';button.classList.remove('ok');},1400);}
+      function combinedCopy(event){
+        if(event){event.preventDefault();event.stopImmediatePropagation();}
+        var text=textBlock('own',false)+'\n\n================ RAKİP TAKIM ================\n\n'+textBlock('opp',true),button=own;
+        function done(){button.textContent='İKİ TAKIM KOPYALANDI ✓';button.classList.add('ok');setTimeout(function(){button.textContent='İKİ TAKIMI KOPYALA';button.classList.remove('ok');},1600);}
         function fallback(){var a=document.createElement('textarea');a.value=text;a.style.position='fixed';a.style.opacity='0';document.body.appendChild(a);a.focus();a.select();try{document.execCommand('copy');done();}finally{a.remove();}}
         if(navigator.clipboard&&window.isSecureContext) navigator.clipboard.writeText(text).then(done).catch(fallback); else fallback();
-      };
+      }
+      own.addEventListener('click',combinedCopy,true);
     }
     if(analyze&&!document.getElementById('offlineJsonExport')){
       var b=document.createElement('button');b.id='offlineJsonExport';b.type='button';b.className='copy-btn';b.textContent='CHPP VERİLERİNİ JSON AL';b.title='CHPP üzerinden offline motor testleri için gereken tüm verileri yeniden çek ve JSON indir';b.disabled=true;b.style.width='100%';b.style.marginTop='9px';b.style.opacity='.45';
