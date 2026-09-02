@@ -109,22 +109,18 @@ public static class FullPipelineRegressionRunner
             else if (p.ExpectedHomeGoals < p.ExpectedAwayGoals)
                 Check(p.WinProbability <= p.LossProbability, "M9 probability direction follows expected goals", failures);
 
-            // Real-match sanity fixture: S4MSUNFC beat this opponent 4-0 away.
-            // The historical score is not fed into M9; it is only a regression
-            // guardrail so a clearly superior recent matchup cannot silently turn
-            // into an unexplained M9 loss prediction after a refactor.
-            if (root.TryGetProperty("historicalMatch", out var historical) &&
-                historical.TryGetProperty("ownGoals", out var ownGoalsElement) &&
-                historical.TryGetProperty("opponentGoals", out var opponentGoalsElement))
+            // S4MSUNFC gerçek maç sanity guardrail: bu fixture, kullanıcının
+            // deplasmanda Zeytinburnu Sahil Spor'u 4-0 yendiği eşleşmedir.
+            // Skor M9'a input olarak verilmez; yalnızca refactor sonrası açıkça
+            // üstün eşleşmenin anlamsız biçimde "rakip kazanır"a dönmesini yakalar.
+            if (teamName.Equals("S4MSUNFC", StringComparison.OrdinalIgnoreCase) &&
+                opponentName.Equals("Zeytinburnu Sahil Spor", StringComparison.OrdinalIgnoreCase))
             {
-                var ownGoals = ownGoalsElement.GetInt32();
-                var opponentGoals = opponentGoalsElement.GetInt32();
-                Console.WriteLine($"Historical fixture: {ownGoals}-{opponentGoals}");
-                if (ownGoals > opponentGoals)
-                {
-                    Check(p.WinProbability >= p.LossProbability,
-                        "M9 real-match sanity: previous 4-0 winner is not predicted to lose", failures);
-                }
+                const int historicalOwnGoals = 4;
+                const int historicalOpponentGoals = 0;
+                Console.WriteLine($"Historical sanity fixture: {historicalOwnGoals}-{historicalOpponentGoals} away win");
+                Check(p.WinProbability >= p.LossProbability,
+                    "M9 real-match sanity: previous 4-0 winner is not predicted to lose", failures);
             }
 
             var resultAgain = await pipeline.RunAsync(context, players, cancellationToken, "offline-faz9-repeat");
