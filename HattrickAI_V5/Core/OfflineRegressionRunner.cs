@@ -92,10 +92,20 @@ public static class OfflineRegressionRunner
             var m7 = new RegionalRatingScenarioEngine();
             var m72 = new AdvancedTacticalScenarioEngine();
             var m8 = new M8ChanceModel();
-            var state = new MatchState("offline-m7", analysis.GetProperty("ownFormation").GetString() ?? "3-5-2", "offline-xi", "offline", MatchLocation.Away, TeamAttitude.Normal, TeamTactic.Normal, 4.5);
+            var state = new MatchState("offline-m7", analysis.GetProperty("ownFormation").GetString() ?? "3-5-2", "offline-xi", "offline", MatchLocation.Away, TeamAttitude.Normal, TeamTactic.Normal, 4.5, CoachStyle.Neutral);
             var m7Result = m7.CalculateLineup(lineup, players, state);
             Check(IsFiniteRating(m7Result.Rating), "M7 rating finite", failures);
             Check(Math.Abs(RegionalRatingScenarioEngine.TeamSpiritMultiplier(4.5) - 1.0) < 0.01, "M7.1 composed spirit baseline", failures);
+            Check(m7Result.Modifiers.CoachStyle == CoachStyle.Neutral, "M7 questionnaire coach baseline", failures);
+
+            var offensive = m7.CalculateLineup(lineup, players, state with { CandidateId = "offline-m7-offensive", CoachStyle = CoachStyle.Offensive });
+            var defensive = m7.CalculateLineup(lineup, players, state with { CandidateId = "offline-m7-defensive", CoachStyle = CoachStyle.Defensive });
+            Check(offensive.Rating.CentralAttack > m7Result.Rating.CentralAttack, "Coach Offensive increases central attack", failures);
+            Check(offensive.Rating.CentralDefence < m7Result.Rating.CentralDefence, "Coach Offensive decreases central defence", failures);
+            Check(defensive.Rating.CentralAttack < m7Result.Rating.CentralAttack, "Coach Defensive decreases central attack", failures);
+            Check(defensive.Rating.CentralDefence > m7Result.Rating.CentralDefence, "Coach Defensive increases central defence", failures);
+            Check(Math.Abs(offensive.Rating.Midfield - m7Result.Rating.Midfield) < 1e-12, "Coach style does not alter midfield", failures);
+            Check(Math.Abs(defensive.Rating.Midfield - m7Result.Rating.Midfield) < 1e-12, "Coach style does not alter midfield (defensive)", failures);
 
             foreach (var tactic in Enum.GetValues<TeamTactic>())
             {
@@ -111,6 +121,7 @@ public static class OfflineRegressionRunner
 
             if (failures.Count > 0) { foreach (var f in failures) Console.WriteLine("FAIL: " + f); return 1; }
             Console.WriteLine("PASS: M3 → M4 → M5 → M7 → M7.1 → M7.2 → M8 offline regression");
+            Console.WriteLine("PASS: Questionnaire CoachStyle → M7 rating wiring");
             Console.WriteLine($"XI: {lineup.Formation} | Opponent: {opponentName}");
             Console.WriteLine($"M7 midfield: {m7Result.Rating.Midfield:0.###} | Opponent midfield: {opponent.Midfield:0.###}");
             Console.WriteLine("Tactics tested: Normal, CounterAttack, LongShots, AttackMiddle, AttackWings, Creative");
@@ -140,7 +151,7 @@ public static class OfflineRegressionRunner
         return new Lineup(e.GetProperty("teamName").GetString() ?? "", e.GetProperty("formation").GetString() ?? "", slots);
     }
     private static RegionalRatingSnapshot ReadRating(JsonElement e) => new(e.GetProperty("rawLeftDefence").GetDouble(), e.GetProperty("rawCentralDefence").GetDouble(), e.GetProperty("rawRightDefence").GetDouble(), e.GetProperty("rawMidfield").GetDouble(), e.GetProperty("rawLeftAttack").GetDouble(), e.GetProperty("rawCentralAttack").GetDouble(), e.GetProperty("rawRightAttack").GetDouble(), e.GetProperty("leftDefence").GetDouble(), e.GetProperty("centralDefence").GetDouble(), e.GetProperty("rightDefence").GetDouble(), e.GetProperty("midfield").GetDouble(), e.GetProperty("leftAttack").GetDouble(), e.GetProperty("centralAttack").GetDouble(), e.GetProperty("rightAttack").GetDouble());
-    private static double OpponentAverage(RegionalRatingSnapshot r) => (r.LeftDefence + r.CentralDefence + r.RightDefence + r.Midfield + r.LeftAttack + r.CentralAttack + r.RightAttack) / 7.0;
+    private static double OpponentAverage(RegionalRatingSnapshot r) => (r.LeftDefence + r.CentralDefence + r.RightDefence + r.LeftAttack + r.CentralAttack + r.RightAttack + r.Midfield) / 7.0;
     private static bool IsFiniteRating(RegionalRatingSnapshot r) => new[]{r.LeftDefence,r.CentralDefence,r.RightDefence,r.Midfield,r.LeftAttack,r.CentralAttack,r.RightAttack}.All(double.IsFinite);
     private static void Check(bool ok,string name,List<string> failures){if(!ok)failures.Add(name);}
     private static int Fail(string message){Console.WriteLine("FAIL: "+message);return 1;}
