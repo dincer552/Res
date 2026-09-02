@@ -37,25 +37,18 @@ public sealed class M9SimulationEngine
         var database = new List<M9SimulationRecord>(simulationCount);
         var scenarioResults = new Dictionary<string, M9ScenarioSummary>(StringComparer.Ordinal);
         foreach (var scenario in Scenarios)
-        {
             scenarioResults[scenario.Name] = new M9ScenarioSummary(scenario.Name);
-        }
 
-        // Venue/chance vary the same M9 xG pair instead of inventing a second
-        // prediction model. Noise is deliberately bounded so one random draw
-        // cannot overturn a large rating advantage.
+        // Her iterasyonda aynı M9 xG çekirdeği, sınırlı venue/chance varyantı ve
+        // Poisson gol örneklemesi ile yeniden çalışır. Hard-coded maç sonucu yoktur.
         for (var i = 0; i < simulationCount; i++)
         {
             var scenario = Scenarios[i % Scenarios.Length];
-            var homeFactor = scenario.HomeFactor;
-            var chanceFactor = scenario.ChanceFactor;
-            var defenceFactor = scenario.DefenceFactor;
-
             var ownLambda = Math.Clamp(
-                basePrediction.Prediction.ExpectedHomeGoals * homeFactor * chanceFactor * RandomFactor(rng, 0.94, 1.06),
+                basePrediction.Prediction.ExpectedHomeGoals * scenario.HomeFactor * scenario.ChanceFactor * RandomFactor(rng, 0.94, 1.06),
                 0.05, 5.0);
             var opponentLambda = Math.Clamp(
-                basePrediction.Prediction.ExpectedAwayGoals * defenceFactor * RandomFactor(rng, 0.94, 1.06),
+                basePrediction.Prediction.ExpectedAwayGoals * scenario.DefenceFactor * RandomFactor(rng, 0.94, 1.06),
                 0.05, 5.0);
 
             var ownGoals = SamplePoisson(rng, ownLambda);
@@ -76,7 +69,6 @@ public sealed class M9SimulationEngine
         var outcomeCounts = database
             .GroupBy(x => x.Outcome, StringComparer.Ordinal)
             .ToDictionary(g => g.Key, g => g.Count(), StringComparer.Ordinal);
-
         var win = Count(outcomeCounts, "Galibiyet");
         var draw = Count(outcomeCounts, "Beraberlik");
         var loss = Count(outcomeCounts, "Rakip Galibiyeti");
@@ -133,7 +125,8 @@ public sealed class M9ScenarioSummary
 
     public M9ScenarioSummary(string scenario) => Scenario = scenario;
     public string Scenario { get; }
-    public IReadOnlyList<M9SimulationRecord> Records => _records;
+    // Ham simulation DB bellekte kalır; API JSON'una 1000 satır taşımıyoruz.
+    internal IReadOnlyList<M9SimulationRecord> Records => _records;
     public int Count => _records.Count;
     public string MostLikelyScore => _records
         .GroupBy(x => $"{x.OwnGoals}-{x.OpponentGoals}", StringComparer.Ordinal)
@@ -151,6 +144,8 @@ public sealed record M9SimulationResult(
     M9SimulationOutcome Outcome,
     IReadOnlyList<M9ScenarioSummary> Scenarios)
 {
+    // 1000 ham kayıt yalnızca motor içi calibration/debug için tutulur.
+    internal IReadOnlyList<M9SimulationRecord> DatabaseInternal => Database;
     public string MostLikelyScore => ScoreFrequencies.FirstOrDefault()?.Score ?? "—";
     public double MostLikelyScoreProbability => ScoreFrequencies.FirstOrDefault()?.Probability ?? 0;
     public string MostLikelyResult
