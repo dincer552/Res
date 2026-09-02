@@ -116,20 +116,43 @@ public static class OfflineRegressionRunner
             Check(Math.Abs(offensive.Rating.Midfield - m7Result.Rating.Midfield) < 1e-12, "Coach style does not alter midfield", failures);
             Check(Math.Abs(defensive.Rating.Midfield - m7Result.Rating.Midfield) < 1e-12, "Coach style does not alter midfield (defensive)", failures);
 
+            M8ChanceResult? normalChance = null;
             foreach (var tactic in Enum.GetValues<TeamTactic>())
             {
                 var tacticState = state with { CandidateId = "offline-" + tactic, TeamTactic = tactic };
                 var t = m72.CalculateLineup(lineup, players, tacticState, OpponentAverage(opponent));
                 var handoff = AdvancedTacticalScenarioEngine.BuildM8Input(m7.CalculateLineup(lineup, players, tacticState), t);
                 var chance = m8.Calculate(handoff, opponent);
+                if (tactic == TeamTactic.Normal) normalChance = chance;
                 Check(t.CandidateId == handoff.CandidateId, $"M7.2→M8 candidate {tactic}", failures);
                 Check(t.Level.Value is >= 0 and <= 10, $"M7.2 level bounds {tactic}", failures);
                 Check(Math.Abs(t.ChanceDistribution.LeftShare + t.ChanceDistribution.CentreShare + t.ChanceDistribution.RightShare + t.ChanceDistribution.SetPieceShare - 1.0) < 1e-9, $"M7.2 distribution sum {tactic}", failures);
                 Check(chance.MidfieldShare is >= 0 and <= 1 && chance.StructuralChanceIndex is >= 0 and <= 1, $"M8 bounds {tactic}", failures);
             }
 
+            if (normalChance is not null)
+            {
+                var matchup = BuildOfflineMatchup(m7Result.Rating, opponent, normalChance);
+                var tactical = new TacticalCandidate(lineup, m7Result.Rating, matchup, 0.0);
+                var m9 = new M9MatchPredictionEngine();
+                var homePrediction = m9.Predict(tactical, normalChance, MatchLocation.Home).Prediction;
+                var awayPrediction = m9.Predict(tactical, normalChance, MatchLocation.Away).Prediction;
+
+                Check(homePrediction.ExpectedHomeGoals > homePrediction.ExpectedAwayGoals, "M9 historical-style positive matchup favors own side", failures);
+                Check(homePrediction.WinProbability > homePrediction.LossProbability, "M9 positive matchup does not predict own loss", failures);
+                Check(awayPrediction.ExpectedHomeGoals > awayPrediction.ExpectedAwayGoals, "M9 away scenario preserves own xG ordering", failures);
+                Check(awayPrediction.WinProbability > awayPrediction.LossProbability, "M9 away positive matchup does not predict own loss", failures);
+                Check(Math.Abs(homePrediction.WinProbability + homePrediction.DrawProbability + homePrediction.LossProbability - 1.0) < 1e-9, "M9 home WDL sums to 1", failures);
+                Check(Math.Abs(awayPrediction.WinProbability + awayPrediction.DrawProbability + awayPrediction.LossProbability - 1.0) < 1e-9, "M9 away WDL sums to 1", failures);
+                Console.WriteLine($"M9 regression: matchup {matchup.OverallScore:0.###} | home xG {homePrediction.ExpectedHomeGoals:0.###}-{homePrediction.ExpectedAwayGoals:0.###} | W/D/L {homePrediction.WinProbability:P1}/{homePrediction.DrawProbability:P1}/{homePrediction.LossProbability:P1}");
+            }
+            else
+            {
+                failures.Add("M9 normal M8 chance unavailable");
+            }
+
             if (failures.Count > 0) { foreach (var f in failures) Console.WriteLine("FAIL: " + f); return 1; }
-            Console.WriteLine("PASS: M3 → M4 → M5 → M7 → M7.1 → M7.2 → M8 offline regression");
+            Console.WriteLine("PASS: M3 → M4 → M5 → M7 → M7.1 → M7.2 → M8 → M9 offline regression");
             Console.WriteLine("PASS: Questionnaire CoachStyle → M7 rating wiring");
             Console.WriteLine($"XI: {lineup.Formation} | Opponent: {opponentName}");
             Console.WriteLine($"M7 midfield: {m7Result.Rating.Midfield:0.###} | Opponent midfield: {opponent.Midfield:0.###}");
@@ -137,6 +160,26 @@ public static class OfflineRegressionRunner
             return 0;
         }
         catch (Exception ex) { Console.WriteLine("STACK: " + ex); return Fail("offline regression exception: " + ex.Message); }
+    }
+
+    private static MatchupEvaluation BuildOfflineMatchup(RegionalRatingSnapshot own, RegionalRatingSnapshot opponent, M8ChanceResult chance)
+    {
+        static double signed(double share) => (Math.Clamp(share, 0, 1) * 2.0) - 1.0;
+        var midfield = signed(chance.MidfieldShare);
+        var left = signed(chance.LeftAttackVsRightDefence);
+        var centre = signed(chance.CentreAttackVsCentreDefence);
+        var right = signed(chance.RightAttackVsLeftDefence);
+        var leftDef = signed(Share(own.LeftDefence, opponent.RightAttack));
+        var centreDef = signed(Share(own.CentralDefence, opponent.CentralAttack));
+        var rightDef = signed(Share(own.RightDefence, opponent.LeftAttack));
+        var overall = (midfield + left + centre + right + leftDef + centreDef + rightDef) / 7.0;
+        return new MatchupEvaluation(midfield, left, centre, right, leftDef, centreDef, rightDef, overall);
+    }
+
+    private static double Share(double own, double opponent)
+    {
+        var total = Math.Max(0, own) + Math.Max(0, opponent);
+        return total <= 0 ? 0.5 : Math.Clamp(Math.Max(0, own) / total, 0, 1);
     }
 
     private static Player ReadPlayer(JsonElement e) => new(
