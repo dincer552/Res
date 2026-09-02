@@ -30,5 +30,5 @@ public sealed record Analysis(string Build,string TeamName,string OpponentName,s
     public M8ChanceResult? M8Chance { get; init; }
     public M9PredictionResult? M9Prediction { get; init; }
     public M10DecisionResult? M10Decision { get; init; }
-    public MotorPipelineResult? MotorPipeline { get; init; }
+    [JsonIgnore] public MotorPipelineResult? MotorPipeline { get; init; }
 }
