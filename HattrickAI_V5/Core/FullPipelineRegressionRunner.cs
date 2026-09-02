@@ -42,7 +42,7 @@ public static class FullPipelineRegressionRunner
                 0,
                 teamName,
                 opponentProfile,
-                new RatingContext(MatchLocation.Away, TeamAttitude.Normal),
+                RatingContext.Default,
                 MatchQuestionnaire.Default);
 
             Console.WriteLine("=== V5 FAZ9 FULL OFFLINE REGRESSION ===");
@@ -62,22 +62,15 @@ public static class FullPipelineRegressionRunner
             Check(result.M5.Count > 0, "M5 produced XI candidates", failures);
             Check(legalFormations.All(f => result.M5.Any(x => x.Formation == f)), "M5 contains every legal formation", failures);
 
-            // FAZ2: M6-A formation-aware search gerçekten bütün legal formasyonları DB1'e taşır.
             Check(result.M6.EvaluatedCandidates > 0, "M6-A evaluated candidates", failures);
             Check(result.CandidateDatabase1Count >= legalFormations.Count * CandidateEvaluationDatabase.MinimumPerFormation,
                 "DB1 reaches formation-depth budget", failures);
-            var db1 = result.M5
-                .Select(x => x.Formation)
-                .Distinct(StringComparer.Ordinal)
-                .ToList();
-            Check(db1.All(f => legalFormations.Contains(f, StringComparer.Ordinal)), "M6-A formation identities valid", failures);
+            Check(result.M5.Select(x => x.Formation).Distinct(StringComparer.Ordinal)
+                .All(f => legalFormations.Contains(f, StringComparer.Ordinal)), "M6-A formation identities valid", failures);
 
-            // DB1/DB2 gerçek depth kontrolü pipeline log/result üzerinden ayrıca yapılır;
-            // CandidateDatabaseSet içindeki minimum depth invariantı tüm legal formasyonları zorunlu tutar.
             Check(result.CandidateDatabase2Count >= legalFormations.Count * CandidateEvaluationDatabase.MinimumPerFormation,
                 "DB2 reaches formation-depth budget", failures);
 
-            // FAZ4: M10 bütün legal formasyonları leaderboard'a sokmuş olmalı.
             var competition = result.M10.FormationCompetition ?? [];
             Check(competition.Count == legalFormations.Count, "M10 leaderboard contains every legal formation", failures);
             foreach (var formation in legalFormations)
@@ -95,7 +88,6 @@ public static class FullPipelineRegressionRunner
                 }
             }
 
-            // FAZ5/6: M6-B + DB2 ikinci arama turu bütün formasyonları korur.
             Check(result.M11 is not null, "M11 decision exists", failures);
             if (result.M11 is not null)
             {
@@ -105,7 +97,6 @@ public static class FullPipelineRegressionRunner
                 Check(double.IsFinite(result.M11.Ranking[0].FinalScore), "M11 winner final score finite", failures);
             }
 
-            // FAZ1: M9 W/D/L aynı expected-goals çiftinden türemeli ve toplam 1 olmalı.
             var p = result.M9.Prediction;
             var probabilitySum = p.WinProbability + p.DrawProbability + p.LossProbability;
             Check(double.IsFinite(p.ExpectedHomeGoals) && double.IsFinite(p.ExpectedAwayGoals), "M9 expected goals finite", failures);
@@ -118,7 +109,6 @@ public static class FullPipelineRegressionRunner
             else if (p.ExpectedHomeGoals < p.ExpectedAwayGoals)
                 Check(p.WinProbability <= p.LossProbability, "M9 probability direction follows expected goals", failures);
 
-            // Determinizm: aynı fixture ikinci kez çalıştırıldığında finalist sonucu değişmemeli.
             var resultAgain = await pipeline.RunAsync(context, players, cancellationToken, "offline-faz9-repeat");
             Check(result.FinalPlan.Formation == resultAgain.FinalPlan.Formation, "full pipeline deterministic formation", failures);
             Check(result.M11?.Ranking.FirstOrDefault()?.CandidateId == resultAgain.M11?.Ranking.FirstOrDefault()?.CandidateId,
