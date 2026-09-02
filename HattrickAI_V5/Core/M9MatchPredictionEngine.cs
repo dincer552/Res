@@ -22,6 +22,13 @@ public sealed class M9MatchPredictionEngine
     private const double SideChanceWeight = 0.25;
     private const double SetPieceChanceWeight = 0.15;
 
+    // Attack-vs-defence sonucu ham rating oranıyla lineerleştirilmez. Hattrick
+    // çekirdeğinde hücumun karşı savunmayı geçme olasılığı rating farkına
+    // doğrusal tepki vermez; burada log-rating oranı üzerinden kontrollü bir
+    // sigmoid kullanılır. Bu, 10.25 vs 6.25 gibi belirgin eşleşmeleri 0.5'e
+    // aşırı sıkıştırmamızı engeller.
+    private const double SectorBreakthroughScale = 1.5;
+
     /// <summary>
     /// Ana M9 yolu: M7'nin iki takım 7-rating çıktısını doğrudan kullanır.
     /// </summary>
@@ -45,9 +52,9 @@ public sealed class M9MatchPredictionEngine
         // 2) OWN ATTACK -> OPPONENT DEFENCE
         // Sol -> rakip sağ savunma, merkez -> rakip merkez savunma,
         // sağ -> rakip sol savunma. M8 mapping ile aynıdır.
-        var ownLeft = Share(own.LeftAttack, opponent.RightDefence);
-        var ownCentre = Share(own.CentralAttack, opponent.CentralDefence);
-        var ownRight = Share(own.RightAttack, opponent.LeftDefence);
+        var ownLeft = SectorBreakthrough(own.LeftAttack, opponent.RightDefence);
+        var ownCentre = SectorBreakthrough(own.CentralAttack, opponent.CentralDefence);
+        var ownRight = SectorBreakthrough(own.RightAttack, opponent.LeftDefence);
         var ownAttackQuality = WeightedAttackQuality(
             ownLeft,
             ownCentre,
@@ -60,9 +67,9 @@ public sealed class M9MatchPredictionEngine
         // 3) OPPONENT ATTACK -> OWN DEFENCE
         // Rakip tehdidi ayrı hesaplanır; böylece M9 sadece kendi golünü değil,
         // rakibin hangi koridordan gol üretebildiğini de görür.
-        var opponentLeft = Share(opponent.LeftAttack, own.RightDefence);
-        var opponentCentre = Share(opponent.CentralAttack, own.CentralDefence);
-        var opponentRight = Share(opponent.RightAttack, own.LeftDefence);
+        var opponentLeft = SectorBreakthrough(opponent.LeftAttack, own.RightDefence);
+        var opponentCentre = SectorBreakthrough(opponent.CentralAttack, own.CentralDefence);
+        var opponentRight = SectorBreakthrough(opponent.RightAttack, own.LeftDefence);
         var opponentAttackQuality = WeightedAttackQuality(
             opponentLeft,
             opponentCentre,
@@ -80,8 +87,8 @@ public sealed class M9MatchPredictionEngine
         var ownExpected = ClampGoals(BaseGoals + GoalScale * ownChanceShare * ownAttackQuality);
         var opponentExpected = ClampGoals(BaseGoals + GoalScale * opponentChanceShare * opponentAttackQuality);
 
-        // location burada bilinçli olarak sayısal düzeltme yapmıyor. Venue etkisi
-        // M7'nin rating katmanında zaten uygulanıyor; M9 bunu tekrar cezalandırmaz.
+        // Venue etkisi M7'nin rating katmanında zaten uygulanıyor; M9 tekrar
+        // home goal bonusu eklemiyor.
         _ = location;
 
         var probabilities = CalculatePoissonOutcomeProbabilities(ownExpected, opponentExpected);
@@ -114,8 +121,8 @@ public sealed class M9MatchPredictionEngine
     /// <summary>
     /// Eski offline regression çağrıları için geriye dönük uyumluluk.
     /// Yeni pipeline her zaman gerçek opponent 7-ratingini vermelidir.
-    /// Burada yalnızca mevcut MatchupEvaluation içindeki signed share'lerden
-    /// sentetik karşı rating üretilir; canlı pipeline bu yolu kullanmaz.
+    /// Burada yalnızca MatchupEvaluation içindeki signed share'lerden sentetik
+    /// karşı rating üretilir; canlı pipeline bu yolu kullanmaz.
     /// </summary>
     public M9PredictionResult Predict(TacticalCandidate candidate, M8ChanceResult chance, MatchLocation location)
     {
@@ -214,12 +221,23 @@ public sealed class M9MatchPredictionEngine
         return Clamp01((regularWeight * weightedRegular) + (setPieceWeight * 0.5));
     }
 
+    private static double SectorBreakthrough(double attack, double defence)
+    {
+        var safeAttack = Math.Max(0.001, attack);
+        var safeDefence = Math.Max(0.001, defence);
+        var logRatio = Math.Log(safeAttack / safeDefence);
+        return Clamp01(1.0 / (1.0 + Math.Exp(-SectorBreakthroughScale * logRatio)));
+    }
+
     private static double InverseRating(double own, double signedMargin)
     {
         var share = Clamp01((signedMargin + 1.0) * 0.5);
         if (share <= 0.001) return Math.Max(0.0, own * 1000.0);
         if (share >= 0.999) return 0.0;
-        return Math.Max(0.0, own * ((1.0 - share) / share));
+
+        var logRatio = Math.Log(share / (1.0 - share)) / SectorBreakthroughScale;
+        var ratio = Math.Exp(logRatio);
+        return Math.Max(0.0, own / Math.Max(0.001, ratio));
     }
 
     private static double Share(double own, double opponent)
