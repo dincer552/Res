@@ -22,7 +22,6 @@ public sealed class MotorPipelineService
         ArgumentNullException.ThrowIfNull(players);
         runId ??= MotorRunLogContext.CurrentRunId;
         var cache = new ConcurrentDictionary<string, CandidateEvaluation>(StringComparer.Ordinal);
-        var databases = new CandidateDatabaseSet();
         var sw = Stopwatch.StartNew();
 
         try
@@ -35,7 +34,13 @@ public sealed class MotorPipelineService
             LogStart(runId, "M4", "Çalışıyor");
             var m4 = _m4.Generate(context, m3);
             if (m4.Candidates.Count == 0) throw new InvalidOperationException("M4 geçerli bir diziliş adayı üretemedi.");
-            LogComplete(runId, "M4", $"{m4.Candidates.Count} diziliş üretildi", sw.ElapsedMilliseconds, m4.Candidates.Count);
+            var legalFormations = m4.Candidates
+                .Select(x => x.Formation)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct(StringComparer.Ordinal)
+                .ToList();
+            var databases = new CandidateDatabaseSet(CandidateEvaluationDatabase.DefaultCapacity, legalFormations);
+            LogComplete(runId, "M4", $"{m4.Candidates.Count} diziliş üretildi • Anti-lock havuzu: {string.Join(", ", legalFormations)}", sw.ElapsedMilliseconds, m4.Candidates.Count);
 
             sw.Restart();
             LogStart(runId, "M5", "Geniş XI havuzu: yaklaşık 20 / formasyon");
@@ -84,21 +89,26 @@ public sealed class MotorPipelineService
                         MotorRunLogStore.Progress(runId, "M6", $"A {iteration}/{maximum} • {evaluated} değerlendirildi • DB1 {databases.FirstPass.Count}", iteration, maximum);
                 });
 
-            if (m6.BestCandidate is null || m6.TopCandidates.Count == 0)
-                throw new InvalidOperationException("M6-A geçerli aday database'i oluşturamadı.");
-
-            var downstreamElapsed = sw.ElapsedMilliseconds;
-            LogComplete(runId, "M7", $"M6-A içinde {m6.EvaluatedCandidates} aday değerlendirildi", downstreamElapsed, m6.EvaluatedCandidates);
-            LogComplete(runId, "M7.2", "M6-A taktik senaryo değerlendirmesi tamamlandı", downstreamElapsed, m6.EvaluatedCandidates);
-            LogComplete(runId, "M8", "M6-A matchup / şans değerlendirmesi tamamlandı", downstreamElapsed, m6.EvaluatedCandidates);
-            LogComplete(runId, "M9", $"M6-A maç tahmini tamamlandı • DB1 {databases.FirstPass.Count}", downstreamElapsed, m6.EvaluatedCandidates);
-            LogComplete(runId, "M6", $"M6-A • {m6.Iterations}/4 iteration • {m6.EvaluatedCandidates} değerlendirildi • DB1 {databases.FirstPass.Count} aday", downstreamElapsed, m6.EvaluatedCandidates);
-
             var db1 = databases.FirstPass.TopWithFormationDiversity(100, CandidateEvaluationDatabase.MaxPerFormation);
+            if (db1.Count == 0)
+                throw new InvalidOperationException("Candidate DB #1 boş kaldı.");
+
+            var missingDb1Formations = legalFormations
+                .Where(f => !db1.Any(x => x.Formation.Equals(f, StringComparison.Ordinal)))
+                .ToList();
+            if (missingDb1Formations.Count > 0)
+                throw new InvalidOperationException($"Anti-lock ihlali: DB1 içinde formasyon yok: {string.Join(", ", missingDb1Formations)}");
+
+            var formationDb1Summary = FormatFormationCounts(db1);
+            if (!string.IsNullOrWhiteSpace(runId))
+                MotorRunLogStore.Progress(runId, "M6", $"DB1 formasyon dağılımı: {formationDb1Summary}", m6.Iterations, m6.Iterations);
+
             var firstPassCandidates = db1
                 .Select(record =>
                 {
-                    var tactical = m6.TopCandidates.FirstOrDefault(x => Signature(x.Lineup) == record.CandidateId);
+                    var tactical = cache.TryGetValue(record.CandidateId, out var cached)
+                        ? cached.Tactical
+                        : null;
                     if (tactical is null || record.Prediction is null) return null;
                     return new M10CandidateEvaluation(tactical, record.Prediction, record.Chance.StructuralChanceIndex);
                 })
@@ -108,17 +118,38 @@ public sealed class MotorPipelineService
 
             if (firstPassCandidates.Count == 0) throw new InvalidOperationException("Candidate DB #1 M10 değerlendirmesi için boş.");
 
-            sw.Restart();
-            LogStart(runId, "M10", $"DB1 review: {firstPassCandidates.Count} finalist adayı karşılaştırılıyor");
-            var m10 = _m10.Select(firstPassCandidates);
-            LogComplete(runId, "M10", $"DB1 review tamamlandı • lider {m10.BestPlan.Formation}", sw.ElapsedMilliseconds, firstPassCandidates.Count);
+            if (firstPassCandidates.Select(x => x.TacticalCandidate.Lineup.Formation).Distinct(StringComparer.Ordinal).Count() != legalFormations.Count)
+                throw new InvalidOperationException("Anti-lock ihlali: M10 havuzuna tüm legal formasyonlar taşınamadı.");
 
+            if (m6.BestCandidate is null || m6.TopCandidates.Count == 0)
+                throw new InvalidOperationException("M6-A geçerli aday database'i oluşturamadı.");
+
+            var downstreamElapsed = sw.ElapsedMilliseconds;
+            LogComplete(runId, "M7", $"M6-A içinde {m6.EvaluatedCandidates} aday değerlendirildi", downstreamElapsed, m6.EvaluatedCandidates);
+            LogComplete(runId, "M7.2", "M6-A taktik senaryo değerlendirmesi tamamlandı", downstreamElapsed, m6.EvaluatedCandidates);
+            LogComplete(runId, "M8", "M6-A matchup / şans değerlendirmesi tamamlandı", downstreamElapsed, m6.EvaluatedCandidates);
+            LogComplete(runId, "M9", $"M6-A maç tahmini tamamlandı • DB1 {databases.FirstPass.Count} • {formationDb1Summary}", downstreamElapsed, m6.EvaluatedCandidates);
+            LogComplete(runId, "M6", $"M6-A • {m6.Iterations}/4 iteration • {m6.EvaluatedCandidates} değerlendirildi • DB1 {databases.FirstPass.Count} aday • {formationDb1Summary}", downstreamElapsed, m6.EvaluatedCandidates);
+
+            sw.Restart();
+            LogStart(runId, "M10", $"DB1 review: {firstPassCandidates.Count} finalist adayı karşılaştırılıyor • {legalFormations.Count} formasyon yarışta");
+            var m10 = _m10.Select(firstPassCandidates);
+            var missingM10Formations = legalFormations
+                .Where(f => !m10.FormationCompetition.Any(x => x.Formation.Equals(f, StringComparison.Ordinal)))
+                .ToList();
+            if (missingM10Formations.Count > 0)
+                throw new InvalidOperationException($"Anti-lock ihlali: M10 karşılaştırmasında formasyon yok: {string.Join(", ", missingM10Formations)}");
+            LogComplete(runId, "M10", $"DB1 review tamamlandı • lider {m10.BestPlan.Formation} • {m10.FormationCompetition.Count} formasyon karşılaştırıldı", sw.ElapsedMilliseconds, firstPassCandidates.Count);
+
+            // M6-B artık yalnızca ilk global winner'ı takip etmez. DB1'in formasyon
+            // çeşitlendirilmiş tamamını seed alır ve seed davranışlarını koruyarak
+            // gerçek ikinci refinement/search turu yapar.
             var searchSeeds = db1
                 .Select(record => ToPositionCandidate(record.Lineup, record.Formation, record.RankingScore))
                 .ToList();
 
             sw.Restart();
-            LogStart(runId, "M6-B", $"İkinci search • {searchSeeds.Count} seed • M7→M9 evaluator tekrar kullanılıyor");
+            LogStart(runId, "M6-B", $"İkinci search/refinement • {searchSeeds.Count} seed • mevcut davranışlar korunuyor • {legalFormations.Count} formasyon");
             var m6b = await _m6.OptimizeAsync(
                 searchSeeds,
                 players,
@@ -149,16 +180,28 @@ public sealed class MotorPipelineService
                 {
                     if (!string.IsNullOrWhiteSpace(runId))
                         MotorRunLogStore.Progress(runId, "M6-B", $"B {iteration}/{maximum} • {evaluated} değerlendirildi • DB2 {databases.SecondPass.Count}", iteration, maximum);
-                });
-
-            if (m6b.TopCandidates.Count == 0) throw new InvalidOperationException("M6-B Candidate DB #2 oluşturamadı.");
-            LogComplete(runId, "M6-B", $"İkinci search tamamlandı • DB2 {databases.SecondPass.Count} aday", sw.ElapsedMilliseconds, m6b.EvaluatedCandidates);
+                },
+                preserveInputOrders: true);
 
             var db2 = databases.SecondPass.TopWithFormationDiversity(100, CandidateEvaluationDatabase.MaxPerFormation);
+            if (db2.Count == 0 || m6b.TopCandidates.Count == 0)
+                throw new InvalidOperationException("M6-B Candidate DB #2 oluşturamadı.");
+
+            var missingDb2Formations = legalFormations
+                .Where(f => !db2.Any(x => x.Formation.Equals(f, StringComparison.Ordinal)))
+                .ToList();
+            if (missingDb2Formations.Count > 0)
+                throw new InvalidOperationException($"Anti-lock ihlali: DB2 içinde formasyon yok: {string.Join(", ", missingDb2Formations)}");
+
+            var formationDb2Summary = FormatFormationCounts(db2);
+            LogComplete(runId, "M6-B", $"İkinci search tamamlandı • DB2 {databases.SecondPass.Count} aday • {formationDb2Summary}", sw.ElapsedMilliseconds, m6b.EvaluatedCandidates);
+
             var finalists = db2
                 .Select(record =>
                 {
-                    var tactical = m6b.TopCandidates.FirstOrDefault(x => Signature(x.Lineup) == record.CandidateId);
+                    var tactical = cache.TryGetValue("B:" + record.CandidateId, out var cached)
+                        ? cached.Tactical
+                        : null;
                     if (tactical is null || record.Prediction is null) return null;
                     return new M11CandidateEvaluation(tactical, record.Prediction, record.Chance.StructuralChanceIndex, 1.0);
                 })
@@ -168,10 +211,13 @@ public sealed class MotorPipelineService
 
             if (finalists.Count == 0) throw new InvalidOperationException("M11 final havuzu oluşturulamadı.");
 
+            if (finalists.Select(x => x.TacticalCandidate.Lineup.Formation).Distinct(StringComparer.Ordinal).Count() != legalFormations.Count)
+                throw new InvalidOperationException("Anti-lock ihlali: M11 finalist havuzuna tüm legal formasyonlar taşınamadı.");
+
             sw.Restart();
-            LogStart(runId, "M11", $"DB2 final selection: {finalists.Count} aday");
+            LogStart(runId, "M11", $"DB2 final selection: {finalists.Count} aday • {legalFormations.Count} formasyon karşılaştırılıyor");
             var m11 = _m11.Select(finalists);
-            LogComplete(runId, "M11", $"FINAL: {m11.BestPlan.Formation} • {m11.CandidateCount} aday • {m11.FormationCount} formasyon", sw.ElapsedMilliseconds, m11.CandidateCount);
+            LogComplete(runId, "M11", $"FINAL: {m11.BestPlan.Formation} • {m11.CandidateCount} aday • {m11.FormationCount} formasyon • DB2 {formationDb2Summary}", sw.ElapsedMilliseconds, m11.CandidateCount);
 
             var selectedKey = Signature(m11.BestPlan.Lineup);
             var selectedRecord = db2.First(x => x.CandidateId == selectedKey);
@@ -251,6 +297,12 @@ public sealed class MotorPipelineService
 
     private static PositionAssignmentCandidate ToPositionCandidate(Lineup lineup, string formation, double rankingScore)
         => new(formation, lineup, Math.Max(0.001, rankingScore), lineup.Slots.ToDictionary(x => x.PlayerId, x => x.Code), 1.0);
+
+    private static string FormatFormationCounts(IEnumerable<CandidateEvaluationRecord> records)
+        => string.Join(" | ", records
+            .GroupBy(x => x.Formation, StringComparer.Ordinal)
+            .OrderBy(x => x.Key, StringComparer.Ordinal)
+            .Select(x => $"{x.Key}:{x.Count()}"));
 
     private static void LogStart(string? runId, string motor, string message) { if (!string.IsNullOrWhiteSpace(runId)) MotorRunLogStore.StartMotor(runId, motor, message); }
     private static void LogComplete(string? runId, string motor, string message, long durationMs = 0, int? candidateCount = null) { if (!string.IsNullOrWhiteSpace(runId)) MotorRunLogStore.CompleteMotor(runId, motor, message, durationMs, candidateCount); }
