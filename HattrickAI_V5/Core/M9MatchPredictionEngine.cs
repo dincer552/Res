@@ -5,14 +5,17 @@ namespace HattrickAI.V5.Core;
 
 /// <summary>
 /// M9: converts the structural M8 chance result into a bounded match
-/// prediction. The conversion is isolated so historical calibration can
-/// replace the coefficients without changing M7/M8.
+/// prediction. Historical calibration can replace the coefficients later.
+/// Win/draw/loss probabilities are derived from the same expected-goals pair
+/// using a Poisson scoreline model, so the probabilities cannot contradict
+/// the direction of the expected goals.
 /// </summary>
 public sealed class M9MatchPredictionEngine
 {
     private const double BaseGoals = 0.35;
     private const double ChanceScale = 2.25;
     private const double MaxGoals = 5.0;
+    private const int PoissonGoalCutoff = 20;
 
     public M9PredictionResult Predict(
         TacticalCandidate candidate,
@@ -40,24 +43,15 @@ public sealed class M9MatchPredictionEngine
         else if (location == MatchLocation.Away)
             opponentExpected = ClampGoals(opponentExpected + 0.04);
 
-        var spread = ownExpected - opponentExpected;
-        var winLogit = 2.20 * spread;
-        var drawLogit = 0.45 - (0.70 * Math.Abs(spread));
-        var lossLogit = -winLogit;
-
-        var max = Math.Max(winLogit, Math.Max(drawLogit, lossLogit));
-        var winWeight = Math.Exp(winLogit - max);
-        var drawWeight = Math.Exp(drawLogit - max);
-        var lossWeight = Math.Exp(lossLogit - max);
-        var total = Math.Max(1e-9, winWeight + drawWeight + lossWeight);
+        var probabilities = CalculatePoissonOutcomeProbabilities(ownExpected, opponentExpected);
 
         var prediction = new MatchPrediction(
             midfieldShare,
             ownExpected,
             opponentExpected,
-            winWeight / total,
-            drawWeight / total,
-            lossWeight / total);
+            probabilities.Win,
+            probabilities.Draw,
+            probabilities.Loss);
 
         return new M9PredictionResult(
             candidate.Lineup.Formation,
@@ -65,6 +59,44 @@ public sealed class M9MatchPredictionEngine
             prediction,
             ownChance,
             M9CalibrationStatus.StructuralModelAwaitingHistoricalCalibration);
+    }
+
+    internal static (double Win, double Draw, double Loss) CalculatePoissonOutcomeProbabilities(
+        double ownExpected,
+        double opponentExpected)
+    {
+        ownExpected = ClampGoals(ownExpected);
+        opponentExpected = ClampGoals(opponentExpected);
+
+        var own = PoissonDistribution(ownExpected, PoissonGoalCutoff);
+        var opponent = PoissonDistribution(opponentExpected, PoissonGoalCutoff);
+
+        var win = 0.0;
+        var draw = 0.0;
+        var loss = 0.0;
+
+        for (var ownGoals = 0; ownGoals <= PoissonGoalCutoff; ownGoals++)
+        {
+            for (var opponentGoals = 0; opponentGoals <= PoissonGoalCutoff; opponentGoals++)
+            {
+                var probability = own[ownGoals] * opponent[opponentGoals];
+                if (ownGoals > opponentGoals) win += probability;
+                else if (ownGoals == opponentGoals) draw += probability;
+                else loss += probability;
+            }
+        }
+
+        var total = Math.Max(1e-12, win + draw + loss);
+        return (win / total, draw / total, loss / total);
+    }
+
+    private static double[] PoissonDistribution(double lambda, int maxGoals)
+    {
+        var probabilities = new double[maxGoals + 1];
+        probabilities[0] = Math.Exp(-lambda);
+        for (var goals = 1; goals <= maxGoals; goals++)
+            probabilities[goals] = probabilities[goals - 1] * lambda / goals;
+        return probabilities;
     }
 
     private static double Clamp01(double value) => Math.Clamp(value, 0.0, 1.0);
