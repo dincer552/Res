@@ -61,7 +61,8 @@
     if(opp) opp.remove();
     if(own&&own.dataset.combinedCopy!=='1'){
       own.dataset.combinedCopy='1';own.textContent='İKİ TAKIMI KOPYALA';own.title='Kendi takımını ve rakip takımı birlikte kopyala';
-      own.onclick=function(){
+      own.onclick=function(event){
+        if(event) event.stopPropagation();
         var text=textBlock('own',false)+'\n\n'+textBlock('opp',true),button=own;
         function done(){button.textContent='KOPYALANDI ✓';button.classList.add('ok');setTimeout(function(){button.textContent='İKİ TAKIMI KOPYALA';button.classList.remove('ok');},1400);}
         function fallback(){var a=document.createElement('textarea');a.value=text;a.style.position='fixed';a.style.opacity='0';document.body.appendChild(a);a.focus();a.select();try{document.execCommand('copy');done();}finally{a.remove();}}
