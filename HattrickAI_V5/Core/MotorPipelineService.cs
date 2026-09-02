@@ -43,9 +43,6 @@ public sealed class MotorPipelineService
             if (m5.Count == 0) throw new InvalidOperationException("M5 geçerli bir XI adayı üretemedi.");
             LogComplete(runId, "M5", $"{m5.Count} XI adayı üretildi", sw.ElapsedMilliseconds, m5.Count);
 
-            // M6-A arama sırasında M7 → M7.2 → M8 → M9 her aday için downstream
-            // evaluator olarak çalışır. Log sırası da artık bu gerçek bağımlılığı
-            // yansıtır: DB1 ancak M9 tahmini oluştuğunda kapanır, sonra M10 başlar.
             sw.Restart();
             LogStart(runId, "M6", "M6-A: geniş global search + Candidate DB #1");
             LogStart(runId, "M7", "M6-A downstream evaluator: bölgesel rating");
@@ -92,8 +89,8 @@ public sealed class MotorPipelineService
 
             var downstreamElapsed = sw.ElapsedMilliseconds;
             LogComplete(runId, "M7", $"M6-A içinde {m6.EvaluatedCandidates} aday değerlendirildi", downstreamElapsed, m6.EvaluatedCandidates);
-            LogComplete(runId, "M7.2", $"M6-A taktik senaryo değerlendirmesi tamamlandı", downstreamElapsed, m6.EvaluatedCandidates);
-            LogComplete(runId, "M8", $"M6-A matchup / şans değerlendirmesi tamamlandı", downstreamElapsed, m6.EvaluatedCandidates);
+            LogComplete(runId, "M7.2", "M6-A taktik senaryo değerlendirmesi tamamlandı", downstreamElapsed, m6.EvaluatedCandidates);
+            LogComplete(runId, "M8", "M6-A matchup / şans değerlendirmesi tamamlandı", downstreamElapsed, m6.EvaluatedCandidates);
             LogComplete(runId, "M9", $"M6-A maç tahmini tamamlandı • DB1 {databases.FirstPass.Count}", downstreamElapsed, m6.EvaluatedCandidates);
             LogComplete(runId, "M6", $"M6-A • {m6.Iterations}/4 iteration • {m6.EvaluatedCandidates} değerlendirildi • DB1 {databases.FirstPass.Count} aday", downstreamElapsed, m6.EvaluatedCandidates);
 
@@ -181,6 +178,12 @@ public sealed class MotorPipelineService
             var selected = finalists.First(x => Signature(x.TacticalCandidate.Lineup) == selectedKey);
             var selectedEval = new CandidateEvaluation(selected.TacticalCandidate, selectedRecord.Rating, selectedRecord.Advanced, selectedRecord.Chance);
             var selectedM9 = selectedRecord.Prediction ?? m11.Prediction;
+            var selectedM9Result = new M9PredictionResult(
+                selected.TacticalCandidate.Lineup.Formation,
+                selectedKey,
+                selectedM9,
+                selectedEval.Chance.StructuralChanceIndex,
+                M9CalibrationStatus.StructuralModelAwaitingHistoricalCalibration);
 
             return new MotorPipelineResult(
                 m3,
@@ -190,7 +193,7 @@ public sealed class MotorPipelineService
                 selectedEval.Scenario,
                 selectedEval.Advanced,
                 selectedEval.Chance,
-                new M9PredictionResult(selectedM9, selectedEval.Chance.StructuralChanceIndex),
+                selectedM9Result,
                 m10,
                 m11.BestPlan,
                 m11.Prediction)
