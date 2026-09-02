@@ -88,6 +88,10 @@ public sealed class M10FinalDecisionEngine
             .OrderBy(s => s.Code, StringComparer.Ordinal)
             .ThenBy(s => s.PlayerId)
             .Select(s => $"{s.Code}:{s.PlayerId}:{(int)s.Order}"));
+
+    private sealed record RankedCandidate(
+        M10CandidateEvaluation Candidate,
+        double CompositeScore);
 }
 
 public sealed record M10CandidateEvaluation(
