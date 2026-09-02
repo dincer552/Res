@@ -13,17 +13,27 @@ public sealed class CandidateEvaluationDatabase
     public const int MaxPerFormation = 30;
 
     private readonly Dictionary<string, CandidateEvaluationRecord> _records = new(StringComparer.Ordinal);
+    private readonly HashSet<string> _requiredFormations;
 
-    public CandidateEvaluationDatabase(string name, int capacity = DefaultCapacity)
+    public CandidateEvaluationDatabase(
+        string name,
+        int capacity = DefaultCapacity,
+        IReadOnlyCollection<string>? requiredFormations = null)
     {
         if (string.IsNullOrWhiteSpace(name)) throw new ArgumentException("Database adı boş olamaz.", nameof(name));
         if (capacity < 1) throw new ArgumentOutOfRangeException(nameof(capacity));
         Name = name;
         Capacity = capacity;
+        _requiredFormations = requiredFormations is null
+            ? new HashSet<string>(StringComparer.Ordinal)
+            : requiredFormations
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .ToHashSet(StringComparer.Ordinal);
     }
 
     public string Name { get; }
     public int Capacity { get; }
+    public IReadOnlyCollection<string> RequiredFormations => _requiredFormations;
     public IReadOnlyList<CandidateEvaluationRecord> Records => _records.Values
         .OrderByDescending(x => x.RankingScore)
         .ThenBy(x => x.Formation, StringComparer.Ordinal)
@@ -60,8 +70,9 @@ public sealed class CandidateEvaluationDatabase
 
     /// <summary>
     /// Önce her mevcut formasyondan en iyi adayı garanti eder, ardından kalan
-    /// kapasiteyi global ranking sırasıyla doldurur. Böylece yüksek skorlu tek
-    /// bir formasyon diğer legal formasyonları DB1/DB2'den tamamen silemez.
+    /// kapasiteyi global ranking sırasıyla doldurur. RequiredFormations verilmişse
+    /// o formasyonların tamamı havuzda kalır; böylece erken global trim formasyonu
+    /// arama yarışından silemez.
     /// </summary>
     public IReadOnlyList<CandidateEvaluationRecord> TopWithFormationDiversity(int count, int maxPerFormation = MaxPerFormation)
     {
@@ -73,18 +84,29 @@ public sealed class CandidateEvaluationDatabase
         var selectedIds = new HashSet<string>(StringComparer.Ordinal);
         var perFormation = new Dictionary<string, int>(StringComparer.Ordinal);
 
-        // Anti-lock: first reserve the strongest candidate of every formation.
-        foreach (var formationGroup in ordered.GroupBy(x => x.Formation, StringComparer.Ordinal)
-                                               .OrderBy(g => g.Key, StringComparer.Ordinal))
+        foreach (var formation in _requiredFormations.OrderBy(x => x, StringComparer.Ordinal))
         {
-            var first = formationGroup.First();
-            if (selected.Count >= count) break;
+            var first = ordered.FirstOrDefault(x => x.Formation.Equals(formation, StringComparison.Ordinal));
+            if (first is null || selected.Count >= count) continue;
             selected.Add(first);
             selectedIds.Add(first.CandidateId);
             perFormation[first.Formation] = 1;
         }
 
-        // Fill remaining slots globally while preserving the per-formation cap.
+        foreach (var formationGroup in ordered
+                     .Where(x => !_requiredFormations.Contains(x.Formation))
+                     .GroupBy(x => x.Formation, StringComparer.Ordinal)
+                     .OrderBy(g => g.Key, StringComparer.Ordinal))
+        {
+            if (selected.Count >= count) break;
+            var first = formationGroup.First();
+            if (selectedIds.Add(first.CandidateId))
+            {
+                selected.Add(first);
+                perFormation[first.Formation] = 1;
+            }
+        }
+
         foreach (var record in ordered)
         {
             if (selected.Count >= count || selectedIds.Contains(record.CandidateId)) continue;
@@ -102,13 +124,33 @@ public sealed class CandidateEvaluationDatabase
 
     private void Trim()
     {
-        foreach (var key in _records.Values
-                     .OrderByDescending(x => x.RankingScore)
-                     .ThenBy(x => x.Formation, StringComparer.Ordinal)
-                     .ThenBy(x => x.CandidateId, StringComparer.Ordinal)
-                     .Skip(Capacity)
-                     .Select(x => x.CandidateId)
-                     .ToList())
+        if (_records.Count <= Capacity) return;
+
+        // Anti-lock is enforced at insertion time, not only when a consumer
+        // later asks for a diverse Top() list. Reserve the strongest record for
+        // every required formation before filling the remaining capacity globally.
+        var ordered = _records.Values
+            .OrderByDescending(x => x.RankingScore)
+            .ThenBy(x => x.Formation, StringComparer.Ordinal)
+            .ThenBy(x => x.CandidateId, StringComparer.Ordinal)
+            .ToList();
+
+        var reservedIds = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var formation in _requiredFormations)
+        {
+            var best = ordered.FirstOrDefault(x => x.Formation.Equals(formation, StringComparison.Ordinal));
+            if (best is not null) reservedIds.Add(best.CandidateId);
+        }
+
+        // Safety: when the database is configured with more required formations
+        // than its capacity, global ordering decides the remainder after the
+        // deterministic reservation pass.
+        var keep = ordered.Where(x => reservedIds.Contains(x.CandidateId)).ToList();
+        keep.AddRange(ordered.Where(x => !reservedIds.Contains(x.CandidateId))
+            .Take(Math.Max(0, Capacity - keep.Count)));
+
+        var keepIds = keep.Select(x => x.CandidateId).ToHashSet(StringComparer.Ordinal);
+        foreach (var key in _records.Keys.Where(x => !keepIds.Contains(x)).ToList())
             _records.Remove(key);
     }
 }
@@ -133,10 +175,12 @@ public sealed record CandidateEvaluationRecord(
 /// </summary>
 public sealed class CandidateDatabaseSet
 {
-    public CandidateDatabaseSet(int capacity = CandidateEvaluationDatabase.DefaultCapacity)
+    public CandidateDatabaseSet(
+        int capacity = CandidateEvaluationDatabase.DefaultCapacity,
+        IReadOnlyCollection<string>? requiredFormations = null)
     {
-        FirstPass = new CandidateEvaluationDatabase("Candidate Database #1", capacity);
-        SecondPass = new CandidateEvaluationDatabase("Candidate Database #2", capacity);
+        FirstPass = new CandidateEvaluationDatabase("Candidate Database #1", capacity, requiredFormations);
+        SecondPass = new CandidateEvaluationDatabase("Candidate Database #2", capacity, requiredFormations);
     }
 
     public CandidateEvaluationDatabase FirstPass { get; }
