@@ -10,7 +10,7 @@
     if(pitch) pitch.querySelectorAll('.slot.filled').forEach(function(slot){
       var name=clean(slot.querySelector('.slot-name')&&slot.querySelector('.slot-name').textContent);
       var raw=clean(slot.querySelector('.slot-rating')&&slot.querySelector('.slot-rating').textContent);
-      var rp=raw.replace(/^RP\s*=\s*/i,'').replace(/^RP\s*/i,'');
+      var rp=raw.replace(/^RP\s*=\s*/i,'').replace(/^SP\s*=\s*/i,'').replace(/^RP\s*/i,'').replace(/^SP\s*/i,'');
       var order=clean(slot.querySelector('.slot-order')&&slot.querySelector('.slot-order').textContent) || 'NORMAL';
       var code='';
       Object.keys(SLOT_MAP).some(function(cls){if(slot.classList.contains(cls)){code=SLOT_MAP[cls];return true;}return false;});
@@ -35,7 +35,8 @@
   function textBlock(prefix,opponent){
     var t=readTeam(prefix),labels=['DEF-L','DEF-C','DEF-R','MID','ATT-L','ATT-C','ATT-R'];
     var header=(opponent?'RAKİP ':'')+'HattrickAI V5 KOPYA';
-    var playerLines=t.players.map(function(p){return (p.position?p.position+': ':'')+p.name+' | RP='+p.rp+' | '+p.order;}).join('\n');
+    var playerLabel=opponent?'SP':'RP';
+    var playerLines=t.players.map(function(p){return (p.position?p.position+': ':'')+p.name+' | '+playerLabel+'='+p.rp+' | '+p.order;}).join('\n');
     return [header,'TAKIM: '+(t.title||'—'),'DİZİLİŞ: '+(t.formation||'—'),'','OYUNCULAR:',playerLines,'','OYUNCU TALİMATLARI / DAVRANIŞLAR:',t.players.map(function(p){return (p.position?p.position+': ':'')+p.order;}).join('\n'),'','BÖLGESEL RATING:'].concat(labels.map(function(l){return l+': '+(t.ratings[l]||'—');})).join('\n');
   }
   async function downloadJson(button){
