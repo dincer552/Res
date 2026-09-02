@@ -14,8 +14,13 @@ public static class MotorRunLogStore
     {
         var runId = $"mrun-{DateTimeOffset.UtcNow:yyyyMMddHHmmssfff}-{Guid.NewGuid():N}";
         var now = DateTimeOffset.UtcNow;
-        var stages = new[] { "M3", "M4", "M5", "M6", "M7", "M7.2", "M8", "M9", "M10" }
-            .Select(m => new MotorLogStage(m, "pending", "Bekliyor", 0, UpdatedAt: now)).ToList();
+        var stages = new[]
+            {
+                "M3", "M4", "M5", "M6", "M7", "M7.2", "M8", "M9",
+                "M10", "M6-B", "M11"
+            }
+            .Select(m => new MotorLogStage(m, "pending", "Bekliyor", 0, UpdatedAt: now))
+            .ToList();
         Runs[runId] = new RunState(runId, ownerKey, now, now, "running", "", stages);
         Trim();
         return runId;
