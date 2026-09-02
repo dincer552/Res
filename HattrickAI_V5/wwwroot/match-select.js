@@ -11,7 +11,10 @@
 
   function esc(s){return String(s??'').replace(/[&<>\"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#039;'}[m]));}
   function fmtDate(v){const d=new Date(v);if(Number.isNaN(d.getTime()))return String(v||'');return d.toLocaleString('tr-TR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});}
-  function matchLabel(m){const side=m.isHome?'EV SAHİBİ':'DEPLASMAN';return fmtDate(m.date)+' • '+m.homeTeam+' – '+m.awayTeam+' • '+side;}
+  function matchLabel(m){
+    return '<span style="display:block;font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:700;color:#68716c;margin-bottom:6px">'+esc(fmtDate(m.date))+'</span>'+
+      '<span style="display:block;font-family:Georgia,\'Times New Roman\',serif;font-size:15px;font-weight:700;line-height:1.25;color:#27322d">'+esc(m.homeTeam)+' – '+esc(m.awayTeam)+'</span>';
+  }
   function setMatchCookie(id){document.cookie='v5.matchId='+encodeURIComponent(String(id))+'; Path=/; Max-Age=28800; SameSite=Lax; Secure';}
   function setupCard(){
     const card=document.getElementById('questionCard');
@@ -42,7 +45,7 @@
     for(const [value,label] of opts){
       const b=document.createElement('button');
       b.className='option'+(value===selected?' selected':'');
-      b.textContent=label;
+      if(item.key===MATCH_Q_KEY) b.innerHTML=label; else b.textContent=label;
       b.onclick=()=>{
         selected=value;
         answers[item.key]=value;
