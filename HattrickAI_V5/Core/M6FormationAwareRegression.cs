@@ -37,7 +37,7 @@ public static class M6FormationAwareRegression
             {
                 callsByFormation[lineup.Formation]++;
                 var tacticalScore = string.Equals(lineup.Formation, dominantFormation, StringComparison.Ordinal) ? 1000d : 1d;
-                var rating = new RegionalRatingSnapshot(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+                var rating = ZeroRating();
                 var matchup = new MatchupEvaluation(0, 0, 0, 0, 0, 0, 0, tacticalScore);
                 return Task.FromResult(new TacticalCandidate(lineup, rating, matchup, tacticalScore));
             },
@@ -70,12 +70,12 @@ public static class M6FormationAwareRegression
         IReadOnlyList<Player> players,
         List<string> failures)
     {
-        var db = new CandidateEvaluationDatabase("Regression DB", 30, formations);
+        var db = new CandidateEvaluationDatabase("Regression DB", 30, formations.Take(2).ToList());
         foreach (var formation in formations.Take(2))
         {
             for (var i = 0; i < CandidateEvaluationDatabase.MinimumPerFormation; i++)
             {
-                var lineup = BuildSyntheticLineup(formation, players, i);
+                var lineup = BuildSyntheticLineup(formation, players);
                 var tactical = BuildSyntheticTactical(lineup, i + 1);
                 db.Add(new CandidateEvaluationRecord(
                     $"{formation}:{i}",
@@ -85,8 +85,8 @@ public static class M6FormationAwareRegression
                     1,
                     tactical.TacticalScore,
                     tactical.Rating,
-                    new AdvancedTacticalScenarioResult(),
-                    new M8ChanceResult(0.5, 0.5, 0.5, 0.5, 0.5),
+                    SyntheticAdvanced(),
+                    SyntheticChance(),
                     new MatchPrediction(0.5, 1, 1, 0.5, 0.2, 0.3),
                     i + 1,
                     "REG"));
@@ -117,7 +117,7 @@ public static class M6FormationAwareRegression
                 var tactical = BuildSyntheticTactical(seed, i + 1 + (formation == formations[0] ? 100 : 0));
                 candidates.Add(new M10CandidateEvaluation(
                     tactical,
-                    new MatchPrediction(0.5, 1, 1, 0.5 + (i * 0.001), 0.2, 0.3),
+                    new MatchPrediction(0.5, 1, 1, 0.45 + (i * 0.001), 0.2, 0.35 - (i * 0.001)),
                     0.8));
             }
         }
@@ -129,12 +129,14 @@ public static class M6FormationAwareRegression
             var row = competition.FirstOrDefault(x => x.Formation == formation);
             Check(row is not null, $"M10 competition contains {formation}", failures);
             if (row is not null)
+            {
                 Check(row.CandidateCount >= M10FinalDecisionEngine.RequiredFormationDepth, $"M10 depth sufficient {formation}", failures);
+                Check(row.Rank > 0, $"M10 rank valid {formation}", failures);
+                Check(row.SearchDepthStatus == M10SearchDepthStatus.Sufficient, $"M10 depth status {formation}", failures);
+            }
         }
         Check(competition.Count == formations.Take(2).Count(), "M10 formation count regression", failures);
-        Check(competition.All(x => x.Rank > 0), "M10 ranks formations", failures);
         Check(competition.Count < 2 || competition[0].MarginVsNext >= 0, "M10 winner margin is non-negative", failures);
-        Check(competition.All(x => x.SearchDepthStatus == M10SearchDepthStatus.Sufficient), "M10 depth status regression", failures);
     }
 
     private static void RunM11FinalComparisonRegression(
@@ -157,31 +159,41 @@ public static class M6FormationAwareRegression
         var decision = new M11FinalSelectorEngine().Select(candidates);
         Check(decision.FormationCount == formations.Take(2).Count(), "M11 compares all finalist formations", failures);
         Check(decision.CandidateCount == candidates.Count, "M11 candidate count regression", failures);
-        Check(double.IsFinite(decision.Ranking[0].FinalScore), "M11 final score finite", failures);
+        Check(decision.Ranking.Count > 0 && double.IsFinite(decision.Ranking[0].FinalScore), "M11 final score finite", failures);
     }
 
-    private static Lineup BuildSyntheticLineup(string formation, IReadOnlyList<Player> players, int offset)
+    private static Lineup BuildSyntheticLineup(string formation, IReadOnlyList<Player> players)
     {
-        var source = players.Take(11).ToList();
-        var slots = source.Select((p, i) => new Slot(
-            SlotCode(i),
-            SlotCode(i),
-            "synthetic",
-            p.Name,
-            p.Id,
-            1,
-            i,
-            0,
-            PlayerOrder.Normal)).ToList();
+        var slots = players.Take(11).Select((p, i) => new Slot(
+            SlotCode(i), SlotCode(i), "synthetic", p.Name, p.Id, 1, i, 0, PlayerOrder.Normal)).ToList();
         return new Lineup("Regression", formation, slots);
     }
 
     private static TacticalCandidate BuildSyntheticTactical(Lineup lineup, double score)
     {
-        var rating = new RegionalRatingSnapshot(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+        var rating = ZeroRating();
         var matchup = new MatchupEvaluation(0, 0, 0, 0, 0, 0, 0, score);
         return new TacticalCandidate(lineup, rating, matchup, score / 10.0);
     }
+
+    private static AdvancedTacticalScenarioResult SyntheticAdvanced()
+        => new(
+            "reg",
+            AdvancedTactic.Normal,
+            0,
+            new TacticalLevel("None", 0),
+            new TacticalInputTotals(0, 0, 0, 0, 0, 0, 0),
+            new ChanceDistributionEffect(0.25, 0.35, 0.25, 0.15, "regression"),
+            null, null, null, null,
+            0,
+            CalibrationStatus.ResearchBackedStructureNeedsMatchCalibration,
+            new M8TacticalContext("reg", AdvancedTactic.Normal, new TacticalLevel("None", 0), new ChanceDistributionEffect(0.25, 0.35, 0.25, 0.15, "regression"), null, null, null, null, new TacticalInputTotals(0, 0, 0, 0, 0, 0, 0), MatchLocation.Home, TeamAttitude.Normal, 4.5, 0, 0));
+
+    private static M8ChanceResult SyntheticChance()
+        => new("reg", 0.5, 0.5, 0.5, 0.5, 0.25, 0.35, 0.25, 0.15, 0.5, AdvancedTactic.Normal, CalibrationStatus.ResearchBackedStructureNeedsMatchCalibration);
+
+    private static RegionalRatingSnapshot ZeroRating()
+        => new(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 
     private static string SlotCode(int index) => index switch
     {
