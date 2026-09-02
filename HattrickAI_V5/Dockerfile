@@ -29,5 +29,6 @@ RUN sed -i 's#</style>#.slot-code,.slot-desc,.slot:not(.filled) .slot-name,.slot
 COPY HattrickAI_V5/wwwroot/copy-teams.js /app/wwwroot/copy-teams.js
 COPY HattrickAI_V5/wwwroot/offline-export.js /app/wwwroot/offline-export.js
 COPY HattrickAI_V5/wwwroot/motor-logs.js /app/wwwroot/motor-logs.js
-RUN sed -i 's#</body>#<script src="/copy-teams.js"></script><script src="/offline-export.js"></script><script src="/motor-logs.js"></script></body>#' /app/wwwroot/index.html
+COPY HattrickAI_V5/wwwroot/motor-render.js /app/wwwroot/motor-render.js
+RUN sed -i 's#</body>#<script src="/copy-teams.js"></script><script src="/offline-export.js"></script><script src="/motor-logs.js"></script><script src="/motor-render.js"></script></body>#' /app/wwwroot/index.html
 ENTRYPOINT ["dotnet","HattrickAI.V5.dll","--hostBuilder:reloadConfigOnChange=false"]
