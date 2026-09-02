@@ -24,8 +24,6 @@ public sealed class RegionalRatingEngine
 
         foreach (var p in players)
         {
-            // Contribution coefficients are already calibrated with a standard
-            // form/experience amount. Apply only the delta from that baseline.
             var formMultiplier = FormFactor(p.Form) / BaselineFormFactor;
             var loyalty = LoyaltyEffect(p.Loyalty);
             var experienceDelta = ExperienceBonus(p.Experience) - BaselineExperienceBonus;
@@ -223,26 +221,25 @@ public sealed class RegionalRatingEngine
     private static void AddSideOnly(Dictionary<RatingSector, double> s, PlayerSide side, RatingSector left, RatingSector right, double value, double formMultiplier = 1.0)
     { value *= formMultiplier; if (side == PlayerSide.Left) s[left] += value; else if (side == PlayerSide.Right) s[right] += value; else AddBothSides(s, left, right, value); }
 
-    private static void Add(Dictionary<RatingSector, double> s, RatingSector sector, double value, double formMultiplier = 1.0) => s[sector] += value * formMultiplier;
+    private static void Add(Dictionary<RatingSector, double> s, RatingSector sector, double value, double formMultiplier = 1.0)
+    { s[sector] += value * formMultiplier; }
 
     private static double FormFactor(double form)
     {
-        var points = new[] { (1.5,.282),(2.0,.379),(2.5,.462),(3.0,.534),(3.5,.598),(4.0,.655),(4.5,.707),(5.0,.755),(5.5,.800),(6.0,.844),(6.5,.885),(7.0,.925),(7.5,.964),(8.0,1.000) };
-        if (form <= points[0].Item1) return points[0].Item2;
-        if (form >= points[^1].Item1) return points[^1].Item2;
-        for (var i=1;i<points.Length;i++) if (form <= points[i].Item1) { var (x0,y0)=points[i-1]; var (x1,y1)=points[i]; return y0+(form-x0)*(y1-y0)/(x1-x0); }
-        return 1.0;
+        var values = new[] { 0.4,0.5,0.6,0.68,0.72,0.755,0.79,0.82,0.85,0.88,0.91 };
+        return values[Math.Clamp((int)Math.Round(form), 1, 10)];
     }
 
-    public static double Display(double raw) => raw <= 0 ? .75 : Math.Floor(raw * 4.0) / 4.0 + 1.0;
+    private sealed record EffectiveSkills(double Keeper,double Defending,double Playmaking,double Passing,double Winger,double Scoring,double FormMultiplier);
+    private sealed record OrderMatrix(double CentralDefence,double SideDefence,double Midfield,double SidePassing,double CenterPassing,double CenterScoring,double SideWinger);
+    private sealed record WingerMatrix(double CentralDefence,double SideDefence,double Midfield,double SidePassing,double SideWinger,double CenterPassing);
 
     private static RegionalPlayer ToRegionalPlayer(Slot slot, Player p)
     {
         var position = slot.Code switch
         {
             "GK" => RegionalPosition.Goalkeeper,
-            "DEF-L" or "DEF-R" => RegionalPosition.WingBack,
-            "DEF-CL" or "DEF-C" or "DEF-CR" => RegionalPosition.CentralDefender,
+            "DEF-L" or "DEF-R" or "DEF-CL" or "DEF-C" or "DEF-CR" => RegionalPosition.CentralDefender,
             "W-L" or "W-R" => RegionalPosition.Winger,
             "IM-L" or "IM-C" or "IM-R" => RegionalPosition.InnerMidfielder,
             "FW-L" or "FW-C" or "FW-R" => RegionalPosition.Forward,
@@ -252,8 +249,7 @@ public sealed class RegionalRatingEngine
         return new RegionalPlayer(p.Id, position, side, slot.Order, p.Keeper, p.Defending, p.Playmaking, p.Passing, p.Winger, p.Scoring, p.Form, p.Loyalty, p.Experience, p.Stamina);
     }
 
-    private readonly record struct OrderMatrix(double CentralDefence,double SideDefence,double Midfield,double SidePassing,double CenterPassing,double CenterScoring,double SideWinger);
-    private readonly record struct WingerMatrix(double CentralDefence,double SideDefence,double Midfield,double SidePassing,double SideWinger,double CenterPassing);
+    public static double Display(double raw) => Math.Clamp(Math.Round(raw, 2, MidpointRounding.AwayFromZero), 0, 20);
 }
 
 public enum RatingSector { LeftDefence, CentralDefence, RightDefence, Midfield, LeftAttack, CentralAttack, RightAttack }
@@ -261,13 +257,12 @@ public enum RegionalPosition { Goalkeeper, CentralDefender, WingBack, InnerMidfi
 public enum PlayerOrder { Normal, Defensive, Offensive, TowardsWing, TowardsMiddle }
 public enum PlayerSide { Left, Center, Right }
 public enum MatchLocation { Away, Home, DerbyAway }
-public enum TeamAttitude { Normal, MatchOfTheSeason, PlayItCool }
+public enum TeamAttitude { Normal, MatchOfTheSeason, PlayItCool, Auto }
 public enum TeamTactic { Normal, CounterAttack, LongShots, AttackMiddle, AttackWings, Creative }
 public sealed record RegionalPlayer(int Id, RegionalPosition Position, PlayerSide Side, PlayerOrder Order, double Keeper, double Defending, double Playmaking, double Passing, double Winger, double Scoring, double Form, double Loyalty, double Experience, double Stamina);
 public sealed record RatingContext(MatchLocation MatchLocation, TeamAttitude Attitude, TeamTactic Tactic)
 { public int MatchMinute { get; init; } public int GoalDifference { get; init; } public bool IgnoreLeadRetreat { get; init; } public static RatingContext Default => new(MatchLocation.Away, TeamAttitude.Normal, TeamTactic.Normal); }
-public sealed record RegionalRatingPair(RegionalRatingSnapshot Own, RegionalRatingSnapshot Opponent)
-{ public IReadOnlyList<double> OwnSeven=>new[]{Own.LeftDefence,Own.CentralDefence,Own.RightDefence,Own.Midfield,Own.LeftAttack,Own.CentralAttack,Own.RightAttack}; public IReadOnlyList<double> OpponentSeven=>new[]{Opponent.LeftDefence,Opponent.CentralDefence,Opponent.RightDefence,Opponent.Midfield,Opponent.LeftAttack,Opponent.CentralAttack,Opponent.RightAttack}; }
-public sealed record RegionalRatingSnapshot(double RawLeftDefence,double RawCentralDefence,double RawRightDefence,double RawMidfield,double RawLeftAttack,double RawCentralAttack,double RawRightAttack,double LeftDefence,double CentralDefence,double RightDefence,double Midfield,double LeftAttack,double CentralAttack,double RightAttack)
-{ public double TotalDefence=>LeftDefence+CentralDefence+RightDefence; public double TotalAttack=>LeftAttack+CentralAttack+RightAttack; }
-internal readonly record struct EffectiveSkills(double Keeper,double Defending,double Playmaking,double Passing,double Winger,double Scoring,double FormMultiplier);
+public sealed record RegionalRatingPair(RegionalRatingSnapshot Own, RegionalRatingSnapshot Opponent);
+public sealed record RegionalRatingSnapshot(
+    double RawLeftDefence, double RawCentralDefence, double RawRightDefence, double RawMidfield, double RawLeftAttack, double RawCentralAttack, double RawRightAttack,
+    double LeftDefence, double CentralDefence, double RightDefence, double Midfield, double LeftAttack, double CentralAttack, double RightAttack);
