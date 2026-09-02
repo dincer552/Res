@@ -11,8 +11,7 @@ public sealed record Lineup(string TeamName,string Formation,IReadOnlyList<Slot>
     private static IReadOnlyList<Slot> NormalizeDisplaySlots(IReadOnlyList<Slot> source)
     {
         var used=new HashSet<string>(StringComparer.Ordinal); var result=new List<Slot>(source.Count);
-        foreach(var slot in source){var code=slot.Code;if(!used.Add(code))foreach(var alternative in Alternatives(code))if(used.Add(alternative)){code=alternative;break;}result.Add(code==slot.Code?slot:slot with{Code=code});}
-        return result;
+        foreach(var slot in source){var code=slot.Code;if(!used.Add(code))foreach(var alternative in Alternatives(code))if(used.Add(alternative)){code=alternative;break;}result.Add(code==slot.Code?slot:slot with{Code=code});}return result;
     }
     private static IEnumerable<string> Alternatives(string code)=>code switch
     {
@@ -29,4 +28,7 @@ public sealed record Analysis(string Build,string TeamName,string OpponentName,s
     public RatingScenarioResult? M7Scenario { get; init; }
     public AdvancedTacticalScenarioResult? M72Scenario { get; init; }
     public M8ChanceResult? M8Chance { get; init; }
+    public M9PredictionResult? M9Prediction { get; init; }
+    public M10DecisionResult? M10Decision { get; init; }
+    public MotorPipelineResult? MotorPipeline { get; init; }
 }
