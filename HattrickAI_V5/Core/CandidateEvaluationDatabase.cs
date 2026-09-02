@@ -11,6 +11,7 @@ public sealed class CandidateEvaluationDatabase
 {
     public const int DefaultCapacity = 100;
     public const int MaxPerFormation = 30;
+    public const int MinimumPerFormation = 12;
 
     private readonly Dictionary<string, CandidateEvaluationRecord> _records = new(StringComparer.Ordinal);
     private readonly HashSet<string> _requiredFormations;
@@ -69,15 +70,19 @@ public sealed class CandidateEvaluationDatabase
     public IReadOnlyList<CandidateEvaluationRecord> Top(int count) => Records.Take(Math.Max(0, count)).ToList();
 
     /// <summary>
-    /// Önce her mevcut formasyondan en iyi adayı garanti eder, ardından kalan
-    /// kapasiteyi global ranking sırasıyla doldurur. RequiredFormations verilmişse
-    /// o formasyonların tamamı havuzda kalır; böylece erken global trim formasyonu
-    /// arama yarışından silemez.
+    /// Önce her required formasyondan gerçek bir çoklu aday derinliği rezerve eder,
+    /// ardından kalan kapasiteyi global ranking ile doldurur. Böylece diversity,
+    /// yalnızca "birer aday" saklayan bir kilit olmaktan çıkar.
     /// </summary>
-    public IReadOnlyList<CandidateEvaluationRecord> TopWithFormationDiversity(int count, int maxPerFormation = MaxPerFormation)
+    public IReadOnlyList<CandidateEvaluationRecord> TopWithFormationDiversity(
+        int count,
+        int maxPerFormation = MaxPerFormation,
+        int minimumPerFormation = MinimumPerFormation)
     {
         if (count < 1) return [];
         if (maxPerFormation < 1) throw new ArgumentOutOfRangeException(nameof(maxPerFormation));
+        if (minimumPerFormation < 1) throw new ArgumentOutOfRangeException(nameof(minimumPerFormation));
+        if (minimumPerFormation > maxPerFormation) throw new ArgumentOutOfRangeException(nameof(minimumPerFormation));
 
         var ordered = Records;
         var selected = new List<CandidateEvaluationRecord>(Math.Min(count, Capacity));
@@ -86,24 +91,15 @@ public sealed class CandidateEvaluationDatabase
 
         foreach (var formation in _requiredFormations.OrderBy(x => x, StringComparer.Ordinal))
         {
-            var first = ordered.FirstOrDefault(x => x.Formation.Equals(formation, StringComparison.Ordinal));
-            if (first is null || selected.Count >= count) continue;
-            selected.Add(first);
-            selectedIds.Add(first.CandidateId);
-            perFormation[first.Formation] = 1;
-        }
-
-        foreach (var formationGroup in ordered
-                     .Where(x => !_requiredFormations.Contains(x.Formation))
-                     .GroupBy(x => x.Formation, StringComparer.Ordinal)
-                     .OrderBy(g => g.Key, StringComparer.Ordinal))
-        {
             if (selected.Count >= count) break;
-            var first = formationGroup.First();
-            if (selectedIds.Add(first.CandidateId))
+            var target = Math.Min(minimumPerFormation, count - selected.Count);
+            foreach (var record in ordered.Where(x => x.Formation.Equals(formation, StringComparison.Ordinal)).Take(target))
             {
-                selected.Add(first);
-                perFormation[first.Formation] = 1;
+                if (selectedIds.Add(record.CandidateId))
+                {
+                    selected.Add(record);
+                    perFormation[formation] = perFormation.GetValueOrDefault(formation) + 1;
+                }
             }
         }
 
@@ -126,28 +122,33 @@ public sealed class CandidateEvaluationDatabase
     {
         if (_records.Count <= Capacity) return;
 
-        // Anti-lock is enforced at insertion time, not only when a consumer
-        // later asks for a diverse Top() list. Reserve the strongest record for
-        // every required formation before filling the remaining capacity globally.
         var ordered = _records.Values
             .OrderByDescending(x => x.RankingScore)
             .ThenBy(x => x.Formation, StringComparer.Ordinal)
             .ThenBy(x => x.CandidateId, StringComparer.Ordinal)
             .ToList();
 
+        // Reserve a real depth for every required formation. With the current
+        // 100-capacity DB and 6 legal formations this means 72 protected slots.
         var reservedIds = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var formation in _requiredFormations)
+        foreach (var formation in _requiredFormations.OrderBy(x => x, StringComparer.Ordinal))
         {
-            var best = ordered.FirstOrDefault(x => x.Formation.Equals(formation, StringComparison.Ordinal));
-            if (best is not null) reservedIds.Add(best.CandidateId);
+            foreach (var candidate in ordered
+                .Where(x => x.Formation.Equals(formation, StringComparison.Ordinal))
+                .Take(MinimumPerFormation))
+            {
+                reservedIds.Add(candidate.CandidateId);
+            }
         }
 
-        // Safety: when the database is configured with more required formations
-        // than its capacity, global ordering decides the remainder after the
-        // deterministic reservation pass.
         var keep = ordered.Where(x => reservedIds.Contains(x.CandidateId)).ToList();
-        keep.AddRange(ordered.Where(x => !reservedIds.Contains(x.CandidateId))
-            .Take(Math.Max(0, Capacity - keep.Count)));
+        if (keep.Count > Capacity)
+            keep = keep.Take(Capacity).ToList();
+
+        var remainingCapacity = Math.Max(0, Capacity - keep.Count);
+        keep.AddRange(ordered
+            .Where(x => !reservedIds.Contains(x.CandidateId))
+            .Take(remainingCapacity));
 
         var keepIds = keep.Select(x => x.CandidateId).ToHashSet(StringComparer.Ordinal);
         foreach (var key in _records.Keys.Where(x => !keepIds.Contains(x)).ToList())
