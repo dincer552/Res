@@ -20,14 +20,12 @@ public sealed class MotorPipelineService
     private readonly M9MatchPredictionEngine _m9 = new();
     private readonly M10FinalDecisionEngine _m10 = new();
 
-    public async Task<MotorPipelineResult> RunAsync(
-        MatchDataContext context,
-        IReadOnlyList<Player> players,
-        CancellationToken ct,
-        string? runId = null)
+    public async Task<MotorPipelineResult> RunAsync(MatchDataContext context, IReadOnlyList<Player> players, CancellationToken ct, string? runId = null)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(players);
+        runId ??= MotorRunLogContext.CurrentRunId;
+        var cache = new ConcurrentDictionary<string, CandidateEvaluation>(StringComparer.Ordinal);
 
         var sw = Stopwatch.StartNew();
         LogStart(runId, "M3", "Çalışıyor");
@@ -71,7 +69,10 @@ public sealed class MotorPipelineService
             maxIterations: 4,
             ct,
             progress: (iteration, maximum, evaluated, retained) =>
-                MotorRunLogStore.Progress(runId!, "M6", $"{iteration}/{maximum} iteration • {evaluated} değerlendirildi", iteration, maximum));
+            {
+                if (!string.IsNullOrWhiteSpace(runId))
+                    MotorRunLogStore.Progress(runId, "M6", $"{iteration}/{maximum} iteration • {evaluated} değerlendirildi", iteration, maximum);
+            });
 
         if (m6.BestCandidate is null)
         {
@@ -94,42 +95,15 @@ public sealed class MotorPipelineService
 
         sw.Restart();
         LogStart(runId, "M10", "Çalışıyor");
-        var m10 = _m10.Select([
-            new M10CandidateEvaluation(
-                m6.BestCandidate,
-                m9.Prediction,
-                bestEvaluation.Chance.StructuralChanceIndex)
-        ]);
+        var m10 = _m10.Select([new M10CandidateEvaluation(m6.BestCandidate, m9.Prediction, bestEvaluation.Chance.StructuralChanceIndex)]);
         LogComplete(runId, "M10", $"Final karar: {m10.BestPlan.Formation}", sw.ElapsedMilliseconds);
 
-        return new MotorPipelineResult(
-            m3,
-            m4,
-            m5,
-            m6,
-            bestEvaluation.Scenario,
-            bestEvaluation.Advanced,
-            bestEvaluation.Chance,
-            m9,
-            m10,
-            m10.BestPlan,
-            m10.Prediction);
-
-        var cache = new ConcurrentDictionary<string, CandidateEvaluation>(StringComparer.Ordinal);
+        return new MotorPipelineResult(m3, m4, m5, m6, bestEvaluation.Scenario, bestEvaluation.Advanced, bestEvaluation.Chance, m9, m10, m10.BestPlan, m10.Prediction);
 
         CandidateEvaluation Evaluate(Lineup lineup, string? currentRunId)
         {
             var signature = Signature(lineup);
-            var state = new MatchState(
-                signature,
-                lineup.Formation,
-                signature,
-                signature,
-                context.RatingContext.MatchLocation,
-                context.RatingContext.Attitude,
-                TeamTactic.Normal,
-                TeamSpiritValue(context.Questionnaire.TeamSpirit),
-                context.Questionnaire.Coach);
+            var state = new MatchState(signature, lineup.Formation, signature, signature, context.RatingContext.MatchLocation, context.RatingContext.Attitude, TeamTactic.Normal, TeamSpiritValue(context.Questionnaire.TeamSpirit), context.Questionnaire.Coach);
 
             var stageWatch = Stopwatch.StartNew();
             LogStart(currentRunId, "M7", "Çalışıyor");
@@ -155,20 +129,9 @@ public sealed class MotorPipelineService
         }
     }
 
-    private static void LogStart(string? runId, string motor, string message)
-    {
-        if (!string.IsNullOrWhiteSpace(runId)) MotorRunLogStore.StartMotor(runId, motor, message);
-    }
-
-    private static void LogComplete(string? runId, string motor, string message, long durationMs = 0, int? candidateCount = null)
-    {
-        if (!string.IsNullOrWhiteSpace(runId)) MotorRunLogStore.CompleteMotor(runId, motor, message, durationMs, candidateCount);
-    }
-
-    private static void LogFail(string? runId, string motor, string message, long durationMs = 0)
-    {
-        if (!string.IsNullOrWhiteSpace(runId)) MotorRunLogStore.FailMotor(runId, motor, message, durationMs);
-    }
+    private static void LogStart(string? runId, string motor, string message) { if (!string.IsNullOrWhiteSpace(runId)) MotorRunLogStore.StartMotor(runId, motor, message); }
+    private static void LogComplete(string? runId, string motor, string message, long durationMs = 0, int? candidateCount = null) { if (!string.IsNullOrWhiteSpace(runId)) MotorRunLogStore.CompleteMotor(runId, motor, message, durationMs, candidateCount); }
+    private static void LogFail(string? runId, string motor, string message, long durationMs = 0) { if (!string.IsNullOrWhiteSpace(runId)) MotorRunLogStore.FailMotor(runId, motor, message, durationMs); }
 
     private static MatchupEvaluation BuildMatchup(RegionalRatingSnapshot own, RegionalRatingSnapshot opponent, M8ChanceResult chance)
     {
@@ -190,8 +153,7 @@ public sealed class MotorPipelineService
         return total <= 0 ? 0.5 : Math.Clamp(Math.Max(0, own) / total, 0, 1);
     }
 
-    private static double Average(RegionalRatingSnapshot r)
-        => (r.LeftDefence + r.CentralDefence + r.RightDefence + r.Midfield + r.LeftAttack + r.CentralAttack + r.RightAttack) / 7.0;
+    private static double Average(RegionalRatingSnapshot r) => (r.LeftDefence + r.CentralDefence + r.RightDefence + r.Midfield + r.LeftAttack + r.CentralAttack + r.RightAttack) / 7.0;
 
     private static double TeamSpiritValue(TeamSpiritLevel level) => level switch
     {
@@ -201,28 +163,9 @@ public sealed class MotorPipelineService
         TeamSpiritLevel.ParadiseOnEarth => 10, _ => 4.5
     };
 
-    private static string Signature(Lineup lineup)
-        => string.Join(";", lineup.Slots
-            .OrderBy(s => s.Code, StringComparer.Ordinal)
-            .ThenBy(s => s.PlayerId)
-            .Select(s => $"{s.Code}:{s.PlayerId}:{(int)s.Order}"));
+    private static string Signature(Lineup lineup) => string.Join(";", lineup.Slots.OrderBy(s => s.Code, StringComparer.Ordinal).ThenBy(s => s.PlayerId).Select(s => $"{s.Code}:{s.PlayerId}:{(int)s.Order}"));
 
-    private sealed record CandidateEvaluation(
-        TacticalCandidate Tactical,
-        RatingScenarioResult Scenario,
-        AdvancedTacticalScenarioResult Advanced,
-        M8ChanceResult Chance);
+    private sealed record CandidateEvaluation(TacticalCandidate Tactical, RatingScenarioResult Scenario, AdvancedTacticalScenarioResult Advanced, M8ChanceResult Chance);
 }
 
-public sealed record MotorPipelineResult(
-    PlayerAnalysisResult M3,
-    FormationCandidateSet M4,
-    IReadOnlyList<PositionAssignmentCandidate> M5,
-    M6OptimizationResult M6,
-    RatingScenarioResult M7,
-    AdvancedTacticalScenarioResult M72,
-    M8ChanceResult M8,
-    M9PredictionResult M9,
-    M10DecisionResult M10,
-    FinalMatchPlan FinalPlan,
-    MatchPrediction FinalPrediction);
+public sealed record MotorPipelineResult(PlayerAnalysisResult M3, FormationCandidateSet M4, IReadOnlyList<PositionAssignmentCandidate> M5, M6OptimizationResult M6, RatingScenarioResult M7, AdvancedTacticalScenarioResult M72, M8ChanceResult M8, M9PredictionResult M9, M10DecisionResult M10, FinalMatchPlan FinalPlan, MatchPrediction FinalPrediction);
