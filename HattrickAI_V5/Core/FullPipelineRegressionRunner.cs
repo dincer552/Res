@@ -109,6 +109,24 @@ public static class FullPipelineRegressionRunner
             else if (p.ExpectedHomeGoals < p.ExpectedAwayGoals)
                 Check(p.WinProbability <= p.LossProbability, "M9 probability direction follows expected goals", failures);
 
+            // Real-match sanity fixture: S4MSUNFC beat this opponent 4-0 away.
+            // The historical score is not fed into M9; it is only a regression
+            // guardrail so a clearly superior recent matchup cannot silently turn
+            // into an unexplained M9 loss prediction after a refactor.
+            if (root.TryGetProperty("historicalMatch", out var historical) &&
+                historical.TryGetProperty("ownGoals", out var ownGoalsElement) &&
+                historical.TryGetProperty("opponentGoals", out var opponentGoalsElement))
+            {
+                var ownGoals = ownGoalsElement.GetInt32();
+                var opponentGoals = opponentGoalsElement.GetInt32();
+                Console.WriteLine($"Historical fixture: {ownGoals}-{opponentGoals}");
+                if (ownGoals > opponentGoals)
+                {
+                    Check(p.WinProbability >= p.LossProbability,
+                        "M9 real-match sanity: previous 4-0 winner is not predicted to lose", failures);
+                }
+            }
+
             var resultAgain = await pipeline.RunAsync(context, players, cancellationToken, "offline-faz9-repeat");
             Check(result.FinalPlan.Formation == resultAgain.FinalPlan.Formation, "full pipeline deterministic formation", failures);
             Check(result.M11?.Ranking.FirstOrDefault()?.CandidateId == resultAgain.M11?.Ranking.FirstOrDefault()?.CandidateId,
@@ -119,7 +137,7 @@ public static class FullPipelineRegressionRunner
             Console.WriteLine($"M3={result.M3.Players.Count} | M4={legalFormations.Count} formations | M5={result.M5.Count}");
             Console.WriteLine($"M6-A evaluated={result.M6.EvaluatedCandidates} | DB1={result.CandidateDatabase1Count}");
             Console.WriteLine($"M10 formations={competition.Count} | DB2={result.CandidateDatabase2Count} | M11 formations={result.M11?.FormationCount ?? 0}");
-            Console.WriteLine($"M9 xG={p.ExpectedHomeGoals:0.###}-{p.ExpectedAwayGoals:0.###} | W/D/L={p.WinProbability:P1}/{p.DrawProbability:P1}/{p.LossProbability:P1}");
+            Console.WriteLine($"M9 xG={p.ExpectedHomeGoals:0.###}-{p.ExpectedAwayGoals:0.###} | W/D/L={p.WinProbability:P1}/{p.DrawProbability:P1}/{p.LossProbability:P1} | Result={result.M9.PredictedResult} | Score={result.M9.MostLikelyScore}");
             Console.WriteLine($"FINAL={result.FinalPlan.Formation} | formations={string.Join(", ", legalFormations)}");
 
             if (failures.Count > 0)
