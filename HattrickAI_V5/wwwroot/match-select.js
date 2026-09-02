@@ -16,9 +16,13 @@
   function setupCard(){
     const card=document.getElementById('questionCard');
     const kicker=card?.querySelector('.question-kicker');
+    if(kicker) kicker.textContent='SEÇİMLER';
+    const title=card?.querySelector('.question-title');
+    if(title) title.remove();
     const sub=card?.querySelector('.question-sub');
-    if(kicker) kicker.textContent='4 KISA SORU';
-    if(sub) sub.textContent='Önce analiz edeceğimiz lig maçını seçiyoruz; ardından teknik direktör, takım ruhu ve maç yaklaşımını belirliyoruz.';
+    if(sub) sub.remove();
+    const note=card?.querySelector('.skip-note');
+    if(note) note.remove();
     const steps=card?.querySelector('.steps');
     if(steps){steps.innerHTML='';for(let i=0;i<4;i++){const s=document.createElement('i');s.className='step';steps.appendChild(s);}}
   }
