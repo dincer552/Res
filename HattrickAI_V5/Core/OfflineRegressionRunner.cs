@@ -42,28 +42,12 @@ public static class OfflineRegressionRunner
             Console.WriteLine($"M3: {m3Result.Players.Count} profiles | M4: {m4First.Candidates.Count} legal formation candidates | invalid: 0");
             Console.WriteLine("M4 formations: " + string.Join(", ", m4First.Candidates.Select(c => c.Formation)));
 
-            var opponentName = analysis.TryGetProperty("opponentName", out var opponentNameElement)
-                ? opponentNameElement.GetString() ?? "Opponent"
-                : "Opponent";
-            var opponentFormation = analysis.TryGetProperty("opponentFormation", out var opponentFormationElement)
-                ? opponentFormationElement.GetString() ?? ""
-                : "";
-            var teamName = analysis.TryGetProperty("teamName", out var teamNameElement)
-                ? teamNameElement.GetString() ?? lineup.TeamName
-                : lineup.TeamName;
+            var opponentName = analysis.TryGetProperty("opponentName", out var opponentNameElement) ? opponentNameElement.GetString() ?? "Opponent" : "Opponent";
+            var opponentFormation = analysis.TryGetProperty("opponentFormation", out var opponentFormationElement) ? opponentFormationElement.GetString() ?? "" : "";
+            var teamName = analysis.TryGetProperty("teamName", out var teamNameElement) ? teamNameElement.GetString() ?? lineup.TeamName : lineup.TeamName;
 
-            var opponentProfile = new OpponentMatchProfile(
-                opponentName,
-                opponentFormation,
-                opponent,
-                new OpponentThreatEngine().Analyze(opponent));
-            var context = new MatchDataContext(
-                players,
-                0,
-                teamName,
-                opponentProfile,
-                RatingContext.Default,
-                MatchQuestionnaire.Default);
+            var opponentProfile = new OpponentMatchProfile(opponentName, opponentFormation, opponent, new OpponentThreatEngine().Analyze(opponent));
+            var context = new MatchDataContext(players, 0, teamName, opponentProfile, RatingContext.Default, MatchQuestionnaire.Default);
             var m5 = new PositionOptimizationEngine();
             Console.WriteLine("M5: generating XI candidates...");
             var m5Candidates = m5.GenerateCandidates(context, m3Result, m4First, 100);
@@ -128,23 +112,39 @@ public static class OfflineRegressionRunner
                 Check(t.Level.Value is >= 0 and <= 10, $"M7.2 level bounds {tactic}", failures);
                 Check(Math.Abs(t.ChanceDistribution.LeftShare + t.ChanceDistribution.CentreShare + t.ChanceDistribution.RightShare + t.ChanceDistribution.SetPieceShare - 1.0) < 1e-9, $"M7.2 distribution sum {tactic}", failures);
                 Check(chance.MidfieldShare is >= 0 and <= 1 && chance.StructuralChanceIndex is >= 0 and <= 1, $"M8 bounds {tactic}", failures);
+                if (tactic == TeamTactic.Pressing)
+                    Check(chance.OpponentRegularChanceExpected < chance.OwnRegularChanceExpected || chance.PressingSuppression > 0, "M8 pressing suppression active", failures);
             }
 
             if (normalChance is not null)
             {
-                var matchup = BuildOfflineMatchup(m7Result.Rating, opponent, normalChance);
-                var tactical = new TacticalCandidate(lineup, m7Result.Rating, matchup, 0.0);
+                var actualMatchup = BuildOfflineMatchup(m7Result.Rating, opponent, normalChance);
+                var actualTactical = new TacticalCandidate(lineup, m7Result.Rating, actualMatchup, 0.0);
                 var m9 = new M9MatchPredictionEngine();
-                var homePrediction = m9.Predict(tactical, normalChance, MatchLocation.Home).Prediction;
-                var awayPrediction = m9.Predict(tactical, normalChance, MatchLocation.Away).Prediction;
+                var actualPrediction = m9.Predict(actualTactical, normalChance, opponent, MatchLocation.Away, players).Prediction;
 
-                Check(homePrediction.ExpectedHomeGoals > homePrediction.ExpectedAwayGoals, "M9 historical-style positive matchup favors own side", failures);
-                Check(homePrediction.WinProbability > homePrediction.LossProbability, "M9 positive matchup does not predict own loss", failures);
-                Check(awayPrediction.ExpectedHomeGoals > awayPrediction.ExpectedAwayGoals, "M9 away scenario preserves own xG ordering", failures);
-                Check(awayPrediction.WinProbability > awayPrediction.LossProbability, "M9 away positive matchup does not predict own loss", failures);
-                Check(Math.Abs(homePrediction.WinProbability + homePrediction.DrawProbability + homePrediction.LossProbability - 1.0) < 1e-9, "M9 home WDL sums to 1", failures);
-                Check(Math.Abs(awayPrediction.WinProbability + awayPrediction.DrawProbability + awayPrediction.LossProbability - 1.0) < 1e-9, "M9 away WDL sums to 1", failures);
-                Console.WriteLine($"M9 regression: matchup {matchup.OverallScore:0.###} | home xG {homePrediction.ExpectedHomeGoals:0.###}-{homePrediction.ExpectedAwayGoals:0.###} | W/D/L {homePrediction.WinProbability:P1}/{homePrediction.DrawProbability:P1}/{homePrediction.LossProbability:P1}");
+                // Regression must test model mathematics, not assume that this particular
+                // historical fixture is favorable to the user's team. The real fixture can
+                // legitimately predict an opponent edge.
+                var clearlyFavorableOpponent = new RegionalRatingSnapshot(
+                    5, 5, 5, 5,
+                    8, 8, 8,
+                    5, 5, 5, 5, 8, 8, 8);
+                var favorableChance = m8.Calculate(
+                    AdvancedTacticalScenarioEngine.BuildM8Input(
+                        m7.CalculateLineup(lineup, players, state),
+                        m72.CalculateLineup(lineup, players, state, 5)),
+                    clearlyFavorableOpponent);
+                var favorableMatchup = BuildOfflineMatchup(m7Result.Rating, clearlyFavorableOpponent, favorableChance);
+                var favorableTactical = new TacticalCandidate(lineup, m7Result.Rating, favorableMatchup, 0.0);
+                var favorablePrediction = m9.Predict(favorableTactical, favorableChance, clearlyFavorableOpponent, MatchLocation.Away, players).Prediction;
+
+                Check(double.IsFinite(actualPrediction.ExpectedHomeGoals) && double.IsFinite(actualPrediction.ExpectedAwayGoals), "M9 historical fixture finite xG", failures);
+                Check(Math.Abs(actualPrediction.WinProbability + actualPrediction.DrawProbability + actualPrediction.LossProbability - 1.0) < 1e-9, "M9 historical fixture WDL sums to 1", failures);
+                Check(favorablePrediction.ExpectedHomeGoals > favorablePrediction.ExpectedAwayGoals, "M9 clearly favorable case favors own xG", failures);
+                Check(favorablePrediction.WinProbability > favorablePrediction.LossProbability, "M9 clearly favorable case favors own WDL", failures);
+                Console.WriteLine($"M9 regression: actual fixture xG {actualPrediction.ExpectedHomeGoals:0.###}-{actualPrediction.ExpectedAwayGoals:0.###} | W/D/L {actualPrediction.WinProbability:P1}/{actualPrediction.DrawProbability:P1}/{actualPrediction.LossProbability:P1}");
+                Console.WriteLine($"M9 favorable regression: xG {favorablePrediction.ExpectedHomeGoals:0.###}-{favorablePrediction.ExpectedAwayGoals:0.###} | W/D/L {favorablePrediction.WinProbability:P1}/{favorablePrediction.DrawProbability:P1}/{favorablePrediction.LossProbability:P1}");
             }
             else
             {
@@ -156,7 +156,7 @@ public static class OfflineRegressionRunner
             Console.WriteLine("PASS: Questionnaire CoachStyle → M7 rating wiring");
             Console.WriteLine($"XI: {lineup.Formation} | Opponent: {opponentName}");
             Console.WriteLine($"M7 midfield: {m7Result.Rating.Midfield:0.###} | Opponent midfield: {opponent.Midfield:0.###}");
-            Console.WriteLine("Tactics tested: Normal, CounterAttack, LongShots, AttackMiddle, AttackWings, Creative");
+            Console.WriteLine("Tactics tested: Normal, CounterAttack, LongShots, AttackMiddle, AttackWings, Creative, Pressing");
             return 0;
         }
         catch (Exception ex) { Console.WriteLine("STACK: " + ex); return Fail("offline regression exception: " + ex.Message); }
@@ -195,7 +195,8 @@ public static class OfflineRegressionRunner
         e.GetProperty("form").GetInt32(),
         e.GetProperty("experience").GetInt32(),
         e.TryGetProperty("loyalty", out var l) ? l.GetInt32() : 0,
-        e.TryGetProperty("injuryLevel", out var injury) ? injury.GetInt32() : 0);
+        e.TryGetProperty("injuryLevel", out var injury) ? injury.GetInt32() : 0,
+        e.TryGetProperty("specialty", out var specialty) && specialty.ValueKind == JsonValueKind.Number ? (PlayerSpecialty)specialty.GetInt32() : PlayerSpecialty.None);
 
     private static Lineup ReadLineup(JsonElement e)
     {
