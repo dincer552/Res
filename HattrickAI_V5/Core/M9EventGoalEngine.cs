@@ -5,8 +5,9 @@ using System.Linq;
 namespace HattrickAI.V5.Core;
 
 /// <summary>
-/// M9 event -> goal layer based on Tables 4 and 5 of the 2026 Hattrick paper.
-/// Event counts follow the paper's Binomial(n,p) specification; hidden inputs remain explicit gaps.
+/// M9 event -> goal layer based on Tables 4-5, Fig. 16 and Appendix C of the
+/// 2026 Hattrick paper. Hidden inputs are explicit parameters rather than
+/// silently invented player data.
 /// </summary>
 public sealed class M9EventGoalEngine
 {
@@ -45,13 +46,22 @@ public sealed class M9EventGoalEngine
     private const double CornerAnyoneGoalRate = 0.4849;
     private const double CornerHeadGoalRate = 0.5503;
 
+    /// <summary>
+    /// Calculates event expectation. PNF/PDIM are resolved from the documented
+    /// Appendix-C relationships. Opponent CD count defaults to 3 only for legacy
+    /// callers; production should supply the observed opponent count when known.
+    /// </summary>
     public M9EventGoalBreakdown Calculate(
         Lineup ownLineup,
         IReadOnlyList<Player> ownPlayers,
         double ownMidfieldRating,
         double opponentMidfieldRating,
         AdvancedTactic tactic,
-        double creativeMultiplier)
+        double creativeMultiplier,
+        double ownNormalChanceVolume = 10.0,
+        double opponentNormalChanceVolume = 10.0,
+        double opponentNormalGoalProbability = 0.5,
+        int opponentCentralDefenders = 3)
     {
         ArgumentNullException.ThrowIfNull(ownLineup);
         ArgumentNullException.ThrowIfNull(ownPlayers);
@@ -74,6 +84,8 @@ public sealed class M9EventGoalEngine
         var unpredOwnGoal = CountSpecial(profiles, PlayerSpecialty.Unpredictable, IsUnpredictableOwnGoal);
         var forwards = profiles.Count(x => IsForward(x.Code));
         var defenders = profiles.Count(IsDefender);
+        var pnfCount = CountSpecial(profiles, PlayerSpecialty.Powerful, IsForward);
+        var pdimCount = CountSpecial(profiles, PlayerSpecialty.Powerful, IsInnerMidfielder);
 
         var eligiblePlayerEvents = new List<EventWeight>
         {
@@ -90,9 +102,6 @@ public sealed class M9EventGoalEngine
 
         var activeWeight = eligiblePlayerEvents.Sum(x => x.Weight);
         var playerMultiplier = SpecialEventMultiplier(tactic, creativeMultiplier);
-        // Paper §4.4: Player_SEs ~ Binomial(n=4, p=0.841).
-        // The table rates distribute generated events among feasible event types.
-        // Team ownership is 50/50 until opponent specialty counts are wired in.
         var playerEventBudget = activeWeight > 0
             ? PlayerEventTrials * PlayerEventProbability * playerMultiplier * PlayerTeamOwnershipFallback
             : 0.0;
@@ -111,8 +120,6 @@ public sealed class M9EventGoalEngine
             contributions.Add(new M9EventContribution(item.Name, expectedEvents, item.GoalProbability, expectedGoals));
         }
 
-        // §4.4 Eq.5: team-based SE allocation uses linear possession.
-        // Team_SEs ~ Binomial(n=5, p=0.372), expected total event count = 1.86.
         var linearPossession = LinearPossession(ownMidfieldRating, opponentMidfieldRating);
         var teamMultiplier = SpecialEventMultiplier(tactic, creativeMultiplier);
         var cornerHeadProbability = CornerHeadShare(headOffensive);
@@ -146,6 +153,23 @@ public sealed class M9EventGoalEngine
             _ => 0.0
         };
 
+        // Appendix C: a PDIM blocks normal attacks; the paper reports an
+        // average 6.5% suppression per PDIM. We cap the aggregate at 100%.
+        var pdimSuppression = Math.Clamp(pdimCount * 0.065, 0.0, 1.0);
+        var suppressedOpponentNormalVolume = Math.Max(0.0, opponentNormalChanceVolume * pdimSuppression);
+
+        // Appendix C.3: PNF extra-attack conversion by PNF count vs opposing CDs.
+        // A PNF creates an extra attack for each missed normal attempt.
+        var missedOpponentNormals = Math.Max(0.0, opponentNormalChanceVolume * (1.0 - Math.Clamp(opponentNormalGoalProbability, 0.0, 1.0)));
+        var pnfConversion = PnfConversionRate(pnfCount, opponentCentralDefenders);
+        var pnfExtraAttacks = missedOpponentNormals * pnfConversion;
+        var pnfGoals = pnfExtraAttacks * Clamp01(opponentNormalGoalProbability);
+
+        if (pnfCount > 0)
+            contributions.Add(new M9EventContribution("PowerfulNormalForward", pnfExtraAttacks, Clamp01(opponentNormalGoalProbability), pnfGoals));
+        if (pdimCount > 0)
+            contributions.Add(new M9EventContribution("PowerfulDefensiveInnerMidfielder", suppressedOpponentNormalVolume, pdimSuppression, suppressedOpponentNormalVolume));
+
         var notes = new List<string>
         {
             "Player-based SEs follow the paper Binomial(n=4,p=0.841) expectation; event types are redistributed over feasible residual types.",
@@ -154,7 +178,9 @@ public sealed class M9EventGoalEngine
             $"Technical CA opportunity rate={technicalCaRate:P2}; goal conversion remains pending.",
             "Long Shot scoring probability is not invented because the paper provides a plotted relationship rather than a published explicit equation.",
             "Set-piece taker skill is hidden from CHPP and therefore remains outside exact event resolution.",
-            "PNF/PDIM opportunity resolution remains a separate pending layer because PNF scoring and PDIM multi-player suppression require additional hidden inputs/calibration."
+            $"PNF count={pnfCount}, opponent CDs={Math.Clamp(opponentCentralDefenders, 0, 5)}, PNF extra-attack conversion={pnfConversion:P2}.",
+            $"PDIM count={pdimCount}, normal-attack suppression={pdimSuppression:P2}; Appendix-C average assumption is 6.5% per PDIM.",
+            "PNF/PDIM resolution uses explicit Appendix-C assumptions; opponent player specialties remain a data-input gap."
         };
         if (tactic == AdvancedTactic.Creative)
             notes.Add($"Play Creatively own-event multiplier={teamMultiplier:0.00}x; paper range is 2.37x-3.80x and exact V5-level mapping remains a proxy.");
@@ -165,14 +191,27 @@ public sealed class M9EventGoalEngine
             ownGoalExpected,
             0.0,
             0.0,
-            0.0,
-            0.0,
+            pnfGoals,
+            pdimSuppression,
             playerEventRate,
             teamEventRate,
             technicalCaRate,
             contributions,
-            "PDF Tables 4-5 + Binomial event-count structure; opponent specialty, LS scoring, PNF/PDIM and hidden set-piece inputs pending.",
+            "PDF Tables 4-5 + Fig.16 + Appendix C; PNF/PDIM enabled, LS scoring and hidden set-piece inputs remain calibration gaps.",
             string.Join(" ", notes));
+    }
+
+    internal static double PnfConversionRate(int pnfCount, int centralDefenders)
+    {
+        var p = Math.Max(0, pnfCount);
+        var cd = Math.Clamp(centralDefenders, 0, 3);
+        return p switch
+        {
+            <= 0 => 0.0,
+            1 => cd switch { 0 => 0.096, 1 => 0.069, 2 => 0.033, _ => 0.020 },
+            2 => cd switch { 0 => 0.117, 1 => 0.096, 2 => 0.052, _ => 0.031 },
+            _ => 0.066
+        };
     }
 
     private static double LinearPossession(double ownMidfieldRating, double opponentMidfieldRating)
@@ -211,6 +250,8 @@ public sealed class M9EventGoalEngine
         var support = quickOffensive / (double)(quickOffensive + quickDefenders);
         return 0.65 + 0.35 * support;
     }
+
+    private static double Clamp01(double value) => Math.Clamp(value, 0.0, 1.0);
 
     private sealed record SlotProfile(string Code, Player Player);
     private sealed record EventWeight(string Name, double Rate, double GoalProbability, double Weight);
