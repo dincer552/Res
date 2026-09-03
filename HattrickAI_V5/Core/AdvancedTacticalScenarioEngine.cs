@@ -97,7 +97,10 @@ public sealed class AdvancedTacticalScenarioEngine
 public enum AdvancedTactic { Normal, Pressing, CounterAttack, AttackMiddle, AttackWings, LongShots, Creative }
 public sealed record AdvancedTacticalScenarioResult(string CandidateId, AdvancedTactic Tactic, double TacticalSkillAggregate, TacticalLevel Level, TacticalInputTotals Inputs, ChanceDistributionEffect ChanceDistribution, TacticalPressureProfile? Pressing, CounterAttackProfile? CounterAttack, LongShotsProfile? LongShots, CreativeProfile? PlayCreatively, double OpponentAverageMainSkill, CalibrationStatus CalibrationStatus, M8TacticalContext M8Context);
 public sealed record M8TacticalContext(string CandidateId, AdvancedTactic Tactic, TacticalLevel Level, ChanceDistributionEffect ChanceDistribution, TacticalPressureProfile? Pressing, CounterAttackProfile? CounterAttack, LongShotsProfile? LongShots, CreativeProfile? PlayCreatively, TacticalInputTotals Inputs, MatchLocation MatchLocation, TeamAttitude TeamAttitude, double TeamSpirit, int MatchMinute, int GoalDifference);
-public sealed record M8TacticalMatchupInput(string CandidateId, string FormationId, string LineupId, string BehaviourSetId, RegionalRatingSnapshot OwnRating, MatchLocation MatchLocation, TeamAttitude TeamAttitude, double TeamSpirit, AdvancedTactic Tactic, TacticalLevel TacticalLevel, ChanceDistributionEffect ChanceDistribution, TacticalPressureProfile? Pressing, CounterAttackProfile? CounterAttack, LongShotsProfile? LongShots, CreativeProfile? PlayCreatively, TacticalInputTotals TacticalInputs, CalibrationStatus CalibrationStatus, RatingConfidence RatingConfidence);
+public sealed record M8TacticalMatchupInput(string CandidateId, string FormationId, string LineupId, string BehaviourSetId, RegionalRatingSnapshot OwnRating, MatchLocation MatchLocation, TeamAttitude TeamAttitude, double TeamSpirit, AdvancedTactic Tactic, TacticalLevel TacticalLevel, ChanceDistributionEffect ChanceDistribution, TacticalPressureProfile? Pressing, CounterAttackProfile? CounterAttack, LongShotsProfile? LongShots, CreativeProfile? CreativeProfile, TacticalInputTotals TacticalInputs, CalibrationStatus CalibrationStatus, RatingConfidence RatingConfidence)
+{
+    public CreativeProfile? PlayCreatively => CreativeProfile;
+}
 public sealed record TacticalInputTotals(double TotalPassing, double TotalDefending, double TotalPlaymaking, double TotalScoring, double TotalWinger, double TotalStamina, double TotalExperience);
 public sealed record TacticalLevel(string Name, double Value)
 {
@@ -126,9 +129,10 @@ public sealed record ChanceDistributionEffect(double LeftShare, double CentreSha
         var strength = Math.Clamp(level.Value, 0.0, 10.0);
         var aiM = Range(PdfAiMMin, PdfAiMMax, strength);
         var aoW = Range(PdfAoWMin, PdfAoWMax, strength);
-        var ca = Range(PdfCaMin, PdfCaMax, strength);
-        var ls = Range(PdfLongShotsMin, PdfLongShotsMax, strength);
-        var press = Range(PdfPressingMin, PdfPressingMax, strength);
+        var exactTcr = M8ChanceAllocationEngine.CalculateTacticConversionRate(tactic, strength);
+        var ca = tactic == AdvancedTactic.CounterAttack ? exactTcr : Range(PdfCaMin, PdfCaMax, strength);
+        var ls = tactic == AdvancedTactic.LongShots ? exactTcr : Range(PdfLongShotsMin, PdfLongShotsMax, strength);
+        var press = tactic == AdvancedTactic.Pressing ? exactTcr : Range(PdfPressingMin, PdfPressingMax, strength);
         var left = M8ChanceAllocationEngine.PaperLeftAttackShare; var centre = M8ChanceAllocationEngine.PaperCentreAttackShare; var right = M8ChanceAllocationEngine.PaperRightAttackShare; var setPiece = M8ChanceAllocationEngine.PaperDirectFreeKickShare + M8ChanceAllocationEngine.PaperIndirectFreeKickShare + M8ChanceAllocationEngine.PaperPenaltyKickShare;
         switch (tactic)
         {
@@ -138,13 +142,13 @@ public sealed record ChanceDistributionEffect(double LeftShare, double CentreSha
                 var movedWings = centre * aoW; centre -= movedWings; left += movedWings / 2.0; right += movedWings / 2.0; break;
         }
         var sum = left + centre + right + setPiece;
-        return new ChanceDistributionEffect(left / sum, centre / sum, right / sum, setPiece / sum, "PDF Eq3 base + tactic migration; CA/LS/PR event conversion kept as separate mechanisms")
+        return new ChanceDistributionEffect(left / sum, centre / sum, right / sum, setPiece / sum, "PDF Eq3 base + tactic migration + Appendix C.2 tactic conversion curves")
         {
-            AiMWingToCentreRate = tactic == AdvancedTactic.AttackMiddle ? aiM : 0.0,
-            AoWCentreToWingRate = tactic == AdvancedTactic.AttackWings ? aoW : 0.0,
-            LongShotConversionRate = tactic == AdvancedTactic.LongShots ? ls : 0.0,
-            PressingSuppressionRate = tactic == AdvancedTactic.Pressing ? press : 0.0,
-            CounterAttackConversionRate = tactic == AdvancedTactic.CounterAttack ? ca : 0.0,
+            AiMWingToCentreRate = tactic == AdvancedTactic.AttackMiddle ? exactTcr : 0.0,
+            AoWCentreToWingRate = tactic == AdvancedTactic.AttackWings ? exactTcr : 0.0,
+            LongShotConversionRate = ls,
+            PressingSuppressionRate = press,
+            CounterAttackConversionRate = ca,
             CounterAttackEligible = tactic == AdvancedTactic.CounterAttack,
             CreativeEventMultiplier = tactic == AdvancedTactic.Creative ? PcMultiplier(strength) : 1.0
         };
