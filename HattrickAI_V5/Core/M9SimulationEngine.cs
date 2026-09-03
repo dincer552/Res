@@ -5,26 +5,24 @@ using System.Linq;
 namespace HattrickAI.V5.Core;
 
 /// <summary>
-/// M9 Monte Carlo katmanı. Ana rating çekirdeğini değiştirmez; M9'un ürettiği
-/// sektör kalitesini farklı chance-allocation kombinasyonları ve venue varyantları
-/// ile tekrar tekrar örnekler. Ham kayıtlar calibration/debug için tutulur,
-/// API'ye yalnızca özet dağılım çıkar.
+/// M9 Monte Carlo katmanı. Ana M8 chance hacmini üretmez; M8'den gelen
+/// chance volume ve sektör çözümünü örnekler. Base dağılımı 2026 Hattrick
+/// araştırma makalesinin Eq. 3 değerlerine hizalanmıştır.
 /// </summary>
 public sealed class M9SimulationEngine
 {
     public const int DefaultSimulationCount = 1000;
 
-    // Hattrick temel regular chance dağılımı: merkez %35, kanatlar %25/%25,
-    // set-piece %15. Varyantlar bu dağılımın etrafında kontrollü oynar.
+    // PDF Eq. 3: Left 25.65%, Centre 36.15%, Right 25.65%, set-pieces 12.55%.
     private static readonly SimulationScenario[] Scenarios =
     {
-        new("Base 35/25/25/15", 1.00, 0.35, 0.25, 0.25, 0.15, 1.00),
-        new("Sol kanat", 1.00, 0.30, 0.38, 0.17, 0.15, 1.00),
-        new("Sağ kanat", 1.00, 0.30, 0.17, 0.38, 0.15, 1.00),
-        new("Merkez", 1.00, 0.50, 0.25, 0.10, 0.15, 1.00),
-        new("Dengeli hücum", 1.00, 0.34, 0.33, 0.18, 0.15, 1.00),
-        new("Düşük şans", 0.96, 0.35, 0.25, 0.25, 0.15, 1.02),
-        new("Yüksek şans", 1.04, 0.35, 0.25, 0.25, 0.15, 0.96)
+        new("Base PDF 36.15/25.65/25.65/12.55", 1.00, 0.3615, 0.2565, 0.2565, 0.1255, 1.00),
+        new("Sol kanat", 1.00, 0.30, 0.42, 0.155, 0.1255, 1.00),
+        new("Sağ kanat", 1.00, 0.30, 0.155, 0.42, 0.1255, 1.00),
+        new("Merkez", 1.00, 0.50, 0.23725, 0.13725, 0.1255, 1.00),
+        new("Dengeli hücum", 1.00, 0.34, 0.32, 0.215, 0.1255, 1.00),
+        new("Düşük şans", 0.96, 0.3615, 0.2565, 0.2565, 0.1255, 1.02),
+        new("Yüksek şans", 1.04, 0.3615, 0.2565, 0.2565, 0.1255, 0.96)
     };
 
     public M9SimulationResult Simulate(M9PredictionResult basePrediction, int simulationCount = DefaultSimulationCount, int seed = 9051)
@@ -35,12 +33,11 @@ public sealed class M9SimulationEngine
         var rng = new Random(seed);
         var database = new M9SimulationDatabase(simulationCount);
         var scenarioResults = Scenarios.ToDictionary(x => x.Name, x => new M9ScenarioSummary(x.Name), StringComparer.Ordinal);
-        var isHome = basePrediction.Location.ToString().Contains("Home", StringComparison.OrdinalIgnoreCase);
 
         for (var i = 0; i < simulationCount; i++)
         {
             var scenario = Scenarios[i % Scenarios.Length];
-            var venueFactor = isHome ? scenario.HomeFactor : 1.0;
+            var venueFactor = basePrediction.Location == MatchLocation.Home ? scenario.HomeFactor : 1.0;
 
             var ownQuality = WeightedSectorQuality(basePrediction, scenario);
             var opponentQuality = WeightedOpponentQuality(basePrediction, scenario);
@@ -133,8 +130,6 @@ public sealed record SimulationScenario(
     double SetPieceWeight,
     double OpponentFactor)
 {
-    // Normal maçta ev sahibi etkisi M7 ratingine zaten girer; Monte Carlo'da
-    // yalnızca senaryo varyasyonunu temsil eden küçük ek duyarlılık kullanılır.
     public double HomeFactor => Name == "Yüksek şans" ? 1.02 : Name == "Düşük şans" ? 0.99 : 1.01;
 }
 
@@ -161,12 +156,11 @@ public sealed class M9ScenarioSummary
         .GroupBy(x => $"{x.OwnGoals}-{x.OpponentGoals}", StringComparer.Ordinal)
         .OrderByDescending(g => g.Count())
         .ThenBy(g => g.Key, StringComparer.Ordinal)
-        .Select(g => g.Key)
-        .FirstOrDefault() ?? "—";
+        .FirstOrDefault()?.Key ?? "0-0";
     public void Add(M9SimulationRecord record) => _records.Add(record);
 }
 
-internal sealed class M9SimulationDatabase
+public sealed class M9SimulationDatabase
 {
     private readonly List<M9SimulationRecord> _records;
     public M9SimulationDatabase(int capacity) => _records = new List<M9SimulationRecord>(capacity);
@@ -174,31 +168,16 @@ internal sealed class M9SimulationDatabase
     public void Add(M9SimulationRecord record) => _records.Add(record);
 }
 
-public sealed class M9SimulationResult
+public sealed record M9SimulationResult(
+    int SimulationCount,
+    IReadOnlyList<M9ScoreFrequency> ScoreFrequencies,
+    M9SimulationOutcome Outcome,
+    IReadOnlyList<M9ScenarioSummary> Scenarios,
+    M9SimulationDatabase Database)
 {
-    internal M9SimulationResult(
-        int simulationCount,
-        IReadOnlyList<M9ScoreFrequency> scoreFrequencies,
-        M9SimulationOutcome outcome,
-        IReadOnlyList<M9ScenarioSummary> scenarios,
-        M9SimulationDatabase database)
-    {
-        SimulationCount = simulationCount;
-        ScoreFrequencies = scoreFrequencies;
-        Outcome = outcome;
-        Scenarios = scenarios;
-        Database = database;
-    }
-
-    public int SimulationCount { get; }
-    public IReadOnlyList<M9ScoreFrequency> ScoreFrequencies { get; }
-    public M9SimulationOutcome Outcome { get; }
-    public IReadOnlyList<M9ScenarioSummary> Scenarios { get; }
-    internal M9SimulationDatabase Database { get; }
-    public string MostLikelyScore => ScoreFrequencies.FirstOrDefault()?.Score ?? "—";
-    public double MostLikelyScoreProbability => ScoreFrequencies.FirstOrDefault()?.Probability ?? 0;
-    public string MostLikelyResult
-        => Outcome.WinProbability >= Outcome.LossProbability
-            ? (Outcome.WinProbability >= Outcome.DrawProbability ? "Galibiyet" : "Beraberlik")
-            : (Outcome.LossProbability >= Outcome.DrawProbability ? "Rakip Galibiyeti" : "Beraberlik");
+    public string MostLikelyScore => ScoreFrequencies.FirstOrDefault()?.Score ?? "0-0";
+    public double MostLikelyScoreProbability => ScoreFrequencies.FirstOrDefault()?.Probability ?? 0.0;
+    public string MostLikelyResult => Outcome.WinProbability >= Outcome.LossProbability
+        ? (Outcome.WinProbability >= Outcome.DrawProbability ? "Galibiyet" : "Beraberlik")
+        : (Outcome.LossProbability >= Outcome.DrawProbability ? "Rakip Galibiyeti" : "Beraberlik");
 }
