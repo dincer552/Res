@@ -55,6 +55,7 @@ public sealed class M9EventGoalEngine
         double creativeMultiplier,
         double ownNormalChanceVolume = 10.0,
         double opponentNormalChanceVolume = 10.0,
+        double ownNormalGoalProbability = 0.5,
         double opponentNormalGoalProbability = 0.5,
         int opponentCentralDefenders = 3)
     {
@@ -150,20 +151,16 @@ public sealed class M9EventGoalEngine
 
         var pdimSuppression = Math.Clamp(pdimCount * 0.065, 0.0, 1.0);
         var suppressedOpponentNormalVolume = Math.Max(0.0, opponentNormalChanceVolume * pdimSuppression);
-
         var missedOpponentNormals = Math.Max(0.0, opponentNormalChanceVolume * (1.0 - Math.Clamp(opponentNormalGoalProbability, 0.0, 1.0)));
         var pnfConversion = PnfConversionRate(pnfCount, opponentCentralDefenders);
         var pnfExtraAttacks = missedOpponentNormals * pnfConversion;
-        var ownNormalGoalProbability = Math.Clamp(ownNormalChanceVolume <= 0 ? 0.5 : ownNormalChanceVolume > 0 ? 0.5 : 0.5, 0.0, 1.0);
-        // The caller can only supply chance volume here for backwards compatibility;
-        // the prediction engine replaces this with the actual own sector conversion
-        // when it resolves the final goal expectation.
-        var pnfGoals = pnfExtraAttacks * ownNormalGoalProbability;
+        var pnfGoalProbability = Math.Clamp(ownNormalGoalProbability, 0.0, 1.0);
+        var pnfGoals = pnfExtraAttacks * pnfGoalProbability;
 
         if (pnfCount > 0)
-            contributions.Add(new M9EventContribution("PowerfulNormalForward", pnfExtraAttacks, ownNormalGoalProbability, pnfGoals));
+            contributions.Add(new M9EventContribution("PowerfulNormalForward", pnfExtraAttacks, pnfGoalProbability, pnfGoals));
         if (pdimCount > 0)
-            contributions.Add(new M9EventContribution("PowerfulDefensiveInnerMidfielder", suppressedOpponentNormalVolume, pdimSuppression, suppressedOpponentNormalVolume));
+            contributions.Add(new M9EventContribution("PowerfulDefensiveInnerMidfielder", suppressedOpponentNormalVolume, pdimSuppression, 0.0));
 
         var notes = new List<string>
         {
@@ -173,7 +170,7 @@ public sealed class M9EventGoalEngine
             $"Technical CA opportunity rate={technicalCaRate:P2}; goal conversion remains pending.",
             "Long Shot scoring probability is not invented because the paper provides a plotted relationship rather than a published explicit equation.",
             "Set-piece taker skill is hidden from CHPP and therefore remains outside exact event resolution.",
-            $"PNF count={pnfCount}, opponent CDs={Math.Clamp(opponentCentralDefenders, 0, 5)}, PNF extra-attack conversion={pnfConversion:P2}.",
+            $"PNF count={pnfCount}, opponent CDs={Math.Clamp(opponentCentralDefenders, 0, 5)}, PNF extra-attack conversion={pnfConversion:P2}, PNF goals={pnfGoals:0.000}.",
             $"PDIM count={pdimCount}, normal-attack suppression={pdimSuppression:P2}; Appendix-C average assumption is 6.5% per PDIM.",
             "PNF/PDIM resolution uses explicit Appendix-C assumptions; opponent player specialties remain a data-input gap."
         };
@@ -245,8 +242,6 @@ public sealed class M9EventGoalEngine
         var support = quickOffensive / (double)(quickOffensive + quickDefenders);
         return 0.65 + 0.35 * support;
     }
-
-    private static double Clamp01(double value) => Math.Clamp(value, 0.0, 1.0);
 
     private sealed record SlotProfile(string Code, Player Player);
     private sealed record EventWeight(string Name, double Rate, double GoalProbability, double Weight);
