@@ -5,12 +5,10 @@ using System.Linq;
 namespace HattrickAI.V5.Core;
 
 /// <summary>
-/// M9: rating-merkezli maç çekirdeği.
-/// Oyuncu seviyesi M7'de takımın 7 bölgesel ratingine indirgenir; M9 bu
-/// kanonik ratingleri kullanarak midfield -> chance -> sector attack/defence
-/// akışını çözer. Rakibin hücum riski ayrı hesaplanır ve aynı xG çifti üzerinden
-/// W/D/L üretilir. 1000x Monte Carlo ise yalnızca seçilmiş final M9 sonucu
-/// istendiğinde lazy olarak çalışır; M6 aramasını gereksiz yere 44 bin kez büyütmez.
+/// M9: chance-allocation -> sector resolution -> xG -> W/D/L.
+/// The chance-volume input now comes from M8's exclusive/open structural
+/// allocation instead of the previous continuous midfield-share floor.
+/// Exact total-chance calibration remains a later research step.
 /// </summary>
 public sealed class M9MatchPredictionEngine
 {
@@ -22,8 +20,8 @@ public sealed class M9MatchPredictionEngine
     private const double CentreChanceWeight = 0.35;
     private const double SideChanceWeight = 0.25;
     private const double SetPieceChanceWeight = 0.15;
-    private const double ExclusiveChanceFloor = 0.35;
     private const double SectorBreakthroughScale = 1.5;
+    private const double StructuralChancePool = 10.0;
 
     public M9PredictionResult Predict(
         TacticalCandidate candidate,
@@ -36,10 +34,8 @@ public sealed class M9MatchPredictionEngine
         ArgumentNullException.ThrowIfNull(opponent);
 
         var own = candidate.Rating;
-        var ownChanceShare = Clamp01(chance.MidfieldShare);
-        var opponentChanceShare = 1.0 - ownChanceShare;
-        var ownChanceVolume = ExclusiveChanceFloor + ((1.0 - ExclusiveChanceFloor) * ownChanceShare);
-        var opponentChanceVolume = ExclusiveChanceFloor + ((1.0 - ExclusiveChanceFloor) * opponentChanceShare);
+        var ownChanceShare = Clamp01(chance.OwnRegularChanceExpected / StructuralChancePool);
+        var opponentChanceShare = Clamp01(chance.OpponentRegularChanceExpected / StructuralChancePool);
 
         var ownLeft = SectorBreakthrough(own.LeftAttack, opponent.RightDefence);
         var ownCentre = SectorBreakthrough(own.CentralAttack, opponent.CentralDefence);
@@ -54,8 +50,8 @@ public sealed class M9MatchPredictionEngine
             SideChanceWeight, CentreChanceWeight, SideChanceWeight, SetPieceChanceWeight);
 
         var structuralChance = Clamp01(chance.StructuralChanceIndex);
-        var ownExpected = ClampGoals(BaseGoals + GoalScale * ownChanceVolume * ownAttackQuality);
-        var opponentExpected = ClampGoals(BaseGoals + GoalScale * opponentChanceVolume * opponentAttackQuality);
+        var ownExpected = ClampGoals(BaseGoals + GoalScale * ownChanceShare * ownAttackQuality);
+        var opponentExpected = ClampGoals(BaseGoals + GoalScale * opponentChanceShare * opponentAttackQuality);
 
         // Venue bonusu M7 rating katmanında uygulanır; M9 ikinci kez eklemez.
         _ = location;
