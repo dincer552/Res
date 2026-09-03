@@ -3,7 +3,7 @@ namespace HattrickAI.V5.Core;
 
 /// <summary>
 /// M8: M7 rating + M7.2 PDF tactical scenario -> chance allocation -> sector scoring probability.
-/// M8 no longer recomputes a competing tactical distribution; M7.2 is its tactical source of truth.
+/// M7.2 owns tactical distribution and special-event volume context; M8 resolves chance ownership and sector matchups.
 /// </summary>
 public sealed class M8ChanceModel
 {
@@ -11,14 +11,7 @@ public sealed class M8ChanceModel
     {
         ArgumentNullException.ThrowIfNull(own); ArgumentNullException.ThrowIfNull(opponent);
 
-        var allocation = M8ChanceAllocationEngine.Calculate(
-            own.OwnRating.Midfield,
-            opponent.Midfield,
-            own.Tactic,
-            own.TacticalLevel.Value);
-
-        // M7.2 owns the tactical distribution. Keep M8's possession/volume calculation,
-        // but consume the already-resolved PDF Eq3/tactic shares instead of rebuilding them.
+        var allocation = M8ChanceAllocationEngine.Calculate(own.OwnRating.Midfield, opponent.Midfield, own.Tactic, own.TacticalLevel.Value);
         var distribution = own.ChanceDistribution;
         allocation = allocation with
         {
@@ -47,30 +40,17 @@ public sealed class M8ChanceModel
         var opponentLeftAttack = ScoreProbability(opponent.LeftAttack, own.OwnRating.RightDefence);
         var opponentCentreAttack = ScoreProbability(opponent.CentralAttack, own.OwnRating.CentralDefence);
         var opponentRightAttack = ScoreProbability(opponent.RightAttack, own.OwnRating.LeftDefence);
-
         var ownRegularQuality = WeightedRegularQuality(leftAttack, centreAttack, rightAttack, distribution.LeftShare, distribution.CentreShare, distribution.RightShare);
-        var opponentRegularQuality = WeightedRegularQuality(opponentLeftAttack, opponentCentreAttack, opponentRightAttack, distribution.LeftShare, distribution.CentreShare, distribution.RightShare);
         var ownRegularOwnership = allocation.OwnRegularChanceExpected / Math.Max(1e-9, allocation.OwnRegularChanceExpected + allocation.OpponentRegularChanceExpected);
         var structuralChance = Clamp01(ownRegularOwnership * ownRegularQuality + distribution.SetPieceShare * 0.5);
 
-        return new M8ChanceResult(
-            own.CandidateId,
-            allocation.PossessionProbability,
-            leftAttack,
-            centreAttack,
-            rightAttack,
-            distribution.LeftShare,
-            distribution.CentreShare,
-            distribution.RightShare,
-            distribution.SetPieceShare,
-            structuralChance,
-            own.Tactic,
-            own.CalibrationStatus)
+        return new M8ChanceResult(own.CandidateId, allocation.PossessionProbability, leftAttack, centreAttack, rightAttack, distribution.LeftShare, distribution.CentreShare, distribution.RightShare, distribution.SetPieceShare, structuralChance, own.Tactic, own.CalibrationStatus)
         {
             Allocation = allocation,
             OpponentLeftAttackVsOwnRightDefence = opponentLeftAttack,
             OpponentCentreAttackVsOwnCentreDefence = opponentCentreAttack,
-            OpponentRightAttackVsOwnLeftDefence = opponentRightAttack
+            OpponentRightAttackVsOwnLeftDefence = opponentRightAttack,
+            CreativeEventMultiplier = distribution.CreativeEventMultiplier
         };
     }
 
@@ -80,7 +60,7 @@ public sealed class M8ChanceModel
         return sum <= 0.0 ? 0.5 : Clamp01((left * leftWeight + centre * centreWeight + right * rightWeight) / sum);
     }
 
-    // PDF Eq. 4: SCR = 0.92 * (4A-3)^3.5 / [0.92 * (4A-3)^3.5 + (4D-3)^3.5].
+    // PDF Eq. 4.
     private static double ScoreProbability(double attack, double defence)
     {
         var a = Math.Max(0.0, attack) * 4.0 - 3.0;
@@ -109,9 +89,10 @@ public sealed record M8ChanceResult(
     public double OpponentRightAttackVsOwnLeftDefence { get; init; }
     public double OwnRegularChanceExpected => Allocation.OwnRegularChanceExpected;
     public double OpponentRegularChanceExpected => Allocation.OpponentRegularChanceExpected;
-    public double OpenChancePool => Allocation.OpenChancePool;
+    public int OpenChancePool => Allocation.OpenChancePool;
     public double PressingSuppression => Allocation.PressingSuppression;
     public double TacticConversionRate => Allocation.TacticConversionRate;
     public double LongShotConversionRate => Allocation.LongShotConversionRate;
     public double CounterAttackConversionRate => Allocation.CounterAttackConversionRate;
+    public double CreativeEventMultiplier { get; init; } = 1.0;
 }
