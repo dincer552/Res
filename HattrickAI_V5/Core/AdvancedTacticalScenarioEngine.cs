@@ -4,11 +4,6 @@ using System.Linq;
 
 namespace HattrickAI.V5.Core;
 
-/// <summary>
-/// M7.2: PDF'de tanımlanan taktik mekaniklerini M8'e taşınabilecek açık bir
-/// senaryo sözleşmesine dönüştürür. Buradaki oranlar araştırma modelinden gelir;
-/// gizli oyun girdileri bulunamadığında uydurma rating bonusu uygulanmaz.
-/// </summary>
 public sealed class AdvancedTacticalScenarioEngine
 {
     public const double PdfAiMMin = 0.20;
@@ -29,7 +24,6 @@ public sealed class AdvancedTacticalScenarioEngine
         ArgumentNullException.ThrowIfNull(players); ArgumentNullException.ThrowIfNull(state);
         var outfield = players.Where(p => p.Position != RegionalPosition.Goalkeeper).ToArray();
         if (outfield.Length == 0) return Empty(state, opponentAverageMainSkill);
-
         var totalPassing = outfield.Sum(p => Math.Max(0, p.Passing));
         var totalDefending = outfield.Sum(p => Math.Max(0, p.Defending));
         var totalPlaymaking = outfield.Sum(p => Math.Max(0, p.Playmaking));
@@ -82,8 +76,6 @@ public sealed class AdvancedTacticalScenarioEngine
     {
         if (count <= 0) return 0;
         var p = passing / count; var d = defending / count; var s = scoring / count; var st = stamina / count; var e = experience / count;
-        // CHPP'de gerçek TacticSkill gelmediği sürece bu sadece V5'in 0-10
-        // senaryo ölçeğidir; PDF'nin RT katsayıları doğrudan bu değere bağlanmaz.
         var skill = tactic switch
         {
             AdvancedTactic.AttackMiddle or AdvancedTactic.AttackWings => p,
@@ -145,29 +137,23 @@ public sealed record ChanceDistributionEffect(double LeftShare, double CentreSha
         var centre = M8ChanceAllocationEngine.PaperCentreAttackShare;
         var right = M8ChanceAllocationEngine.PaperRightAttackShare;
         var setPiece = M8ChanceAllocationEngine.PaperDirectFreeKickShare + M8ChanceAllocationEngine.PaperIndirectFreeKickShare + M8ChanceAllocationEngine.PaperPenaltyKickShare;
-
         switch (tactic)
         {
             case AdvancedTactic.AttackMiddle:
-            {
-                var moved = (left + right) * aiM;
-                left -= (left / (left + right)) * moved;
-                right -= (right / (left + right)) * moved;
-                centre += moved;
+                var movedMiddle = (left + right) * aiM;
+                left -= (left / (left + right)) * movedMiddle;
+                right -= (right / (left + right)) * movedMiddle;
+                centre += movedMiddle;
                 break;
-            }
             case AdvancedTactic.AttackWings:
-            {
-                var moved = centre * aoW;
-                centre -= moved;
-                left += moved / 2.0;
-                right += moved / 2.0;
+                var movedWings = centre * aoW;
+                centre -= movedWings;
+                left += movedWings / 2.0;
+                right += movedWings / 2.0;
                 break;
-            }
         }
-
         var sum = left + centre + right + setPiece;
-        var result = new ChanceDistributionEffect(left / sum, centre / sum, right / sum, setPiece / sum,
+        return new ChanceDistributionEffect(left / sum, centre / sum, right / sum, setPiece / sum,
             "PDF Eq3 base + tactic migration; CA/LS/PR event conversion kept as separate mechanisms.")
         {
             AiMWingToCentreRate = tactic == AdvancedTactic.AttackMiddle ? aiM : 0.0,
@@ -178,15 +164,10 @@ public sealed record ChanceDistributionEffect(double LeftShare, double CentreSha
             CounterAttackEligible = tactic == AdvancedTactic.CounterAttack,
             CreativeEventMultiplier = tactic == AdvancedTactic.Creative ? PcMultiplier(strength) : 1.0
         };
-        return result;
     }
 
     private static double Range(double min, double max, double level) => min + ((max - min) * Math.Clamp(level, 0.0, 10.0) / 10.0);
-    private static double PcMultiplier(double level)
-    {
-        // PDF: PC team 2.37x -> 3.8x; exact level relation uncertain.
-        return 2.37 + ((3.80 - 2.37) * Math.Clamp(level, 0.0, 10.0) / 10.0);
-    }
+    private static double PcMultiplier(double level) => 2.37 + ((3.80 - 2.37) * Math.Clamp(level, 0.0, 10.0) / 10.0);
 }
 
 public sealed record TacticalPressureProfile(double TotalDefending, double TotalStamina, double TacticalLevel)
@@ -197,7 +178,7 @@ public sealed record TacticalPressureProfile(double TotalDefending, double Total
 public sealed record CounterAttackProfile(double TotalDefending, double TotalPassing, double TacticalLevel)
 {
     public double RelativeCounterInput => Math.Max(0, TotalDefending + (2.0 * TotalPassing));
-    public double ConversionRate => M8ChanceAllocationEngine.CounterAttackMinConversion + (M8ChanceAllocationEngine.CounterAttackMaxConversionRate - M8ChanceAllocationEngine.CounterAttackMinConversion) * Math.Clamp(TacticalLevel, 0, 10) / 10.0;
+    public double ConversionRate => M8ChanceAllocationEngine.CounterAttackMinConversion + (M8ChanceAllocationEngine.CounterAttackMaxConversion - M8ChanceAllocationEngine.CounterAttackMinConversion) * Math.Clamp(TacticalLevel, 0, 10) / 10.0;
 }
 public sealed record LongShotsProfile(double TotalScoring, double TotalPassing, double TacticalLevel)
 {
