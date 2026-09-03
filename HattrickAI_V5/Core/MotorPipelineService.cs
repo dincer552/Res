@@ -58,7 +58,7 @@ public sealed class MotorPipelineService
                 {
                     token.ThrowIfCancellationRequested();
                     var evaluation = Evaluate(lineup, runId, context.RatingContext.Attitude, false);
-                    var prediction = _m9.Predict(evaluation.Tactical, evaluation.Chance, context.Opponent.Rating, context.RatingContext.MatchLocation, players);
+                    var prediction = _m9.Predict(evaluation.Tactical, evaluation.Chance, context.Opponent.Rating, context.RatingContext.MatchLocation, players, context.Opponent.LastMatchLineup, context.Opponent.Players);
                     cache[Signature(lineup)] = evaluation;
                     var source = m5.FirstOrDefault(x => Signature(x.Lineup) == Signature(lineup));
                     var rankingScore = (0.70 * evaluation.Tactical.TacticalScore) + (0.30 * prediction.Prediction.WinProbability);
@@ -126,7 +126,7 @@ public sealed class MotorPipelineService
                 {
                     token.ThrowIfCancellationRequested();
                     var evaluation = Evaluate(lineup, runId, context.RatingContext.Attitude, false);
-                    var prediction = _m9.Predict(evaluation.Tactical, evaluation.Chance, context.Opponent.Rating, context.RatingContext.MatchLocation, players);
+                    var prediction = _m9.Predict(evaluation.Tactical, evaluation.Chance, context.Opponent.Rating, context.RatingContext.MatchLocation, players, context.Opponent.LastMatchLineup, context.Opponent.Players);
                     cache["B:" + Signature(lineup)] = evaluation;
                     var rankingScore = (0.70 * evaluation.Tactical.TacticalScore) + (0.30 * prediction.Prediction.WinProbability);
                     databases.SecondPass.Add(new CandidateEvaluationRecord(Signature(lineup), lineup.Formation, lineup, 0, 0, evaluation.Tactical.TacticalScore, evaluation.Scenario.Rating, evaluation.Advanced, evaluation.Chance, prediction.Prediction, rankingScore, "M6-B"));
@@ -174,7 +174,11 @@ public sealed class MotorPipelineService
                 ComputeM9OwnAttackQuality(selectedEval.Tactical.Rating, context.Opponent.Rating, selectedEval.Chance), ComputeM9OpponentAttackQuality(selectedEval.Tactical.Rating, context.Opponent.Rating, selectedEval.Chance),
                 ComputeM9OwnLeft(selectedEval.Tactical.Rating, context.Opponent.Rating), ComputeM9OwnCentre(selectedEval.Tactical.Rating, context.Opponent.Rating), ComputeM9OwnRight(selectedEval.Tactical.Rating, context.Opponent.Rating),
                 ComputeM9OpponentLeft(selectedEval.Tactical.Rating, context.Opponent.Rating), ComputeM9OpponentCentre(selectedEval.Tactical.Rating, context.Opponent.Rating), ComputeM9OpponentRight(selectedEval.Tactical.Rating, context.Opponent.Rating),
-                context.RatingContext.MatchLocation, M9CalibrationStatus.StructuralModelAwaitingHistoricalCalibration);
+                context.RatingContext.MatchLocation, M9CalibrationStatus.StructuralModelAwaitingHistoricalCalibration)
+            {
+                EventGoals = selectedM9.EventGoals,
+                OpponentEventGoals = selectedM9ResultOpponentEvents(selectedM9)
+            };
 
             return new MotorPipelineResult(m3, m4, m5, m6, selectedEval.Scenario, selectedEval.Advanced, selectedEval.Chance, selectedM9Result, m10, m11.BestPlan, m11.Prediction)
             {
@@ -198,8 +202,6 @@ public sealed class MotorPipelineService
         CandidateEvaluation Evaluate(Lineup lineup, string? currentRunId, TeamAttitude attitude, bool logStages)
         {
             var signature = Signature(lineup);
-            // The selected tactic now comes from the canonical RatingContext. This keeps
-            // M7 -> M7.2 -> M8 consistent instead of silently forcing Normal.
             var tactic = context.RatingContext.Tactic;
             var state = new MatchState(signature, lineup.Formation, signature, signature, context.RatingContext.MatchLocation, attitude, tactic, TeamSpiritValue(context.Questionnaire.TeamSpirit), context.Questionnaire.Coach);
             var stageWatch = Stopwatch.StartNew();
@@ -231,6 +233,8 @@ public sealed class MotorPipelineService
             }
         }
     }
+
+    private static M9EventGoalBreakdown selectedM9ResultOpponentEvents(M9PredictionResult result) => result.OpponentEventGoals;
 
     private static IReadOnlyDictionary<string, M6FormationSearchBudget> BuildM6BFormationBudgets(
         IReadOnlyList<M10FormationCompetition> competition,
