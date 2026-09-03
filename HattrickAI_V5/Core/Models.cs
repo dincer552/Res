@@ -58,3 +58,16 @@ public sealed record Analysis(string Build,string TeamName,string OpponentName,s
     public M10DecisionResult? M10Decision { get; init; }
     [JsonIgnore] public MotorPipelineResult? MotorPipeline { get; init; }
 }
+
+public static class MatchPredictionDiagnosticsExtensions
+{
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<MatchPrediction, Holder> Holders = new();
+    public static M9EventGoalBreakdown GetOpponentEventGoals(this MatchPrediction prediction)
+        => Holders.TryGetValue(prediction, out var holder) ? holder.Value : M9EventGoalBreakdown.Empty;
+    public static void SetOpponentEventGoals(this MatchPrediction prediction, M9EventGoalBreakdown value)
+    {
+        Holders.Remove(prediction);
+        Holders.Add(prediction, new Holder(value));
+    }
+    private sealed record Holder(M9EventGoalBreakdown Value);
+}
