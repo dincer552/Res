@@ -1,14 +1,45 @@
 using System;
 namespace HattrickAI.V5.Core;
 
+/// <summary>
+/// M8: M7 rating + M7.2 PDF tactical scenario -> chance allocation -> sector scoring probability.
+/// M8 no longer recomputes a competing tactical distribution; M7.2 is its tactical source of truth.
+/// </summary>
 public sealed class M8ChanceModel
 {
     public M8ChanceResult Calculate(M8TacticalMatchupInput own, RegionalRatingSnapshot opponent)
     {
         ArgumentNullException.ThrowIfNull(own); ArgumentNullException.ThrowIfNull(opponent);
 
-        var allocation = M8ChanceAllocationEngine.Calculate(own.OwnRating.Midfield, opponent.Midfield, own.Tactic, own.TacticalLevel.Value);
-        var sectorShares = M8ChanceAllocationEngine.CalculateSectorShares(own.Tactic, own.TacticalLevel.Value);
+        var allocation = M8ChanceAllocationEngine.Calculate(
+            own.OwnRating.Midfield,
+            opponent.Midfield,
+            own.Tactic,
+            own.TacticalLevel.Value);
+
+        // M7.2 owns the tactical distribution. Keep M8's possession/volume calculation,
+        // but consume the already-resolved PDF Eq3/tactic shares instead of rebuilding them.
+        var distribution = own.ChanceDistribution;
+        allocation = allocation with
+        {
+            TacticConversionRate = own.Tactic switch
+            {
+                AdvancedTactic.AttackMiddle => distribution.AiMWingToCentreRate,
+                AdvancedTactic.AttackWings => distribution.AoWCentreToWingRate,
+                AdvancedTactic.LongShots => distribution.LongShotConversionRate,
+                AdvancedTactic.Pressing => distribution.PressingSuppressionRate,
+                AdvancedTactic.CounterAttack => distribution.CounterAttackConversionRate,
+                _ => 0.0
+            },
+            LongShotConversionRate = distribution.LongShotConversionRate,
+            CounterAttackConversionRate = distribution.CounterAttackConversionRate,
+            CounterAttackEligible = own.Tactic == AdvancedTactic.CounterAttack && own.OwnRating.Midfield < opponent.Midfield,
+            SectorLeftShare = distribution.LeftShare,
+            SectorCentreShare = distribution.CentreShare,
+            SectorRightShare = distribution.RightShare,
+            SectorSetPieceShare = distribution.SetPieceShare,
+            PressingSuppression = distribution.PressingSuppressionRate
+        };
 
         var leftAttack = ScoreProbability(own.OwnRating.LeftAttack, opponent.RightDefence);
         var centreAttack = ScoreProbability(own.OwnRating.CentralAttack, opponent.CentralDefence);
@@ -17,13 +48,24 @@ public sealed class M8ChanceModel
         var opponentCentreAttack = ScoreProbability(opponent.CentralAttack, own.OwnRating.CentralDefence);
         var opponentRightAttack = ScoreProbability(opponent.RightAttack, own.OwnRating.LeftDefence);
 
-        var ownRegularQuality = WeightedRegularQuality(leftAttack, centreAttack, rightAttack, sectorShares.Left, sectorShares.Centre, sectorShares.Right);
-        var opponentRegularQuality = WeightedRegularQuality(opponentLeftAttack, opponentCentreAttack, opponentRightAttack, sectorShares.Left, sectorShares.Centre, sectorShares.Right);
+        var ownRegularQuality = WeightedRegularQuality(leftAttack, centreAttack, rightAttack, distribution.LeftShare, distribution.CentreShare, distribution.RightShare);
+        var opponentRegularQuality = WeightedRegularQuality(opponentLeftAttack, opponentCentreAttack, opponentRightAttack, distribution.LeftShare, distribution.CentreShare, distribution.RightShare);
         var ownRegularOwnership = allocation.OwnRegularChanceExpected / Math.Max(1e-9, allocation.OwnRegularChanceExpected + allocation.OpponentRegularChanceExpected);
-        var structuralChance = Clamp01(ownRegularOwnership * ownRegularQuality + sectorShares.SetPiece * 0.5);
+        var structuralChance = Clamp01(ownRegularOwnership * ownRegularQuality + distribution.SetPieceShare * 0.5);
 
-        return new M8ChanceResult(own.CandidateId, allocation.PossessionProbability, leftAttack, centreAttack, rightAttack,
-            sectorShares.Left, sectorShares.Centre, sectorShares.Right, sectorShares.SetPiece, structuralChance, own.Tactic, own.CalibrationStatus)
+        return new M8ChanceResult(
+            own.CandidateId,
+            allocation.PossessionProbability,
+            leftAttack,
+            centreAttack,
+            rightAttack,
+            distribution.LeftShare,
+            distribution.CentreShare,
+            distribution.RightShare,
+            distribution.SetPieceShare,
+            structuralChance,
+            own.Tactic,
+            own.CalibrationStatus)
         {
             Allocation = allocation,
             OpponentLeftAttackVsOwnRightDefence = opponentLeftAttack,
@@ -38,7 +80,7 @@ public sealed class M8ChanceModel
         return sum <= 0.0 ? 0.5 : Clamp01((left * leftWeight + centre * centreWeight + right * rightWeight) / sum);
     }
 
-    // PDF Eq. 4.
+    // PDF Eq. 4: SCR = 0.92 * (4A-3)^3.5 / [0.92 * (4A-3)^3.5 + (4D-3)^3.5].
     private static double ScoreProbability(double attack, double defence)
     {
         var a = Math.Max(0.0, attack) * 4.0 - 3.0;
