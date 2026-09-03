@@ -12,7 +12,23 @@ public enum PlayerSpecialty
     Head = 5
 }
 
-public sealed record Player(int Id,string Name,int Keeper,int Defending,int Playmaking,int Passing,int Winger,int Scoring,int Stamina,int Form,int Experience,int Loyalty=0,int InjuryLevel=-1,PlayerSpecialty Specialty=PlayerSpecialty.None);
+public sealed record Player(
+    int Id,
+    string Name,
+    int Keeper,
+    int Defending,
+    int Playmaking,
+    int Passing,
+    int Winger,
+    int Scoring,
+    int Stamina,
+    int Form,
+    int Experience,
+    int Loyalty = 0,
+    int InjuryLevel = -1,
+    PlayerSpecialty Specialty = PlayerSpecialty.None,
+    int SetPiecesSkill = 0);
+
 public sealed record Slot(string Code,string Label,string Description,string? PlayerName,int PlayerId,double Rating,double X,double Y,PlayerOrder Order=PlayerOrder.Normal,double? HistoricalStars=null);
 public sealed record Lineup(string TeamName,string Formation,IReadOnlyList<Slot> Slots)
 {
