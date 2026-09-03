@@ -98,9 +98,7 @@ public sealed class M9EventGoalEngine
 
         var activeWeight = eligiblePlayerEvents.Sum(x => x.Weight);
         var playerMultiplier = SpecialEventMultiplier(tactic, creativeMultiplier);
-        var playerEventBudget = activeWeight > 0
-            ? PlayerEventTrials * PlayerEventProbability * playerMultiplier * PlayerTeamOwnershipFallback
-            : 0.0;
+        var playerEventBudget = activeWeight > 0 ? PlayerEventTrials * PlayerEventProbability * playerMultiplier * PlayerTeamOwnershipFallback : 0.0;
         var playerSpecialGoals = 0.0;
         var ownGoalExpected = 0.0;
         var playerEventRate = 0.0;
@@ -193,7 +191,7 @@ public sealed class M9EventGoalEngine
             string.Join(" ", notes));
     }
 
-    internal static double PnfConversionRate(int pnfCount, int centralDefenders)
+    public static double PnfConversionRate(int pnfCount, int centralDefenders)
     {
         var p = Math.Max(0, pnfCount);
         var cd = Math.Clamp(centralDefenders, 0, 3);
