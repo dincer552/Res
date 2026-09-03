@@ -6,8 +6,8 @@ namespace HattrickAI.V5.Core;
 
 /// <summary>
 /// M10: formation-aware candidate review and deterministic decision layer.
-/// It does not hide search depth; every represented formation receives an
-/// explicit rank, candidate count, depth status and margin versus the next one.
+/// Monte Carlo W/D/L is the prediction input for formation competition; the
+/// structural/tactical score remains the complementary search signal.
 /// </summary>
 public sealed class M10FinalDecisionEngine
 {
@@ -27,7 +27,7 @@ public sealed class M10FinalDecisionEngine
             .Where(IsValid)
             .Select(x => new RankedCandidate(
                 x,
-                CompositeScore(x.TacticalCandidate.TacticalScore, x.Prediction.WinProbability, x.StructuralScore,
+                CompositeScore(x.TacticalCandidate.TacticalScore, MonteCarloWinProbability(x.Prediction), x.StructuralScore,
                     tacticalWeight, predictionWeight, structuralWeight)))
             .OrderByDescending(x => x.CompositeScore)
             .ThenByDescending(x => x.Candidate.TacticalCandidate.TacticalScore)
@@ -59,11 +59,12 @@ public sealed class M10FinalDecisionEngine
                 var margin = index + 1 < formationGroups.Count
                     ? group.Best.CompositeScore - nextScore
                     : 0d;
+                var simulation = group.Best.Candidate.Prediction.Simulation;
                 return new M10FormationCompetition(
                     group.Formation,
                     Signature(group.Best.Candidate.TacticalCandidate.Lineup),
                     group.Best.Candidate.TacticalCandidate.TacticalScore,
-                    group.Best.Candidate.Prediction.WinProbability,
+                    MonteCarloWinProbability(group.Best.Candidate.Prediction),
                     group.Best.CompositeScore,
                     group.Candidates)
                 {
@@ -71,7 +72,10 @@ public sealed class M10FinalDecisionEngine
                     MarginVsNext = margin,
                     SearchDepthStatus = group.Candidates >= RequiredFormationDepth
                         ? M10SearchDepthStatus.Sufficient
-                        : M10SearchDepthStatus.Insufficient
+                        : M10SearchDepthStatus.Insufficient,
+                    MonteCarloDrawProbability = simulation.Outcome.DrawProbability,
+                    MonteCarloLossProbability = simulation.Outcome.LossProbability,
+                    MostLikelyScore = simulation.MostLikelyScore
                 };
             })
             .ToList();
@@ -91,8 +95,13 @@ public sealed class M10FinalDecisionEngine
                 x.Candidate.TacticalCandidate.Lineup.Formation,
                 Signature(x.Candidate.TacticalCandidate.Lineup),
                 x.Candidate.TacticalCandidate.TacticalScore,
-                x.Candidate.Prediction.WinProbability,
-                x.CompositeScore)).ToList(),
+                MonteCarloWinProbability(x.Candidate.Prediction),
+                x.CompositeScore)
+            {
+                MonteCarloDrawProbability = x.Candidate.Prediction.Simulation.Outcome.DrawProbability,
+                MonteCarloLossProbability = x.Candidate.Prediction.Simulation.Outcome.LossProbability,
+                MostLikelyScore = x.Candidate.Prediction.Simulation.MostLikelyScore
+            }).ToList(),
             M10DecisionStatus.SelectedDeterministically)
         {
             FormationCompetition = formationCompetition
@@ -114,7 +123,7 @@ public sealed class M10FinalDecisionEngine
             .Where(IsValidApproach)
             .Select(x => new RankedApproach(
                 x,
-                CompositeScore(x.TacticalCandidate.TacticalScore, x.Prediction.WinProbability, x.StructuralScore,
+                CompositeScore(x.TacticalCandidate.TacticalScore, MonteCarloWinProbability(x.Prediction), x.StructuralScore,
                     tacticalWeight, predictionWeight, structuralWeight)))
             .OrderByDescending(x => x.CompositeScore)
             .ThenBy(x => ApproachOrder(x.Approach.Attitude))
@@ -128,11 +137,14 @@ public sealed class M10FinalDecisionEngine
             winner.Attitude,
             ranked.Select(x => new M10ApproachRanking(
                 x.Approach.Attitude,
-                x.Approach.Prediction.WinProbability,
+                MonteCarloWinProbability(x.Approach.Prediction),
                 x.Approach.StructuralScore,
                 x.Approach.TacticalCandidate.TacticalScore,
                 x.CompositeScore)).ToList());
     }
+
+    private static double MonteCarloWinProbability(MatchPrediction prediction)
+        => Math.Clamp(prediction.Simulation.Outcome.WinProbability, 0.0, 1.0);
 
     private static bool IsValid(M10CandidateEvaluation x)
         => x.TacticalCandidate is not null && x.Prediction is not null && double.IsFinite(x.TacticalCandidate.TacticalScore);
@@ -193,7 +205,12 @@ public sealed record M10RankedCandidate(
     string CandidateId,
     double TacticalScore,
     double WinProbability,
-    double CompositeScore);
+    double CompositeScore)
+{
+    public double MonteCarloDrawProbability { get; init; }
+    public double MonteCarloLossProbability { get; init; }
+    public string MostLikelyScore { get; init; } = "0-0";
+}
 
 public sealed record M10FormationCompetition(
     string Formation,
@@ -206,6 +223,9 @@ public sealed record M10FormationCompetition(
     public int Rank { get; init; }
     public double MarginVsNext { get; init; }
     public M10SearchDepthStatus SearchDepthStatus { get; init; }
+    public double MonteCarloDrawProbability { get; init; }
+    public double MonteCarloLossProbability { get; init; }
+    public string MostLikelyScore { get; init; } = "0-0";
 }
 
 public enum M10SearchDepthStatus
