@@ -21,9 +21,9 @@ M3 → M4 → M5 → M6-A / DB1 → M7 → M7.2 → M8 → M9
                                               ↓
                                             M10
                                               ↓
-                                           M6-B / DB2
+                                  M10 rank-driven M6-B
                                               ↓
-                                            M11
+                                           DB2 → M11
                                               ↓
                                             WEB
 ```
@@ -42,7 +42,7 @@ M3 → M4 → M5 → M6-A / DB1 → M7 → M7.2 → M8 → M9
 | M9 | 🔧 | Event→Goal, PNF, PDIM, CA/LS ve Appendix C utilities mevcut; opponent/hidden inputs ve historical calibration eksik |
 | Monte Carlo | 🔧 | 18×5 dk + 5 senaryo + 1000 maç + deterministic seed; offline regression geçti |
 | M10 | ✅ | Formation competition + MC W/D/L composite ranking; full offline regression geçti |
-| M6-B | 🔧 | Formation-aware refinement çalışıyor; M10 rank → budget bağlantısı güçlendirilecek |
+| M6-B | ✅ | M10 formation rank → tiered beam/iteration budget doğrudan pipeline'a bağlandı; DB2 depth/diversity korunuyor |
 | DB2 | ✅ | Formation diversity/depth korunuyor |
 | M11 | ✅ | Offline full-pipeline regression'da tüm legal formasyonlarla final comparison geçti |
 | UI / Motor Panel | ✅ | M9 event breakdown + MC + scenario görünümü mevcut |
@@ -66,19 +66,21 @@ M3 → M4 → M5 → M6-A / DB1 → M7 → M7.2 → M8 → M9
 - [x] M10 `RankedCandidate` compile blocker düzeltildi.
 - [x] M10 full offline formation leaderboard validation geçti.
 - [x] M11 full offline end-to-end final comparison geçti.
+- [x] M10 formation rank → M6-B beam/iteration budget entegrasyonu pipeline'a bağlandı.
+- [x] M6-B seed sırası M10 formation rank'a göre düzenlendi.
+- [x] M6-B her formation için minimum pozitif refinement bütçesini koruyor.
 - [x] UI M9 / MC paneli güncellendi.
 - [x] UI nested/full prediction sonucunu tercih edecek şekilde düzeltildi.
-- [x] CI offline regression ve Docker build başarıyla geçti; deploy zinciri doğrulaması devam ediyor.
+- [x] Offline regression ve Docker build son workflow'da başarıyla geçti.
 
 ### SIRADAKİ İŞLER — SIRA BOZULMADAN
 
-- [ ] Full CI green + Azure deployment checkpoint
+- [ ] Full CI + Azure deployment green checkpoint
 - [ ] M9 opponent Specialty event wiring
 - [ ] Long Shot scoring graph historical calibration
 - [ ] Set-piece taker hidden-skill input
 - [ ] Specialty ↔ weather / tactic cross-effects
 - [ ] V5 tactic level → paper RT exact mapping
-- [ ] M6-B M10 rank → refinement budget entegrasyonu
 - [ ] Historical event + real-match validation
 - [ ] Final WEB release
 
@@ -86,19 +88,19 @@ M3 → M4 → M5 → M6-A / DB1 → M7 → M7.2 → M8 → M9
 
 ## CI CHECKPOINT
 
-Son workflow:
+Son doğrulanmış offline sonuç:
 
 ```text
-Workflow: HattrickAI V5 Deploy #472
-Run: 33787883833
-Head: 4beef3b406d038db7ce66e0590be600839ea9201
-
 M7-M8 Offline Regression: PASS
+M10 formation leaderboard regression: PASS
+M11 final comparison regression: PASS
+M9 1000× Monte Carlo regression: PASS
 Docker Build: PASS
-Current: deploy pipeline continues
 ```
 
-Daha önceki compile blocker:
+Yeni M10→M6-B entegrasyon commit'i sonrası workflow yeniden tetiklendi. Full Azure deploy sonucu tamamlanmadan `CI ✅` ilan edilmiyor.
+
+Önceki compile blocker:
 
 ```text
 70265c056ec6a769658858e011d8a579465304d3
@@ -111,8 +113,6 @@ Düzeltme:
 ```text
 431cfcdc5c58ac4666f9d7160cd1ce7b27ea3dd7
 ```
-
-Bu checkpoint'te offline regression artık yeşil. Full CI, image upload ve Azure health/deploy sonucu tamamlanmadan `CI ✅` ilan edilmiyor.
 
 ---
 
@@ -192,25 +192,23 @@ Final score
 1000-match W/D/L distribution
 ```
 
-Offline regression ile şu acceptance kriterleri geçti:
+Offline regression ile:
 
 ```text
 1000 simulations
 W/D/L sum = 1
 score distribution mevcut
 most likely score mevcut
-5 scenario mevcut
+5 scenarios mevcut
 scenario total = 1000
 deterministic repeat mevcut
 ```
 
-M9 event contribution wrapper fallback'i de regression zincirinde çalışıyor.
+M9 event contribution wrapper fallback'i regression zincirinde çalışıyor.
 
 ---
 
 ## M10 — FORMATION COMPETITION
-
-M10 ranking:
 
 ```text
 normalized Tactical score
@@ -224,33 +222,33 @@ Formation leaderboard
 
 Offline regression her legal formasyonun leaderboard'da bulunmasını, depth status'unu ve finite composite score'u doğruluyor.
 
-**M10 acceptance geçti.** Bundan sonraki teknik iş M6-B arama bütçesinin M10 rank'ına doğrudan bağlanmasıdır.
+**M10 acceptance geçti.**
 
 ---
 
-## M6-B — REFINEMENT
+## M6-B — M10 RANK-DRIVEN REFINEMENT
 
-Mevcut M6 engine formation bazlı search pass ve `M6FormationSearchBudget` destekliyor. `preserveInputOrders=true` ile DB1 seed'leri korunuyor ve rank tabanlı tier mantığı mevcut.
-
-Son entegrasyon hedefi:
+Artık M10 sonucu yalnızca gösterim amaçlı değil; doğrudan M6-B arama bütçesine giriyor:
 
 ```text
-M10 formation rank
-      ↓
-rank tier / search budget
-      ↓
-M6-B beam width + iteration
-      ↓
+M10 rank
+   ↓
+Tier 1: rank üst üçte → daha geniş beam + daha fazla iteration
+Tier 2: orta üçte     → orta bütçe
+Tier 3: alt üçte      → daha küçük ama sıfır olmayan bütçe
+   ↓
+M6-B formation search
+   ↓
 DB2
 ```
 
-Güçlü formasyon daha fazla refinement bütçesi almalı; zayıf formasyon minimum keşif bütçesini korumalıdır. Legal formasyon tamamen silinmemelidir.
+Ayrıca M6-B seed'leri M10 rank sırasına göre düzenleniyor. Böylece güçlü formasyonların refinement bütçesi gerçekten daha yüksek; zayıf formasyonlar ise anti-lock nedeniyle tamamen silinmiyor.
+
+**M10 → M6-B entegrasyonu kodlandı.** Kalan acceptance, yeni workflow'un green olması ve gerçek fixture üzerinde deterministic davranışın korunmasıdır.
 
 ---
 
 ## M11 — FINAL SELECTOR
-
-M11 scoring:
 
 ```text
 35% tactical
@@ -307,33 +305,14 @@ Scenario distribution
 ## BURADAN İTİBAREN UYGULAMA SIRASI
 
 ```text
-1. Full CI + Azure deployment checkpoint       ← ŞİMDİ
+1. Full CI + Azure deployment green checkpoint    ← ŞİMDİ
 2. M9 opponent Specialty event wiring
 3. Historical event + LS calibration
-4. M6-B M10-rank-driven refinement budget
-5. M11 production/real-match regression
-6. CHPP / real-match validation
-7. Final WEB release
+4. Set-piece taker hidden-skill integration
+5. Specialty ↔ weather/tactic cross-effects
+6. Exact V5 tactic-level → paper RT mapping
+7. CHPP / real-match validation
+8. Final WEB release
 ```
 
-Not: M10 ve M11 offline acceptance geçti; bu yüzden artık tekrar aynı regression kodunu yazmak yerine kalan production/data entegrasyonlarına geçiyoruz.
-
----
-
-## CALIBRATION KURALI
-
-```text
-Verified mechanism
-      ↓
-production baseline
-      +
-CHPP historical data
-      ↓
-residual/error analysis
-      ↓
-confidence test
-      ↓
-production adjustment
-```
-
-Tek maç veya küçük örneklem sonucu doğrudan production katsayısına çevrilmez.
+Her gerçek kod değişikliğinden sonra README güncellenecek. Bir motor yalnızca kodu mevcut diye `✅` yapılmayacak; regression / integration acceptance da geçilecek.
