@@ -72,7 +72,7 @@ FAZ E  PDF sector baseline + 60-match validation       ✅
 FAZ F  AiM / AoW migration + M7.2 handoff             ✅
 FAZ G  Pressing suppression                            ✅
 FAZ H  Counter Attack opportunity engine               ✅
-FAZ I  Long Shots opportunity engine                   🔧 NEXT
+FAZ I  Long Shots opportunity engine                   ✅
 FAZ J  Play Creatively event-volume layer              ✅
 FAZ K  Specialty event engine                          🔧 started
 FAZ L  Specialty ↔ tactic / weather                    🔜
@@ -86,17 +86,18 @@ FAZ P  Offline regression + real-match validation       🔜
 
 03.09.2026 tarihinde M7.2/M8 compile regression kırmızıydı. Sorun, `AdvancedTacticalScenarioEngine` içindeki PDF alias sabitlerinin scope problemiydi. `PdfTacticalAliases` + global import ile düzeltildi.
 
-Son temiz CI:
+Long Shots Faz I regression gate eklendi ve son CI başarıyla tamamlandı:
 
 ```text
-M8 opportunity-volume stabilization
-Commit: e9234d1eed41a135195129a90f998beaac5c1a6d
+Commit: a66d03053f9e56f631b5be4e06521dc672afc69f
+Workflow: HattrickAI V5 Deploy #423
 M7 → M7.1 → M7.2 → M8 offline regression: PASS
+FAZ I Long Shots opportunity regression: PASS
 Build Docker image: PASS
 Deploy on Azure VM: PASS
 ```
 
-Bu checkpoint'ten sonra sonraki faz production'a geçirilir.
+FAZ I kapsamında production'da LS fırsat hacmi açıkça `LMR × tactic conversion` olarak korunuyor; paper aralığı `%6–43`. Long-shot'ın gole dönüşüm olasılığı ayrı M9 işi olarak bırakıldı; paper bunu kapalı formül değil grafik/Beta çıktısı olarak tanımladığı için sahte denklem eklenmedi.
 
 ## M3 — OYUNCU PROFİLİ
 
