@@ -45,6 +45,9 @@ public sealed class M9SimulationEngine
         var rng = new Random(seed);
         var database = new M9SimulationDatabase(simulationCount);
         var scenarioResults = Scenarios.ToDictionary(x => x.Name, x => new M9ScenarioSummary(x.Name), StringComparer.Ordinal);
+        var events = basePrediction.EventGoals.Contributions.Count > 0
+            ? basePrediction.EventGoals
+            : basePrediction.Prediction.EventGoals;
 
         for (var i = 0; i < simulationCount; i++)
         {
@@ -53,8 +56,8 @@ public sealed class M9SimulationEngine
             var ownExpected = Math.Clamp(basePrediction.Prediction.ExpectedHomeGoals * scenario.ChanceVolumeFactor * homeFactor, 0.05, 5.0);
             var opponentExpected = Math.Clamp(basePrediction.Prediction.ExpectedAwayGoals * scenario.OpponentFactor, 0.05, 5.0);
 
-            var ownEventGoalMean = Math.Max(0.0, basePrediction.EventGoals.NetSpecialEventGoalContribution * scenario.ChanceVolumeFactor);
-            var opponentEventGoalMean = Math.Max(0.0, basePrediction.EventGoals.ExpectedGoalsConcededFromOwnGoalEvents * scenario.OpponentFactor);
+            var ownEventGoalMean = Math.Max(0.0, events.NetSpecialEventGoalContribution * scenario.ChanceVolumeFactor);
+            var opponentEventGoalMean = Math.Max(0.0, events.ExpectedGoalsConcededFromOwnGoalEvents * scenario.OpponentFactor);
             var ownNormalMean = Math.Max(0.0, ownExpected - ownEventGoalMean);
             var opponentNormalMean = Math.Max(0.0, opponentExpected - opponentEventGoalMean);
 
@@ -64,7 +67,7 @@ public sealed class M9SimulationEngine
             {
                 ownGoals += SamplePoisson(rng, ownNormalMean / MatchTicks);
                 opponentGoals += SamplePoisson(rng, opponentNormalMean / MatchTicks);
-                ownGoals += SampleEventGoalsForTick(rng, basePrediction.EventGoals, scenario.ChanceVolumeFactor);
+                ownGoals += SampleEventGoalsForTick(rng, events, scenario.ChanceVolumeFactor);
                 opponentGoals += SampleOpponentEventGoalsForTick(rng, opponentEventGoalMean);
             }
 
