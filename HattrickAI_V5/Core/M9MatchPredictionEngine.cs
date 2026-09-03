@@ -35,11 +35,11 @@ public sealed class M9MatchPredictionEngine
         var opponentChanceShare = Clamp01(chance.OpponentRegularChanceExpected / totalRegularChances);
 
         // M8 owns tactical opportunity volumes. Long Shots are removed from the
-        // normal LMR bucket here exactly once; the LS goal conversion is deferred
-        // until Phase 5 because the paper publishes it as a plotted relationship.
+        // normal LMR bucket here exactly once; LS goal conversion remains pending
+        // because the paper publishes it as a plotted relationship rather than a
+        // closed-form equation.
         var ownNormalChanceVolume = chance.NormalRegularChanceExpectedAfterLongShots;
         var ownNormalGoals = ownNormalChanceVolume * ownRegularQuality;
-        var opponentNormalGoals = chance.OpponentRegularChanceExpected * opponentRegularQuality;
 
         // M8 owns CA opportunity generation. M9 resolves the resulting opportunity
         // against the sector quality instead of regenerating the CA volume.
@@ -51,9 +51,23 @@ public sealed class M9MatchPredictionEngine
         var opponentSetPieceGoals = opponentSetPieceExpected * SetPieceNeutralConversion;
 
         var events = players is not null && players.Count > 0
-            ? new M9EventGoalEngine().Calculate(candidate.Lineup, players, candidate.Rating.Midfield, opponent.Midfield, chance.Tactic, chance.CreativeEventMultiplier)
+            ? new M9EventGoalEngine().Calculate(
+                candidate.Lineup,
+                players,
+                candidate.Rating.Midfield,
+                opponent.Midfield,
+                chance.Tactic,
+                chance.CreativeEventMultiplier,
+                ownNormalChanceVolume,
+                chance.OpponentRegularChanceExpected,
+                opponentRegularQuality,
+                opponentCentralDefenders: 3)
             : M9EventGoalBreakdown.Empty;
 
+        // PDIM suppresses opponent Normal opportunities. PNF extra attacks are
+        // already represented in EventGoals.PowerfulNormalForwardGoals.
+        var opponentNormalVolumeAfterPdim = chance.OpponentRegularChanceExpected * (1.0 - events.PressingSuppressionSignal);
+        var opponentNormalGoals = opponentNormalVolumeAfterPdim * opponentRegularQuality;
         var ownSpecialGoals = events.PlayerBasedSpecialEventGoals + events.TeamBasedSpecialEventGoals + events.CounterAttackGoals + events.LongShotGoals + events.PowerfulNormalForwardGoals;
         var opponentSpecialGoals = events.ExpectedGoalsConcededFromOwnGoalEvents;
         var ownExpected = ClampGoals(ownNormalGoals + counterAttackGoals + ownSetPieceGoals + ownSpecialGoals);
