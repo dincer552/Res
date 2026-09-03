@@ -34,15 +34,8 @@ public sealed class M9MatchPredictionEngine
         var ownChanceShare = Clamp01(chance.OwnRegularChanceExpected / totalRegularChances);
         var opponentChanceShare = Clamp01(chance.OpponentRegularChanceExpected / totalRegularChances);
 
-        // M8 owns tactical opportunity volumes. Long Shots are removed from the
-        // normal LMR bucket here exactly once; LS goal conversion remains pending
-        // because the paper publishes it as a plotted relationship rather than a
-        // closed-form equation.
         var ownNormalChanceVolume = chance.NormalRegularChanceExpectedAfterLongShots;
         var ownNormalGoals = ownNormalChanceVolume * ownRegularQuality;
-
-        // M8 owns CA opportunity generation. M9 resolves the resulting opportunity
-        // against the sector quality instead of regenerating the CA volume.
         var counterAttackGoals = chance.CounterAttackChanceExpected * ownRegularQuality;
 
         var ownSetPieceExpected = 10.0 * PaperSetPieceShare * ownChanceShare;
@@ -60,12 +53,12 @@ public sealed class M9MatchPredictionEngine
                 chance.CreativeEventMultiplier,
                 ownNormalChanceVolume,
                 chance.OpponentRegularChanceExpected,
+                ownRegularQuality,
                 opponentRegularQuality,
                 opponentCentralDefenders: 3)
             : M9EventGoalBreakdown.Empty;
 
-        // PDIM suppresses opponent Normal opportunities. PNF extra attacks are
-        // already represented in EventGoals.PowerfulNormalForwardGoals.
+        // PDIM suppression is applied once to the opponent Normal volume.
         var opponentNormalVolumeAfterPdim = chance.OpponentRegularChanceExpected * (1.0 - events.PressingSuppressionSignal);
         var opponentNormalGoals = opponentNormalVolumeAfterPdim * opponentRegularQuality;
         var ownSpecialGoals = events.PlayerBasedSpecialEventGoals + events.TeamBasedSpecialEventGoals + events.CounterAttackGoals + events.LongShotGoals + events.PowerfulNormalForwardGoals;
