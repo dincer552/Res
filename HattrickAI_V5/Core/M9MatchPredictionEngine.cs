@@ -166,9 +166,21 @@ public sealed record M9PredictionResult(
     double OpponentLeftAttackVsOwnRightDefence, double OpponentCentreAttackVsOwnCentreDefence, double OpponentRightAttackVsOwnLeftDefence,
     MatchLocation Location, M9CalibrationStatus CalibrationStatus)
 {
+    private M9EventGoalBreakdown _eventGoals = M9EventGoalBreakdown.Empty;
     private M9SimulationResult? _simulation;
+
+    /// <summary>
+    /// Keep event contributions canonical even when M9PredictionResult is rebuilt
+    /// by a downstream pipeline wrapper. The nested MatchPrediction carries the
+    /// authoritative event breakdown in that case.
+    /// </summary>
+    public M9EventGoalBreakdown EventGoals
+    {
+        get => _eventGoals.Contributions.Count > 0 ? _eventGoals : Prediction.EventGoals;
+        init => _eventGoals = value;
+    }
+
     public M9SimulationResult Simulation => _simulation ??= new M9SimulationEngine().Simulate(this);
-    public M9EventGoalBreakdown EventGoals { get; init; } = M9EventGoalBreakdown.Empty;
     public string PredictedResult => Prediction.WinProbability >= Prediction.LossProbability ? (Prediction.WinProbability >= Prediction.DrawProbability ? "Galibiyet" : "Beraberlik") : (Prediction.LossProbability >= Prediction.DrawProbability ? "Rakip Galibiyeti" : "Beraberlik");
     public string MostLikelyScore
     {
