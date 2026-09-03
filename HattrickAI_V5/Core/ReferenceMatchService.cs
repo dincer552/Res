@@ -14,6 +14,8 @@ public sealed class ReferenceMatchService
         var teamNode = XmlV5.Root(teamXml)?.Descendants("Team").FirstOrDefault();
         var teamId = XmlV5.Int(teamNode, "TeamID");
         if (teamId <= 0) throw new InvalidOperationException("Kullanıcı takım bilgisi alınamadı.");
+        var ownLogoUrl = XmlV5.Text(teamNode?.Descendants("LogoURL").FirstOrDefault(), "LogoURL");
+        if (string.IsNullOrWhiteSpace(ownLogoUrl)) ownLogoUrl = teamNode?.Descendants("LogoURL").FirstOrDefault()?.Value?.Trim() ?? string.Empty;
 
         var ownMatches = await ReadMatches(teamId, ct);
         var now = DateTimeOffset.UtcNow;
@@ -32,9 +34,23 @@ public sealed class ReferenceMatchService
                 matchTypeName = m.MatchTypeName,
                 isHome = m.HomeTeamId == teamId,
                 opponentTeam = m.HomeTeamId == teamId ? m.AwayTeam : m.HomeTeam,
-                opponentTeamId = m.HomeTeamId == teamId ? m.AwayTeamId : m.HomeTeamId
+                opponentTeamId = m.HomeTeamId == teamId ? m.AwayTeamId : m.HomeTeamId,
+                opponentLogoUrl = string.Empty
             })
             .ToList();
+
+        var logoCache = new Dictionary<int,string>();
+        foreach (var match in upcomingLeague)
+        {
+            if (!logoCache.ContainsKey(match.opponentTeamId))
+                logoCache[match.opponentTeamId] = await ReadLogoUrl(match.opponentTeamId, ct);
+        }
+        var upcomingWithLogos = upcomingLeague.Select(m => new
+        {
+            m.matchId, m.date, m.homeTeam, m.homeTeamId, m.awayTeam, m.awayTeamId, m.matchType, m.matchTypeName,
+            m.isHome, m.opponentTeam, m.opponentTeamId,
+            opponentLogoUrl = logoCache.GetValueOrDefault(m.opponentTeamId, string.Empty)
+        }).ToList();
 
         var next = ownMatches
             .Where(m => m.Date > now && IsCompetitiveMatchType(m.MatchType))
@@ -67,8 +83,26 @@ public sealed class ReferenceMatchService
             opponentTeam = opponentId == last.HomeTeamId ? last.HomeTeam : last.AwayTeam,
             opponentWasHome = opponentId == last.HomeTeamId,
             finished = last.HomeGoals.HasValue && last.AwayGoals.HasValue,
-            upcomingMatches = upcomingLeague
+            ownLogoUrl,
+            upcomingMatches = upcomingWithLogos,
+            opponentLogoUrl = logoCache.GetValueOrDefault(opponentId, string.Empty)
         };
+    }
+
+    private async Task<string> ReadLogoUrl(int teamId, CancellationToken ct)
+    {
+        if (teamId <= 0) return string.Empty;
+        try
+        {
+            var xml = await _chpp.GetXmlAsync("teamdetails", new Dictionary<string,string?>
+            {
+                ["version"]="3.0",
+                ["teamID"]=teamId.ToString(CultureInfo.InvariantCulture)
+            }, ct);
+            var team = XmlV5.Root(xml)?.Descendants("Team").FirstOrDefault();
+            return team?.Descendants("LogoURL").FirstOrDefault()?.Value?.Trim() ?? string.Empty;
+        }
+        catch { return string.Empty; }
     }
 
     private static bool IsCompetitiveMatchType(int type) => type is 1 or 2 or 7 or 10 or 11;
