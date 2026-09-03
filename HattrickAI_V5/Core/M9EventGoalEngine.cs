@@ -187,9 +187,21 @@ public sealed class M9EventGoalEngine
             teamEventRate,
             technicalCaRate,
             contributions,
-            "PDF Tables 4-5 + Fig.16 + Appendix C; PNF/PDIM enabled, LS scoring and hidden set-piece inputs remain calibration gaps.",
+            "PDF Tables 4-5 + Fig.16 + Appendix C; PNF/PDIM enabled, exact C.1/C.2 utilities exposed; LS goal probability and hidden set-piece inputs remain pending.",
             string.Join(" ", notes));
     }
+
+    /// <summary>Appendix C.1: ISP attack/defence difference -> set-piece goal probability.</summary>
+    public static double SetPieceGoalProbability(double ownIspAttackRating, double opponentIspDefenceRating)
+    {
+        var d = ownIspAttackRating - opponentIspDefenceRating;
+        var probability = -0.0000380429 * d * d * d + 0.0000226846 * d * d + 0.0366246 * d + 0.45515;
+        return Math.Clamp(probability, 0.0, 1.0);
+    }
+
+    /// <summary>Appendix C.2 Long Shot TCR: TCR(RT)=0.00761935*RT+0.07520052.</summary>
+    public static double LongShotTacticConversionRate(double tacticRating)
+        => Math.Clamp(0.00761935 * tacticRating + 0.07520052, 0.0, 1.0);
 
     public static double PnfConversionRate(int pnfCount, int centralDefenders)
     {
