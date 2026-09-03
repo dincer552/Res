@@ -58,7 +58,6 @@ public sealed class M9MatchPredictionEngine
                 opponentCentralDefenders: 3)
             : M9EventGoalBreakdown.Empty;
 
-        // PDIM suppression is applied once to the opponent Normal volume.
         var opponentNormalVolumeAfterPdim = chance.OpponentRegularChanceExpected * (1.0 - events.PressingSuppressionSignal);
         var opponentNormalGoals = opponentNormalVolumeAfterPdim * opponentRegularQuality;
         var ownSpecialGoals = events.PlayerBasedSpecialEventGoals + events.TeamBasedSpecialEventGoals + events.CounterAttackGoals + events.LongShotGoals + events.PowerfulNormalForwardGoals;
@@ -66,7 +65,11 @@ public sealed class M9MatchPredictionEngine
         var ownExpected = ClampGoals(ownNormalGoals + counterAttackGoals + ownSetPieceGoals + ownSpecialGoals);
         var opponentExpected = ClampGoals(opponentNormalGoals + opponentSetPieceGoals + opponentSpecialGoals);
         var probabilities = CalculatePoissonOutcomeProbabilities(ownExpected, opponentExpected);
-        var prediction = new MatchPrediction(chance.MidfieldShare, ownExpected, opponentExpected, probabilities.Win, probabilities.Draw, probabilities.Loss);
+        var prediction = new MatchPrediction(chance.MidfieldShare, ownExpected, opponentExpected, probabilities.Win, probabilities.Draw, probabilities.Loss)
+        {
+            Location = location,
+            EventGoals = events
+        };
         var structuralChance = Clamp01(ownChanceShare * ownRegularQuality + chance.SetPieceChanceShare * SetPieceNeutralConversion);
 
         return new M9PredictionResult(
