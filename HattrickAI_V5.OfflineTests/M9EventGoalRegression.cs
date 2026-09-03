@@ -31,7 +31,7 @@ public static class M9EventGoalRegression
         {
             S("GK", 8), S("DEF-CL", 4), S("DEF-C", 3), S("DEF-CR", 9),
             S("DEF-L", 10), S("DEF-R", 11), S("IM-L", 7), S("IM-C", 2),
-            S("IM-R", 10), S("W-L", 1), S("FW-C", 6)
+            S("W-L", 1), S("W-R", 5), S("FW-C", 6)
         };
 
         var lineup = new Lineup("Regression", "4-3-3", slots);
