@@ -6,7 +6,8 @@ namespace HattrickAI.V5.Core;
 
 /// <summary>
 /// M9: M8 chance allocation -> sector resolution -> documented event layer -> goals -> W/D/L.
-/// Explicit mechanisms are taken from the 2026 Hattrick research paper; hidden inputs remain explicit calibration gaps.
+/// When opponent CHPP lineup + players are available, the same event engine is evaluated
+/// from the opponent perspective so Specialty effects are symmetric instead of one-sided.
 /// </summary>
 public sealed class M9MatchPredictionEngine
 {
@@ -15,7 +16,14 @@ public sealed class M9MatchPredictionEngine
     private const double MaxGoals = 5.0;
     private const int PoissonGoalCutoff = 20;
 
-    public M9PredictionResult Predict(TacticalCandidate candidate, M8ChanceResult chance, RegionalRatingSnapshot opponent, MatchLocation location, IReadOnlyList<Player>? players = null)
+    public M9PredictionResult Predict(
+        TacticalCandidate candidate,
+        M8ChanceResult chance,
+        RegionalRatingSnapshot opponent,
+        MatchLocation location,
+        IReadOnlyList<Player>? players = null,
+        Lineup? opponentLineup = null,
+        IReadOnlyList<Player>? opponentPlayers = null)
     {
         ArgumentNullException.ThrowIfNull(candidate);
         ArgumentNullException.ThrowIfNull(chance);
@@ -35,15 +43,14 @@ public sealed class M9MatchPredictionEngine
         var opponentChanceShare = Clamp01(chance.OpponentRegularChanceExpected / totalRegularChances);
 
         var ownNormalChanceVolume = chance.NormalRegularChanceExpectedAfterLongShots;
-        var ownNormalGoals = ownNormalChanceVolume * ownRegularQuality;
-        var counterAttackGoals = chance.CounterAttackChanceExpected * ownRegularQuality;
+        var ownCounterAttackGoals = chance.CounterAttackChanceExpected * ownRegularQuality;
 
         var ownSetPieceExpected = 10.0 * PaperSetPieceShare * ownChanceShare;
         var opponentSetPieceExpected = 10.0 * PaperSetPieceShare * opponentChanceShare;
         var ownSetPieceGoals = ownSetPieceExpected * SetPieceNeutralConversion;
         var opponentSetPieceGoals = opponentSetPieceExpected * SetPieceNeutralConversion;
 
-        var events = players is not null && players.Count > 0
+        var ownEvents = players is not null && players.Count > 0
             ? new M9EventGoalEngine().Calculate(
                 candidate.Lineup,
                 players,
@@ -58,20 +65,43 @@ public sealed class M9MatchPredictionEngine
                 opponentCentralDefenders: 3)
             : M9EventGoalBreakdown.Empty;
 
-        var opponentNormalVolumeAfterPdim = chance.OpponentRegularChanceExpected * (1.0 - events.PressingSuppressionSignal);
+        var opponentEvents = opponentLineup is not null && opponentPlayers is not null && opponentPlayers.Count > 0
+            ? new M9EventGoalEngine().Calculate(
+                opponentLineup,
+                opponentPlayers,
+                opponent.Midfield,
+                candidate.Rating.Midfield,
+                chance.Tactic,
+                chance.CreativeEventMultiplier,
+                chance.OpponentRegularChanceExpected,
+                ownNormalChanceVolume,
+                opponentRegularQuality,
+                ownRegularQuality,
+                opponentCentralDefenders: 3)
+            : M9EventGoalBreakdown.Empty;
+
+        var ownNormalVolumeAfterPdim = ownNormalChanceVolume * (1.0 - opponentEvents.PressingSuppressionSignal);
+        var opponentNormalVolumeAfterPdim = chance.OpponentRegularChanceExpected * (1.0 - ownEvents.PressingSuppressionSignal);
+        var ownNormalGoals = ownNormalVolumeAfterPdim * ownRegularQuality;
         var opponentNormalGoals = opponentNormalVolumeAfterPdim * opponentRegularQuality;
-        var ownSpecialGoals = events.PlayerBasedSpecialEventGoals + events.TeamBasedSpecialEventGoals + events.CounterAttackGoals + events.LongShotGoals + events.PowerfulNormalForwardGoals;
-        var opponentSpecialGoals = events.ExpectedGoalsConcededFromOwnGoalEvents;
-        var ownExpected = ClampGoals(ownNormalGoals + counterAttackGoals + ownSetPieceGoals + ownSpecialGoals);
+
+        // Own team's event goals plus opponent's Own Goal events.
+        var ownSpecialGoals = ownEvents.PlayerBasedSpecialEventGoals + ownEvents.TeamBasedSpecialEventGoals + ownEvents.CounterAttackGoals + ownEvents.LongShotGoals + ownEvents.PowerfulNormalForwardGoals + opponentEvents.ExpectedGoalsConcededFromOwnGoalEvents;
+        // Opponent's event goals plus our Own Goal events.
+        var opponentSpecialGoals = opponentEvents.PlayerBasedSpecialEventGoals + opponentEvents.TeamBasedSpecialEventGoals + opponentEvents.CounterAttackGoals + opponentEvents.LongShotGoals + opponentEvents.PowerfulNormalForwardGoals + ownEvents.ExpectedGoalsConcededFromOwnGoalEvents;
+
+        var ownExpected = ClampGoals(ownNormalGoals + ownCounterAttackGoals + ownSetPieceGoals + ownSpecialGoals);
         var opponentExpected = ClampGoals(opponentNormalGoals + opponentSetPieceGoals + opponentSpecialGoals);
         var probabilities = CalculatePoissonOutcomeProbabilities(ownExpected, opponentExpected);
         var prediction = new MatchPrediction(chance.MidfieldShare, ownExpected, opponentExpected, probabilities.Win, probabilities.Draw, probabilities.Loss)
         {
             Location = location,
-            EventGoals = events
+            EventGoals = ownEvents
         };
         var structuralChance = Clamp01(ownChanceShare * ownRegularQuality + chance.SetPieceChanceShare * SetPieceNeutralConversion);
 
+        // M9PredictionResult exposes our own event breakdown; opponent event contribution
+        // is retained as diagnostics so UI and regression can inspect both sides.
         return new M9PredictionResult(
             candidate.Lineup.Formation,
             CandidateId(candidate.Lineup),
@@ -90,15 +120,16 @@ public sealed class M9MatchPredictionEngine
             location,
             M9CalibrationStatus.StructuralModelAwaitingHistoricalCalibration)
         {
-            EventGoals = events
+            EventGoals = ownEvents,
+            OpponentEventGoals = opponentEvents
         };
     }
 
     public M9PredictionResult Predict(TacticalCandidate candidate, M8ChanceResult chance, MatchLocation location)
-        => Predict(candidate, chance, InferOpponent(candidate), location, null);
+        => Predict(candidate, chance, InferOpponent(candidate), location, null, null, null);
 
     public M9PredictionResult Predict(TacticalCandidate candidate, M8ChanceResult chance, RegionalRatingSnapshot opponent, MatchLocation location)
-        => Predict(candidate, chance, opponent, location, null);
+        => Predict(candidate, chance, opponent, location, null, null, null);
 
     private static RegionalRatingSnapshot InferOpponent(TacticalCandidate candidate)
     {
@@ -167,17 +198,19 @@ public sealed record M9PredictionResult(
     MatchLocation Location, M9CalibrationStatus CalibrationStatus)
 {
     private M9EventGoalBreakdown _eventGoals = M9EventGoalBreakdown.Empty;
+    private M9EventGoalBreakdown _opponentEventGoals = M9EventGoalBreakdown.Empty;
     private M9SimulationResult? _simulation;
 
-    /// <summary>
-    /// Keep event contributions canonical even when M9PredictionResult is rebuilt
-    /// by a downstream pipeline wrapper. The nested MatchPrediction carries the
-    /// authoritative event breakdown in that case.
-    /// </summary>
     public M9EventGoalBreakdown EventGoals
     {
         get => _eventGoals.Contributions.Count > 0 ? _eventGoals : Prediction.EventGoals;
         init => _eventGoals = value;
+    }
+
+    public M9EventGoalBreakdown OpponentEventGoals
+    {
+        get => _opponentEventGoals;
+        init => _opponentEventGoals = value;
     }
 
     public M9SimulationResult Simulation => _simulation ??= new M9SimulationEngine().Simulate(this);
@@ -210,5 +243,3 @@ public sealed record M9PredictionResult(
         return p;
     }
 }
-
-public enum M9CalibrationStatus { StructuralModelAwaitingHistoricalCalibration, CalibratedAgainstHistoricalMatches }
