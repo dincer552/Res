@@ -28,10 +28,6 @@
     }
     return {title:title,formation:formation,players:players,ratings:ratings};
   }
-  function hasChppData(){
-    var own=readTeam('own'),opp=readTeam('opp');
-    return own.players.length>=11 && opp.players.length>=11 && Object.keys(own.ratings).length>=7 && Object.keys(opp.ratings).length>=7;
-  }
   function textBlock(prefix,opponent){
     var t=readTeam(prefix),labels=['DEF-L','DEF-C','DEF-R','MID','ATT-L','ATT-C','ATT-R'];
     var header=(opponent?'RAKİP ':'')+'HattrickAI V5 KOPYA';
@@ -39,26 +35,8 @@
     var playerLines=t.players.map(function(p){return (p.position?p.position+': ':'')+p.name+' | '+playerLabel+'='+p.rp+' | '+p.order;}).join('\n');
     return [header,'TAKIM: '+(t.title||'—'),'DİZİLİŞ: '+(t.formation||'—'),'','OYUNCULAR:',playerLines,'','OYUNCU TALİMATLARI / DAVRANIŞLAR:',t.players.map(function(p){return (p.position?p.position+': ':'')+p.order;}).join('\n'),'','BÖLGESEL RATING:'].concat(labels.map(function(l){return l+': '+(t.ratings[l]||'—');})).join('\n');
   }
-  async function downloadJson(button){
-    var old=button.textContent;
-    button.disabled=true;button.textContent='CHPP VERİLERİ ALINIYOR…';
-    try{
-      var r=await fetch('/api/v5/offline-export?ts='+Date.now(),{cache:'no-store'});
-      if(r.status===401) throw new Error('CHPP bağlantısı yok. Önce CHPP bağlantısını tamamla.');
-      if(!r.ok){var msg='CHPP offline verisi alınamadı (HTTP '+r.status+').';try{var e=await r.json();if(e&&e.detail)msg=e.detail;}catch(_){ }throw new Error(msg);}
-      var data=await r.json();
-      var blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json;charset=utf-8'}),url=URL.createObjectURL(blob),a=document.createElement('a');
-      a.href=url;a.download='HattrickAI_V5_CHPP_FullOffline_'+new Date().toISOString().replace(/[:.]/g,'-')+'.json';document.body.appendChild(a);a.click();a.remove();
-      setTimeout(function(){URL.revokeObjectURL(url);},1000);
-      button.textContent='JSON HAZIR ✓';button.classList.add('ok');
-      setTimeout(function(){button.textContent=old;button.classList.remove('ok');button.disabled=false;},1800);
-    }catch(e){
-      button.textContent='HATA: '+(e.message||'JSON oluşturulamadı');
-      setTimeout(function(){button.textContent=old;button.disabled=false;},2500);
-    }
-  }
   function install(){
-    var own=document.getElementById('copyOwn'),opp=document.getElementById('copyOpp'),analyze=document.getElementById('analyze');
+    var own=document.getElementById('copyOwn'),opp=document.getElementById('copyOpp');
     if(opp) opp.remove();
     if(own&&own.dataset.combinedCopy!=='1'){
       own.dataset.combinedCopy='1';own.textContent='İKİ TAKIMI KOPYALA';own.title='Kendi takımını ve rakip takımı birlikte kopyala';
@@ -70,13 +48,6 @@
         if(navigator.clipboard&&window.isSecureContext) navigator.clipboard.writeText(text).then(done).catch(fallback); else fallback();
       }
       own.addEventListener('click',combinedCopy,true);
-    }
-    if(analyze&&!document.getElementById('offlineJsonExport')){
-      var b=document.createElement('button');b.id='offlineJsonExport';b.type='button';b.className='copy-btn';b.textContent='CHPP VERİLERİNİ JSON AL';b.title='CHPP üzerinden offline motor testleri için gereken tüm verileri yeniden çek ve JSON indir';b.disabled=true;b.style.width='100%';b.style.marginTop='9px';b.style.opacity='.45';
-      analyze.parentNode.appendChild(b);
-      b.addEventListener('click',function(){if(hasChppData()) downloadJson(b);});
-      function refresh(){var ready=hasChppData();b.disabled=!ready;b.style.opacity=ready?'1':'.45';b.title=ready?'CHPP verileri hazır — tüm gerekli CHPP verilerini çekip offline test JSON dosyasını indir':'Önce CHPP verilerinin yüklenmesi bekleniyor';}
-      refresh();setInterval(refresh,1000);
     }
   }
   if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',install); else install();
