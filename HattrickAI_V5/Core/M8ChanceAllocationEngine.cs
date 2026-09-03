@@ -4,30 +4,23 @@ namespace HattrickAI.V5.Core;
 
 /// <summary>
 /// M8 chance-allocation layer.
-///
-/// PHASE D calibration is based on 60 real historical matches. The observed
-/// sample shows that the structural 5 exclusive + 5 open baseline overstates
-/// total regular chances (10.0 expected vs 8.8 observed) and materially
-/// overstates ownership at the low/midfield-share range.
-///
-/// Calibrated coefficients are intentionally kept here as explicit constants
-/// so they can be regression-tested and replaced when a broader dataset is
-/// available. This is a data-derived calibration, not a claim of the hidden
-/// Hattrick server formula.
+/// PHASE D calibration is based on 60 real historical matches.
 /// </summary>
 public static class M8ChanceAllocationEngine
 {
     public const int ExclusiveChancesPerTeam = 5;
     public const int OpenChancePool = 5;
 
-    // PHASE D: 60-match calibration dataset.
-    // Mean observed total regular chances = 8.8.
+    // Phase D: 60-match calibration.
     public const double CalibratedTotalRegularChances = 8.8;
-
-    // Observed own-chance ownership regression:
-    // ownShare = -0.4380926172 + 1.9561688498 * midfieldShare
     public const double CalibratedOwnershipIntercept = -0.4380926172;
     public const double CalibratedOwnershipMidfieldSlope = 1.9561688498;
+
+    // Phase E: observed own normal-chance sector distribution from the same
+    // calibration set (292 own regular sector chances).
+    public const double CalibratedLeftSectorShare = 0.2568;
+    public const double CalibratedCentreSectorShare = 0.4281;
+    public const double CalibratedRightSectorShare = 0.3151;
 
     public static DiscreteChanceAllocation Calculate(double ownMidfieldShare)
     {
@@ -41,21 +34,57 @@ public static class M8ChanceAllocationEngine
         var calibratedOwn = CalibratedTotalRegularChances * calibratedOwnOwnership;
         var calibratedOpponent = CalibratedTotalRegularChances - calibratedOwn;
 
-        // Keep the exclusive/open fields for compatibility and diagnostics.
-        // Production expected regular-chance volume now uses the calibrated
-        // total + ownership model rather than forcing a 10-chance total.
-        var ownOpen = OpenChancePool * ownMidfieldShare;
-        var opponentOpen = OpenChancePool - ownOpen;
-
         return new DiscreteChanceAllocation(
             ExclusiveChancesPerTeam,
-            ExclusiveChancesPerTeam,
+            OpponentExclusive: ExclusiveChancesPerTeam,
             OpenChancePool,
-            ownOpen,
-            opponentOpen,
-            calibratedOwn,
-            calibratedOpponent,
-            "Phase D calibrated: total=8.8; ownShare=-0.4380926172+1.9561688498*midfieldShare (60-match sample).");
+            OwnOpenExpected: OpenChancePool * ownMidfieldShare,
+            OpponentOpenExpected: OpenChancePool - (OpenChancePool * ownMidfieldShare),
+            OwnRegularChanceExpected: calibratedOwn,
+            OpponentRegularChanceExpected: calibratedOpponent,
+            "Phase E calibrated: total=8.8; ownership=-0.4380926172+1.9561688498*midfieldShare; sectors=25.68/42.81/31.51.");
+    }
+
+    public static (double Left, double Centre, double Right) CalculateSectorShares(
+        AdvancedTactic tactic = AdvancedTactic.Normal,
+        double tacticStrength = 0.0)
+    {
+        var left = CalibratedLeftSectorShare;
+        var centre = CalibratedCentreSectorShare;
+        var right = CalibratedRightSectorShare;
+
+        var strength = Math.Clamp(tacticStrength, 0.0, 1.0);
+
+        switch (tactic)
+        {
+            case AdvancedTactic.AttackInTheMiddle:
+            {
+                // Hattrick research/manual: roughly 15-30% of wing attacks
+                // are redirected one-for-one into the centre.
+                var transfer = 0.15 + 0.15 * strength;
+                var fromWings = left + right;
+                var moved = fromWings * transfer;
+                left -= (left / fromWings) * moved;
+                right -= (right / fromWings) * moved;
+                centre += moved;
+                break;
+            }
+            case AdvancedTactic.AttackOnWings:
+            {
+                // Hattrick research/manual: roughly 20-40% of centre attacks
+                // are redirected one-for-one to the wings.
+                var transfer = 0.20 + 0.20 * strength;
+                var moved = centre * transfer;
+                centre -= moved;
+                left += moved / 2.0;
+                right += moved / 2.0;
+                break;
+            }
+        }
+
+        var sum = left + centre + right;
+        return sum <= 0 ? (1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0) :
+            (left / sum, centre / sum, right / sum);
     }
 }
 
