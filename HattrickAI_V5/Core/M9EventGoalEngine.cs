@@ -168,6 +168,8 @@ public sealed class M9EventGoalEngine
     private static bool IsWinger(string code) => code is "W-L" or "W-R";
     private static bool IsInnerMidfielder(string code) => code is "IM-L" or "IM-C" or "IM-R";
     private static bool IsForward(string code) => code is "FW-L" or "FW-C" or "FW-R";
+    private static bool IsInnerMidfielder(SlotProfile p) => IsInnerMidfielder(p.Code);
+    private static bool IsForward(SlotProfile p) => IsForward(p.Code);
     private static bool IsCentralDefender(string code) => code is "DEF-C" or "DEF-CL" or "DEF-CR";
     private static bool IsWingBack(string code) => code is "DEF-L" or "DEF-R";
     private static double QuickDefenceFactor(int quickOffensive, int quickDefenders)
