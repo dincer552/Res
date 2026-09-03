@@ -6,12 +6,14 @@ namespace HattrickAI.V5.Core;
 
 /// <summary>
 /// M9 event -> goal layer based on Tables 4 and 5 of the 2026 Hattrick paper.
-/// Hidden inputs are represented as explicit fallbacks rather than invented data.
+/// Event counts follow the paper's Binomial(n,p) specification; hidden inputs remain explicit gaps.
 /// </summary>
 public sealed class M9EventGoalEngine
 {
-    private const double PlayerEventMean = 0.8410;
-    private const double TeamEventMean = 0.3720;
+    private const double PlayerEventProbability = 0.8410;
+    private const int PlayerEventTrials = 4;
+    private const double TeamEventProbability = 0.3720;
+    private const int TeamEventTrials = 5;
 
     private const double WingerAnyRate = 0.2163;
     private const double WingerAnyGoalRate = 0.4951;
@@ -72,9 +74,6 @@ public sealed class M9EventGoalEngine
         var forwards = profiles.Count(x => IsForward(x.Code));
         var defenders = profiles.Count(IsDefender);
 
-        // Table 4 event rates are the match-level baseline. Player events are
-        // allocated to a team using specialty support. Opponent specialty counts
-        // are not yet wired in this V5 pipeline, so 50/50 is an explicit fallback.
         var eligiblePlayerEvents = new List<EventWeight>
         {
             new("Winger", WingerAnyRate, WingerAnyGoalRate, profiles.Any(x => IsWinger(x.Code)) ? 1.0 : 0.0),
@@ -90,7 +89,9 @@ public sealed class M9EventGoalEngine
 
         var activeWeight = eligiblePlayerEvents.Sum(x => x.Weight);
         var playerMultiplier = SpecialEventMultiplier(tactic, creativeMultiplier);
-        var playerEventBudget = activeWeight > 0 ? PlayerEventMean * 0.5 * playerMultiplier : 0.0;
+        // Paper §4.4: Player_SEs ~ Binomial(n=4, p=0.841).
+        // The table rates then distribute the generated event count among feasible event types.
+        var playerEventBudget = activeWeight > 0 ? PlayerEventTrials * PlayerEventProbability * playerMultiplier : 0.0;
         var playerSpecialGoals = 0.0;
         var ownGoalExpected = 0.0;
         var playerEventRate = 0.0;
@@ -107,6 +108,7 @@ public sealed class M9EventGoalEngine
         }
 
         // §4.4 Eq.5: team-based SE allocation uses linear possession.
+        // Team_SEs ~ Binomial(n=5, p=0.372), so the expected event count is 1.86.
         var linearPossession = LinearPossession(ownMidfieldRating, opponentMidfieldRating);
         var teamMultiplier = SpecialEventMultiplier(tactic, creativeMultiplier);
         var cornerHeadProbability = CornerHeadShare(headOffensive);
@@ -118,13 +120,14 @@ public sealed class M9EventGoalEngine
             new TeamEventWeight("InexperiencedDefender", InexperiencedDefenderRate, InexperiencedDefenderGoalRate, defenders > 0 ? 1.0 : 0.0),
             new TeamEventWeight("TiredDefender", TiredDefenderRate, TiredDefenderGoalRate, defenders > 0 ? 1.0 : 0.0)
         };
-        var totalTeamRate = CornerRate + ExperiencedForwardRate + InexperiencedDefenderRate + TiredDefenderRate;
+        var activeTeamRate = teamEvents.Where(x => x.Eligibility > 0).Sum(x => x.Rate);
+        var teamEventBudget = activeTeamRate > 0 ? TeamEventTrials * TeamEventProbability * linearPossession * teamMultiplier : 0.0;
         var teamSpecialGoals = 0.0;
         var teamEventRate = 0.0;
         foreach (var item in teamEvents)
         {
-            if (item.Eligibility <= 0) continue;
-            var expectedEvents = TeamEventMean * (item.Rate / totalTeamRate) * linearPossession * item.Eligibility * teamMultiplier;
+            if (item.Eligibility <= 0 || activeTeamRate <= 0) continue;
+            var expectedEvents = teamEventBudget * (item.Rate / activeTeamRate);
             teamEventRate += expectedEvents;
             var expectedGoals = expectedEvents * item.GoalProbability;
             teamSpecialGoals += expectedGoals;
@@ -141,13 +144,13 @@ public sealed class M9EventGoalEngine
 
         var notes = new List<string>
         {
-            "Player-based SE mean 0.841 and team-based SE mean 0.372 follow the paper baseline.",
-            "Absent player-event types are redistributed over residual feasible event types as described in §4.4.",
+            "Player-based SEs follow the paper Binomial(n=4,p=0.841) expectation; event types are redistributed over feasible residual types.",
+            "Team-based SEs follow the paper Binomial(n=5,p=0.372) expectation and Eq.5 linear possession.",
             "Opponent specialty counts are unavailable, so player-event team ownership uses a neutral 50/50 fallback.",
-            "Team-based event ownership uses Eq.5 linear possession.",
             $"Technical CA opportunity rate={technicalCaRate:P2}; goal conversion remains pending.",
             "Long Shot scoring probability is not invented because the paper provides a plotted relationship rather than a published explicit equation.",
-            "Set-piece taker skill is hidden from CHPP and therefore remains outside exact event resolution."
+            "Set-piece taker skill is hidden from CHPP and therefore remains outside exact event resolution.",
+            "PNF/PDIM opportunity resolution remains a separate pending layer because PNF scoring and PDIM multi-player suppression require additional hidden inputs/calibration."
         };
         if (tactic == AdvancedTactic.Creative)
             notes.Add($"Play Creatively own-event multiplier={teamMultiplier:0.00}x; paper range is 2.37x-3.80x and exact V5-level mapping remains a proxy.");
@@ -164,7 +167,7 @@ public sealed class M9EventGoalEngine
             teamEventRate,
             technicalCaRate,
             contributions,
-            "PDF Tables 4-5 event baseline; opponent specialty, LS scoring, PNF/PDIM and hidden set-piece inputs pending.",
+            "PDF Tables 4-5 + Binomial event-count structure; opponent specialty, LS scoring, PNF/PDIM and hidden set-piece inputs pending.",
             string.Join(" ", notes));
     }
 
