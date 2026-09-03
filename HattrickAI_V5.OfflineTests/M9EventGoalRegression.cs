@@ -3,9 +3,8 @@ using HattrickAI.V5.Core;
 namespace HattrickAI.V5.OfflineTests;
 
 /// <summary>
-/// M9 event -> goal regression against the 2026 paper Tables 4-5 and §4.4.
-/// This locks the Binomial event expectations and prevents the player-event
-/// ownership fallback from silently allocating the full match budget to one team.
+/// M9 event -> goal regression against the 2026 paper Tables 4-5, Fig.16 and Appendix C.
+/// Locks the documented event expectations plus PNF/PDIM resolution.
 /// </summary>
 public static class M9EventGoalRegression
 {
@@ -18,22 +17,21 @@ public static class M9EventGoalRegression
             P(3, PlayerSpecialty.Head),
             P(4, PlayerSpecialty.Unpredictable),
             P(5, PlayerSpecialty.Unpredictable),
-            P(6, PlayerSpecialty.None),
-            P(7, PlayerSpecialty.None),
+            P(6, PlayerSpecialty.Powerful),
+            P(7, PlayerSpecialty.Powerful),
             P(8, PlayerSpecialty.None),
             P(9, PlayerSpecialty.None),
             P(10, PlayerSpecialty.None),
             P(11, PlayerSpecialty.None)
         };
 
-        // Deliberately place specialties so every documented Table-4 event class
-        // is eligible at least once: Quick/Technical on attack, Head on defence,
-        // Unpredictable on defence + forward, and Winger on a wing.
+        // Every documented Table-4 event remains eligible. P6 is the PNF and P7
+        // is the PDIM; their positions deliberately exercise Appendix C.
         var slots = new[]
         {
-            S("GK", 6), S("DEF-CL", 4), S("DEF-C", 3), S("DEF-CR", 7),
-            S("DEF-L", 8), S("DEF-R", 9), S("IM-L", 10), S("IM-C", 11),
-            S("IM-R", 2), S("W-L", 1), S("FW-C", 5)
+            S("GK", 8), S("DEF-CL", 4), S("DEF-C", 3), S("DEF-CR", 9),
+            S("DEF-L", 10), S("DEF-R", 11), S("IM-L", 7), S("IM-C", 2),
+            S("IM-R", 10), S("W-L", 1), S("FW-C", 6)
         };
 
         var lineup = new Lineup("Regression", "4-3-3", slots);
@@ -43,7 +41,12 @@ public static class M9EventGoalRegression
             ownMidfieldRating: 15,
             opponentMidfieldRating: 15,
             AdvancedTactic.Normal,
-            creativeMultiplier: 1.0);
+            creativeMultiplier: 1.0,
+            ownNormalChanceVolume: 10,
+            opponentNormalChanceVolume: 10,
+            ownNormalGoalProbability: 0.5,
+            opponentNormalGoalProbability: 0.5,
+            opponentCentralDefenders: 3);
 
         Check(Math.Abs(result.ExpectedPlayerBasedEvents - 1.682) < 1e-12,
             "player-based event budget uses Binomial(4,0.841) x 50% ownership fallback", out var failure);
@@ -53,8 +56,8 @@ public static class M9EventGoalRegression
             "equal midfield allocates half of Binomial(5,0.372) team-event expectation", out failure);
         if (failure is not null) return Fail(failure);
 
-        Check(result.Contributions.Count == 13,
-            "all 9 player-event types and 4 team-event types remain represented", out failure);
+        Check(result.Contributions.Count == 15,
+            "all 9 player-event + 4 team-event classes plus PNF/PDIM remain represented", out failure);
         if (failure is not null) return Fail(failure);
 
         Check(Approximately(result, "Winger", 0.4951), "Winger goal conversion = 49.51%", out failure);
@@ -76,7 +79,21 @@ public static class M9EventGoalRegression
         Check(Approximately(result, "UnpredictableOwnGoal", 0.1725), "Unpredictable own-goal probability = 17.25%", out failure);
         if (failure is not null) return Fail(failure);
 
-        Console.WriteLine($"PASS: M9 event-goal regression | playerEvents={result.ExpectedPlayerBasedEvents:0.000} | teamEvents={result.ExpectedTeamBasedEvents:0.000}");
+        Check(Math.Abs(M9EventGoalEngine.PnfConversionRate(1, 3) - 0.020) < 1e-12,
+            "PNF=1 vs 3 CDs conversion = 2.00%", out failure);
+        if (failure is not null) return Fail(failure);
+        Check(Math.Abs(M9EventGoalEngine.PnfConversionRate(2, 2) - 0.052) < 1e-12,
+            "PNF=2 vs 2 CDs conversion = 5.20%", out failure);
+        if (failure is not null) return Fail(failure);
+        Check(Math.Abs(result.PressingSuppressionSignal - 0.065) < 1e-12,
+            "one PDIM suppresses 6.5% of normal attacks", out failure);
+        if (failure is not null) return Fail(failure);
+        Check(Approximately(result, "PowerfulNormalForward", 0.5), "PNF extra attacks resolve with own normal conversion", out failure);
+        if (failure is not null) return Fail(failure);
+        Check(Approximately(result, "PowerfulDefensiveInnerMidfielder", 0.0), "PDIM is a suppression signal, not a goal event", out failure);
+        if (failure is not null) return Fail(failure);
+
+        Console.WriteLine($"PASS: M9 event-goal regression | playerEvents={result.ExpectedPlayerBasedEvents:0.000} | teamEvents={result.ExpectedTeamBasedEvents:0.000} | PNF/PDIM enabled");
         return 0;
     }
 
