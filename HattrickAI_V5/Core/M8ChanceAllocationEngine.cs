@@ -4,76 +4,106 @@ namespace HattrickAI.V5.Core;
 
 /// <summary>
 /// M8 chance-allocation layer.
-/// PHASE D calibration is based on 60 real historical matches.
+/// Phase D combines the 2026 Hattrick research paper with the 60-match CHPP
+/// calibration set. The paper's discrete exclusive/shared mechanism is kept;
+/// the local dataset is used as validation rather than replacing the mechanism.
 /// </summary>
 public static class M8ChanceAllocationEngine
 {
     public const int ExclusiveChancesPerTeam = 5;
     public const int OpenChancePool = 5;
 
-    // Phase D: 60-match calibration.
+    // Research paper Eq. 3: L/M/R probabilities. These are probabilities over
+    // all normal attacks, including set-pieces.
+    public const double PaperLeftAttackShare = 0.2565;
+    public const double PaperCentreAttackShare = 0.3615;
+    public const double PaperRightAttackShare = 0.2565;
+    public const double PaperDirectFreeKickShare = 0.0586;
+    public const double PaperIndirectFreeKickShare = 0.0418;
+    public const double PaperPenaltyKickShare = 0.0251;
+
+    public const double PaperRegularSectorShare =
+        PaperLeftAttackShare + PaperCentreAttackShare + PaperRightAttackShare;
+
+    // 10 expected normal attacks from Eq. 2, multiplied by the L/M/R share.
+    // The 60-match CHPP set observed 8.8 L/M/R chances on average, validating
+    // this paper-derived 8.745 expectation (difference = 0.055).
+    public const double PaperExpectedNormalAttacks = 10.0;
+    public const double PaperExpectedRegularSectorChances =
+        PaperExpectedNormalAttacks * PaperRegularSectorShare;
+
+    // Compatibility/diagnostic constants retained from the prior calibration.
     public const double CalibratedTotalRegularChances = 8.8;
     public const double CalibratedOwnershipIntercept = -0.4380926172;
     public const double CalibratedOwnershipMidfieldSlope = 1.9561688498;
 
-    // Phase E: observed own normal-chance sector distribution from the same
-    // calibration set (292 own regular sector chances).
-    public const double CalibratedLeftSectorShare = 0.2568;
-    public const double CalibratedCentreSectorShare = 0.4281;
-    public const double CalibratedRightSectorShare = 0.3151;
-
-    public static DiscreteChanceAllocation Calculate(double ownMidfieldShare)
+    public static DiscreteChanceAllocation Calculate(double ownMidfieldRating, double opponentMidfieldRating)
     {
-        ownMidfieldShare = Math.Clamp(ownMidfieldShare, 0.0, 1.0);
+        var possession = CalculatePossessionProbability(ownMidfieldRating, opponentMidfieldRating);
+        var ownExpected = PaperExpectedRegularSectorChances * possession;
+        var opponentExpected = PaperExpectedRegularSectorChances * (1.0 - possession);
 
-        var calibratedOwnOwnership = Math.Clamp(
-            CalibratedOwnershipIntercept + CalibratedOwnershipMidfieldSlope * ownMidfieldShare,
-            0.0,
-            1.0);
-
-        var calibratedOwn = CalibratedTotalRegularChances * calibratedOwnOwnership;
-        var calibratedOpponent = CalibratedTotalRegularChances - calibratedOwn;
-
-        return new DiscreteChanceAllocation(
-            ExclusiveChancesPerTeam,
-            OpponentExclusive: ExclusiveChancesPerTeam,
-            OpenChancePool,
-            OwnOpenExpected: OpenChancePool * ownMidfieldShare,
-            OpponentOpenExpected: OpenChancePool - (OpenChancePool * ownMidfieldShare),
-            OwnRegularChanceExpected: calibratedOwn,
-            OpponentRegularChanceExpected: calibratedOpponent,
-            "Phase E calibrated: total=8.8; ownership=-0.4380926172+1.9561688498*midfieldShare; sectors=25.68/42.81/31.51.");
+        return CreateAllocation(
+            possession,
+            ownExpected,
+            opponentExpected,
+            "PDF Eq1+Eq2: POS=(4M-3)^3/((4Mown-3)^3+(4Mopp-3)^3); 5 exclusive + 5 shared; LMR expected=8.745.");
     }
 
-    public static (double Left, double Centre, double Right) CalculateSectorShares(
+    /// <summary>
+    /// Backward-compatible overload. The supplied value is already interpreted
+    /// as the possession probability, so no synthetic midfield rating is made.
+    /// </summary>
+    public static DiscreteChanceAllocation Calculate(double ownMidfieldShare)
+    {
+        var possession = Math.Clamp(ownMidfieldShare, 0.0, 1.0);
+        var ownExpected = PaperExpectedRegularSectorChances * possession;
+        var opponentExpected = PaperExpectedRegularSectorChances * (1.0 - possession);
+        return CreateAllocation(
+            possession,
+            ownExpected,
+            opponentExpected,
+            "PDF Eq1+Eq2: supplied midfield-share interpreted as POS; LMR expected=8.745.");
+    }
+
+    public static double CalculatePossessionProbability(double ownMidfieldRating, double opponentMidfieldRating)
+    {
+        var own = Math.Max(0.0, ownMidfieldRating) * 4.0 - 3.0;
+        var opponent = Math.Max(0.0, opponentMidfieldRating) * 4.0 - 3.0;
+        own = Math.Max(0.0, own);
+        opponent = Math.Max(0.0, opponent);
+        var ownPower = Math.Pow(own, 3.0);
+        var opponentPower = Math.Pow(opponent, 3.0);
+        var total = ownPower + opponentPower;
+        return total <= 0.0 ? 0.5 : Math.Clamp(ownPower / total, 0.0, 1.0);
+    }
+
+    public static (double Left, double Centre, double Right, double SetPiece) CalculateSectorShares(
         AdvancedTactic tactic = AdvancedTactic.Normal,
         double tacticStrength = 0.0)
     {
-        var left = CalibratedLeftSectorShare;
-        var centre = CalibratedCentreSectorShare;
-        var right = CalibratedRightSectorShare;
-
-        var strength = Math.Clamp(tacticStrength, 0.0, 1.0);
+        var left = PaperLeftAttackShare;
+        var centre = PaperCentreAttackShare;
+        var right = PaperRightAttackShare;
+        var setPiece = PaperDirectFreeKickShare + PaperIndirectFreeKickShare + PaperPenaltyKickShare;
+        var strength = Math.Clamp(tacticStrength, 0.0, 10.0);
 
         switch (tactic)
         {
-            case AdvancedTactic.AttackInTheMiddle:
+            case AdvancedTactic.AttackMiddle:
             {
-                // Hattrick research/manual: roughly 15-30% of wing attacks
-                // are redirected one-for-one into the centre.
-                var transfer = 0.15 + 0.15 * strength;
-                var fromWings = left + right;
-                var moved = fromWings * transfer;
-                left -= (left / fromWings) * moved;
-                right -= (right / fromWings) * moved;
+                // Paper: AiM exchanges 20-35% of wing attacks into middle.
+                var transfer = 0.20 + (0.15 * strength / 10.0);
+                var moved = (left + right) * transfer;
+                left -= (left / (left + right)) * moved;
+                right -= (right / (left + right)) * moved;
                 centre += moved;
                 break;
             }
-            case AdvancedTactic.AttackOnWings:
+            case AdvancedTactic.AttackWings:
             {
-                // Hattrick research/manual: roughly 20-40% of centre attacks
-                // are redirected one-for-one to the wings.
-                var transfer = 0.20 + 0.20 * strength;
+                // Paper: AoW exchanges 34-52% of middle attacks into wings.
+                var transfer = 0.34 + (0.18 * strength / 10.0);
                 var moved = centre * transfer;
                 centre -= moved;
                 left += moved / 2.0;
@@ -82,9 +112,32 @@ public static class M8ChanceAllocationEngine
             }
         }
 
-        var sum = left + centre + right;
-        return sum <= 0 ? (1.0 / 3.0, 1.0 / 3.0, 1.0 / 3.0) :
-            (left / sum, centre / sum, right / sum);
+        var sum = left + centre + right + setPiece;
+        return sum <= 0.0
+            ? (0.2565, 0.3615, 0.2565, 0.1255)
+            : (left / sum, centre / sum, right / sum, setPiece / sum);
+    }
+
+    private static DiscreteChanceAllocation CreateAllocation(
+        double possession,
+        double ownExpected,
+        double opponentExpected,
+        string mechanism)
+    {
+        var ownOpen = OpenChancePool * possession;
+        var opponentOpen = OpenChancePool - ownOpen;
+        return new DiscreteChanceAllocation(
+            ExclusiveChancesPerTeam,
+            ExclusiveChancesPerTeam,
+            OpenChancePool,
+            ownOpen,
+            opponentOpen,
+            ownExpected,
+            opponentExpected,
+            mechanism)
+        {
+            PossessionProbability = possession
+        };
     }
 }
 
@@ -96,4 +149,7 @@ public sealed record DiscreteChanceAllocation(
     double OpponentOpenExpected,
     double OwnRegularChanceExpected,
     double OpponentRegularChanceExpected,
-    string Mechanism);
+    string Mechanism)
+{
+    public double PossessionProbability { get; init; }
+}
