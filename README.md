@@ -6,7 +6,7 @@ Aktif branch: `v5`
 
 V5 hedefi: **oyuncu → formasyon → XI → rating → taktik → chance → event → goal → W/D/L → M10 → M6-B → M11 → WEB** zincirini tek ve tutarlı bir maç motoru olarak çalıştırmak.
 
-Ana araştırma referansı: Anthony C. Constantinou, Nicholas Higgins, Neville K. Kitson — *Decoding the mechanisms of the Hattrick football manager game using Bayesian network structure learning*, Entertainment Computing 57 (2026) 101131. DOI: `10.1016/j.entcom.2026.101131`.
+Ana araştırma referansı: Anthony C. Constantinou, Nicholas C. Higgins, Neville K. Kitson — *Decoding the mechanisms of the Hattrick football manager game using Bayesian network structure learning*, Entertainment Computing 57 (2026) 101131. DOI: `10.1016/j.entcom.2026.101131`.
 
 ---
 
@@ -39,12 +39,12 @@ M3 → M4 → M5 → M6-A / DB1 → M7 → M7.2 → M8 → M9
 | M7 | ✅ | Bölgesel gerçek ratingler |
 | M7.2 | ✅ | PDF tactical mechanisms + canonical handoff |
 | M8 | ✅ | Chance allocation + tactic opportunity layer |
-| M9 | 🔧 | Event→Goal, PNF, PDIM, CA/LS ve Appendix C utilities mevcut; bazı production girdileri eksik |
-| Monte Carlo | 🔧 | 18×5 dk + 5 senaryo + 1000 maç + deterministic seed mevcut; event fallback düzeltildi, calibration eksik |
-| M10 | 🔧 | Formation competition + MC W/D/L composite ranking mevcut; CI doğrulaması bekleniyor |
-| M6-B | 🔧 | DB1 seed/refinement mevcut; rank-driven depth geliştirilecek |
+| M9 | 🔧 | Event→Goal, PNF, PDIM, CA/LS ve Appendix C utilities mevcut; opponent/hidden inputs ve historical calibration eksik |
+| Monte Carlo | 🔧 | 18×5 dk + 5 senaryo + 1000 maç + deterministic seed; M9 event wrapper entegrasyonu düzeltildi |
+| M10 | 🔧 | Formation competition + MC W/D/L composite ranking mevcut; CI/E2E doğrulaması bekleniyor |
+| M6-B | 🔧 | Formation-aware budget altyapısı mevcut; M10 rank'ının bütçeye doğrudan taşınması sırada |
 | DB2 | ✅ | Formation diversity/depth korunuyor |
-| M11 | 🔧 | MC + tactical + structural + stability/risk score ile final selector mevcut |
+| M11 | 🔧 | MC + tactical + structural + stability/risk score ile final selector mevcut; E2E doğrulaması bekleniyor |
 | UI / Motor Panel | ✅ | M9 event breakdown + MC + scenario görünümü mevcut |
 
 ---
@@ -61,10 +61,11 @@ M3 → M4 → M5 → M6-A / DB1 → M7 → M7.2 → M8 → M9
 - [x] 5 MC senaryosu ve 1000-match deterministic yapı korundu.
 - [x] PNF double-count engellendi.
 - [x] M9 regression fixture stabil baseline'a geri çekildi.
+- [x] M9 regression artık Tables 4–5 + Appendix C.1/C.2 + PNF + PDIM mekanizmalarını kontrol ediyor.
+- [x] M9 `EventGoals` downstream wrapper tarafından kaybolduğunda nested `MatchPrediction.EventGoals` fallback'i eklendi.
+- [x] M10 `RankedCandidate` compile blocker düzeltildi.
 - [x] UI M9 / MC paneli güncellendi.
 - [x] UI nested/full prediction sonucunu tercih edecek şekilde düzeltildi.
-- [x] M10 `RankedCandidate` compile blocker düzeltildi.
-- [x] MC katmanında wrapper EventGoals boş kaldığında `Prediction.EventGoals` fallback'i eklendi; M9 event çıktısı simulation içinde kaybolmayacak.
 
 ### SIRADAKİ İŞLER
 
@@ -75,7 +76,7 @@ M3 → M4 → M5 → M6-A / DB1 → M7 → M7.2 → M8 → M9
 - [ ] Specialty ↔ weather / tactic cross-effects
 - [ ] V5 tactic level → paper RT exact mapping
 - [ ] M10 formation ranking end-to-end validation
-- [ ] M6-B rank-driven search depth
+- [ ] M6-B M10 rank → refinement budget entegrasyonu
 - [ ] M11 end-to-end regression
 - [ ] Historical event + real-match validation
 - [ ] Final WEB release
@@ -84,7 +85,7 @@ M3 → M4 → M5 → M6-A / DB1 → M7 → M7.2 → M8 → M9
 
 ## CI CHECKPOINT
 
-En son kırmızı CI eski commit üzerinde şu hatayla durmuştu:
+Son doğrulanmış kırmızı workflow eski committeydi:
 
 ```text
 Commit: 70265c056ec6a769658858e011d8a579465304d3
@@ -93,25 +94,27 @@ M10FinalDecisionEngine.cs(33,30)
 CS0246: RankedCandidate could not be found
 ```
 
-Bu hata giderildi:
+Compile blocker düzeltildi:
 
 ```text
-Fix commit: 431cfcdc5c58ac4666f9d7160cd1ce7b27ea3dd7
+431cfcdc5c58ac4666f9d7160cd1ce7b27ea3dd7
 ```
 
-Ardından M9 Monte Carlo event kaybı için:
+Ardından M9 integration/regression değişiklikleri yapıldı:
 
 ```text
-Fix commit: cce3a5748a51bfc4929c648b820040ce1b8cba6b
+cce3a5748a51bfc4929c648b820040ce1b8cba6b
+35d0ef5336a2bb456fb6915790e7d70b9885e8a6
+9d3af6031cf4a971e64bfccb19b110265b8b5291
 ```
 
-Yeni CI sonucu henüz alınmadığı için **CI ✅ ilan edilmiyor**.
+En son CI durumu şu anda **pending**; yeşil checkpoint henüz doğrulanmış değil.
 
 ---
 
 ## M9 — EVENT → GOAL
 
-PDF Tables 4–5 baseline event sınıfları:
+PDF Tables 4–5 baseline event sınıfları doğrudan kodlandı:
 
 ```text
 Winger
@@ -131,7 +134,21 @@ Player events = Binomial(n=4, p=0.841)
 Team events   = Binomial(n=5, p=0.372)
 ```
 
-Appendix C:
+### PNF / PDIM
+
+```text
+PNF conversion
+1 PNF → CD 0/1/2/3 = 9.6% / 6.9% / 3.3% / 2.0%
+2 PNF → CD 0/1/2/3 = 11.7% / 9.6% / 5.2% / 3.1%
+PNF ≥3             = 6.6%
+
+PDIM suppression
+1 PDIM ≈ 6.5% normal-attack suppression
+```
+
+PNF, normal fırsatların kaçan kısmından extra attack üretir; PDIM normal attack volume'ünü baskılar. Bu mekanizmalar için regression fixture eklendi.
+
+### Appendix C
 
 ```text
 C.1 ATTACKSP(d)
@@ -141,7 +158,11 @@ C.2 TCR_LS(RT)
 = 0.00761935·RT + 0.07520052
 ```
 
-PNF ve PDIM ayrı mekanizmalar olarak uygulanır. Opponent Specialty, hidden set-piece skill, LS scoring graph ve exact RT mapping veriyle doğrulanmadan uydurulmaz.
+Utilities regression ile kontrol ediliyor. Ancak hidden/set-piece taker skill, historical LS scoring graph ve exact V5→RT mapping kanıtlanmadan production coefficient'i olarak uydurulmuyor.
+
+### M9 production integration
+
+M9 downstream pipeline bazı noktalarda `M9PredictionResult` nesnesini yeniden oluşturuyor. Bu wrapper'ın `EventGoals` alanı boş olsa bile event katkılarının kaybolmaması için `M9PredictionResult.EventGoals` artık nested `Prediction.EventGoals` değerine fallback yapıyor. Böylece simulation/UI aynı canonical event çıktısını görür.
 
 ---
 
@@ -163,47 +184,51 @@ Final score
 1000-match W/D/L distribution
 ```
 
-Önemli entegrasyon düzeltmesi: `M9PredictionResult.EventGoals` boş bir wrapper üzerinden okunuyorsa simulation artık `MatchPrediction.EventGoals` değerine geri düşüyor. Böylece pipeline'ın M9 çıktıyı yeniden sarmalaması event katkısını yok etmiyor.
+Simulation deterministic seed kullanır ve score frequency + W/D/L + scenario breakdown üretir. M9 event contribution katmanı simulation'a taşınır; PNF ve own-goal double-count edilmez.
 
 ---
 
 ## M10 — FORMATION COMPETITION
 
-M10 composite ranking:
+M10 ranking modeli:
 
 ```text
-Tactical score
+normalized Tactical score
 + Monte Carlo Win probability
 + Structural score
+↓
+Composite score
 ↓
 Formation leaderboard
 ```
 
-Her legal formasyonun DB1 depth'i korunur. M10'un MC verisini production'da doğru kullanması yeni CI + end-to-end regression ile doğrulanacaktır.
+Her legal formasyon DB1'de depth ile korunur. M10 formation competition artık MC W/D/L bilgilerini de taşır. Kalan iş, CI ve gerçek fixture üzerinden end-to-end doğrulamadır.
 
 ---
 
 ## M6-B — REFINEMENT
 
+Mevcut M6 motoru formation bazında ayrı search pass çalıştırabilir ve `M6FormationSearchBudget` ile formasyon başına beam width / iteration tanımlayabilir. `preserveInputOrders=true` durumunda refinement budget formasyon ranking'ine göre kademelenebiliyor.
+
+Kalan üretim işi:
+
 ```text
-DB1
- ↓
-M10 formation ranking
- ↓
-M6-B seeds
- ↓
-refinement search
- ↓
+M10 formation rank
+      ↓
+formation budget
+      ↓
+M6-B search depth
+      ↓
 DB2
 ```
 
-Mevcut M6-B tüm DB1 seed'lerini formation diversity korunarak işler. Bir sonraki geliştirme M10 sırasını arama bütçesine çevirecek: güçlü formasyon daha fazla refinement, zayıf formasyon minimum keşif bütçesi alacak; hiçbir legal formasyon tamamen kilitlenmeyecek.
+Amaç güçlü formasyonlara daha fazla arama, zayıf formasyonlara daha düşük ama sıfır olmayan keşif bütçesi vermektir.
 
 ---
 
 ## M11 — FINAL SELECTOR
 
-M11 DB2 finalistlerini son kez değerlendirir:
+M11 mevcut final scoring:
 
 ```text
 35% tactical
@@ -213,13 +238,13 @@ M11 DB2 finalistlerini son kez değerlendirir:
 10% risk-adjusted outcome
 ```
 
-Final kararın acceptance kriteri: tüm legal formasyonların DB2 → M11 zincirinde korunması, deterministic ranking ve end-to-end regression.
+Final seçim için DB2'de tüm legal formasyonlar korunur. Kalan acceptance kriteri uçtan uca regression'dır.
 
 ---
 
 ## UI / MOTOR PANELİ
 
-UI'da görünen temel motor çıktıları:
+UI artık aşağıdaki motor çıktılarının tanısal görünümünü verir:
 
 ```text
 Analitik tahmin
@@ -253,33 +278,13 @@ Scenario distribution
 
 ```text
 1. CI / compile temizliği                  ← ŞİMDİ
-2. M9 production event integration
+2. M9 production event integration         ← kod düzeltmesi yapıldı; CI doğrulaması bekliyor
 3. Historical event + LS calibration
 4. M10 formation ranking validation
-5. M6-B rank-driven depth refinement
+5. M6-B M10-rank-driven refinement
 6. M11 end-to-end regression
 7. CHPP / real-match validation
 8. Final WEB release
 ```
 
-Her gerçek kod değişikliğinden sonra README'deki durum bu sıraya göre güncellenecek; tamamlanmayan motor `✅` yapılmayacak.
-
----
-
-## CALIBRATION KURALI
-
-```text
-Verified mechanism
-      ↓
-production baseline
-      +
-CHPP historical data
-      ↓
-residual/error analysis
-      ↓
-confidence test
-      ↓
-production adjustment
-```
-
-Tek maç veya küçük örneklem sonucu doğrudan motor katsayısı olarak kullanılmaz.
+Her gerçek kod değişikliğinden sonra bu README güncellenecek. Bir motor yalnızca kodu mevcut diye `✅` yapılmayacak; regression / integration acceptance kriteri de geçilecek.
