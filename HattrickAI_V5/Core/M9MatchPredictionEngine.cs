@@ -5,10 +5,9 @@ using System.Linq;
 namespace HattrickAI.V5.Core;
 
 /// <summary>
-/// M9: M8 chance allocation -> sector resolution -> xG -> W/D/L.
-/// Phase D removes the old arbitrary BaseGoals/GoalScale chance conversion.
-/// Normal L/M/R scoring uses the research-paper Eq. 4; set-piece scoring stays
-/// neutral until ISP/taker data is available for a defensible calibration.
+/// M9: M8 chance allocation -> sector resolution -> tactic-specific events -> xG -> W/D/L.
+/// Production mechanisms are sourced from the 2026 Hattrick research paper where
+/// the paper provides an explicit rule/range. Unsupported hidden inputs are not invented.
 /// </summary>
 public sealed class M9MatchPredictionEngine
 {
@@ -28,13 +27,7 @@ public sealed class M9MatchPredictionEngine
         ArgumentNullException.ThrowIfNull(opponent);
 
         var own = candidate.Rating;
-
-        // M8 is the sole owner of chance generation. The denominator is the
-        // actual M8 expected L/M/R chance volume, not an arbitrary 10-chance
-        // pool, so possession expresses ownership rather than volume.
-        var totalRegularChances = Math.Max(
-            1e-9,
-            chance.OwnRegularChanceExpected + chance.OpponentRegularChanceExpected);
+        var totalRegularChances = Math.Max(1e-9, chance.OwnRegularChanceExpected + chance.OpponentRegularChanceExpected);
         var ownChanceShare = Clamp01(chance.OwnRegularChanceExpected / totalRegularChances);
         var opponentChanceShare = Clamp01(chance.OpponentRegularChanceExpected / totalRegularChances);
 
@@ -45,26 +38,39 @@ public sealed class M9MatchPredictionEngine
         var opponentCentre = chance.OpponentCentreAttackVsOwnCentreDefence;
         var opponentRight = chance.OpponentRightAttackVsOwnLeftDefence;
 
-        var ownRegularQuality = WeightedRegularQuality(
-            ownLeft, ownCentre, ownRight,
+        var ownRegularQuality = WeightedRegularQuality(ownLeft, ownCentre, ownRight,
             chance.LeftChanceShare, chance.CentreChanceShare, chance.RightChanceShare);
-        var opponentRegularQuality = WeightedRegularQuality(
-            opponentLeft, opponentCentre, opponentRight,
+        var opponentRegularQuality = WeightedRegularQuality(opponentLeft, opponentCentre, opponentRight,
             chance.LeftChanceShare, chance.CentreChanceShare, chance.RightChanceShare);
 
         var ownRegularExpectedGoals = chance.OwnRegularChanceExpected * ownRegularQuality;
         var opponentRegularExpectedGoals = chance.OpponentRegularChanceExpected * opponentRegularQuality;
 
-        // Eq. 3 allocates set pieces after the normal attack count. The CHPP
-        // dataset does not expose the taker's hidden set-piece skill, so use a
-        // neutral conversion here rather than inventing a skill coefficient.
+        // PDF CA rule: if CA has lower midfield before the 7% penalty, missed
+        // opponent normal chances can be converted into counterattacks. The
+        // sector-specific CA scoring function is not fully observable in CHPP,
+        // so we reuse the already calculated attack-vs-defence quality rather than
+        // inventing a second hidden rating model.
+        var counterAttackExpectedGoals = 0.0;
+        if (chance.Tactic == AdvancedTactic.CounterAttack && chance.Allocation.CounterAttackEligible)
+        {
+            var opponentMissedNormal = chance.OpponentRegularChanceExpected * (1.0 - opponentRegularQuality);
+            var counterAttackChances = opponentMissedNormal * chance.CounterAttackConversionRate;
+            counterAttackExpectedGoals = counterAttackChances * ownRegularQuality;
+        }
+
+        // PDF Eq. 3 set-piece share. The paper explicitly notes that taker skill
+        // is hidden from CHPP, therefore keep the conversion neutral until that
+        // hidden input can be inferred/calibrated.
         var ownSetPieceExpected = 10.0 * PaperSetPieceShare * ownChanceShare;
         var opponentSetPieceExpected = 10.0 * PaperSetPieceShare * opponentChanceShare;
-        var ownExpected = ClampGoals(ownRegularExpectedGoals + ownSetPieceExpected * SetPieceNeutralConversion);
+
+        var ownExpected = ClampGoals(ownRegularExpectedGoals + counterAttackExpectedGoals + ownSetPieceExpected * SetPieceNeutralConversion);
         var opponentExpected = ClampGoals(opponentRegularExpectedGoals + opponentSetPieceExpected * SetPieceNeutralConversion);
 
         // Venue bonusu M7 rating katmanında uygulanır; M9 ikinci kez eklemez.
         _ = location;
+        _ = own;
 
         var probabilities = CalculatePoissonOutcomeProbabilities(ownExpected, opponentExpected);
         var prediction = new MatchPrediction(
@@ -144,13 +150,11 @@ public sealed class M9MatchPredictionEngine
             ownLeft, ownCentre, ownRight, opponentLeft, opponentCentre, opponentRight,
             location, M9CalibrationStatus.CalibratedAgainstHistoricalMatches);
 
-    private static double WeightedRegularQuality(
-        double left, double centre, double right,
+    private static double WeightedRegularQuality(double left, double centre, double right,
         double leftWeight, double centreWeight, double rightWeight)
     {
         var regularWeight = leftWeight + centreWeight + rightWeight;
-        return regularWeight <= 0 ? 0.5 :
-            Clamp01(((left * leftWeight) + (centre * centreWeight) + (right * rightWeight)) / regularWeight);
+        return regularWeight <= 0 ? 0.5 : Clamp01(((left * leftWeight) + (centre * centreWeight) + (right * rightWeight)) / regularWeight);
     }
 
     private static double InverseRating(double own, double signedMargin)
@@ -187,9 +191,7 @@ public sealed record M9PredictionResult(
     MatchLocation Location, M9CalibrationStatus CalibrationStatus)
 {
     private M9SimulationResult? _simulation;
-
     public M9SimulationResult Simulation => _simulation ??= new M9SimulationEngine().Simulate(this);
-
     public string PredictedResult => Prediction.WinProbability >= Prediction.LossProbability
         ? (Prediction.WinProbability >= Prediction.DrawProbability ? "Galibiyet" : "Beraberlik")
         : (Prediction.LossProbability >= Prediction.DrawProbability ? "Rakip Galibiyeti" : "Beraberlik");
