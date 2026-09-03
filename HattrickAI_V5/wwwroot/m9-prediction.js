@@ -37,8 +37,6 @@
     const opponent = data?.opponentName || data?.opponent?.teamName || 'Rakip';
     const ownGoals = Number(p.expectedHomeGoals), oppGoals = Number(p.expectedAwayGoals);
 
-    /* The full event-aware simulation lives on the nested MatchPrediction result.
-       Prefer that over the legacy/reconstructed wrapper simulation. */
     const sim = first(p?.simulation, m9?.simulation);
     const simScore = sim?.mostLikelyScore || '—';
     const simScorePct = sim ? pct(sim.mostLikelyScoreProbability) : '—';
@@ -48,7 +46,9 @@
     const simLoss = sim?.outcome?.lossProbability;
 
     const events = first(m9?.eventGoals, p?.eventGoals, m9?.EventGoals, p?.EventGoals) || {};
+    const opponentEvents = first(m9?.opponentEventGoals, m9?.OpponentEventGoals) || {};
     const contributions = Array.isArray(events.contributions || events.Contributions) ? (events.contributions || events.Contributions) : [];
+    const opponentContributions = Array.isArray(opponentEvents.contributions || opponentEvents.Contributions) ? (opponentEvents.contributions || opponentEvents.Contributions) : [];
     const playerEvents = first(events.expectedPlayerBasedEvents, events.ExpectedPlayerBasedEvents);
     const teamEvents = first(events.expectedTeamBasedEvents, events.ExpectedTeamBasedEvents);
     const playerXg = first(events.playerBasedSpecialEventGoals, events.PlayerBasedSpecialEventGoals);
@@ -58,6 +58,12 @@
     const lsXg = first(events.longShotGoals, events.LongShotGoals);
     const ogXg = first(events.expectedGoalsConcededFromOwnGoalEvents, events.ExpectedGoalsConcededFromOwnGoalEvents);
     const pressSupp = first(events.pressingSuppressionSignal, events.PressingSuppressionSignal);
+    const setPieceSkill = first(events.setPieceTakerSkill, events.SetPieceTakerSkill);
+    const opponentPlayerXg = first(opponentEvents.playerBasedSpecialEventGoals, opponentEvents.PlayerBasedSpecialEventGoals);
+    const opponentTeamXg = first(opponentEvents.teamBasedSpecialEventGoals, opponentEvents.TeamBasedSpecialEventGoals);
+    const opponentPnfXg = first(opponentEvents.powerfulNormalForwardGoals, opponentEvents.PowerfulNormalForwardGoals);
+    const opponentOwnGoalXg = first(opponentEvents.expectedGoalsConcededFromOwnGoalEvents, opponentEvents.ExpectedGoalsConcededFromOwnGoalEvents);
+    const opponentPressSupp = first(opponentEvents.pressingSuppressionSignal, opponentEvents.PressingSuppressionSignal);
     const calStatus = first(events.calibrationStatus, events.CalibrationStatus) || 'Kalibrasyon bekliyor';
     const notes = first(events.notes, events.Notes) || '';
 
@@ -88,14 +94,18 @@
       '<div style="margin-top:12px;padding:11px;background:#fafbfa;border-radius:10px;border:1px solid #edf0ee">' +
         '<div style="font:900 12px Arial;color:#27322d">⚙️ Event → Goal Motoru</div>' +
         '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-top:9px">' +
-          metric('Oyuncu event E', num(playerEvents)) + metric('Takım event E', num(teamEvents)) +
-          metric('Oyuncu event xG', num(playerXg)) + metric('Takım event xG', num(teamXg)) +
-          metric('PNF xG', num(pnfXg)) + metric('CA xG', num(caXg)) +
-          metric('Long Shot xG', num(lsXg)) + metric('Own Goal xG', num(ogXg)) +
-          metric('Pressing suppression', pct(pressSupp)) + metric('Calibration', esc(calStatus)) +
+          metric('Biz oyuncu event E', num(playerEvents)) + metric('Biz takım event E', num(teamEvents)) +
+          metric('Biz oyuncu event xG', num(playerXg)) + metric('Biz takım event xG', num(teamXg)) +
+          metric('Biz PNF xG', num(pnfXg)) + metric('Biz CA xG', num(caXg)) +
+          metric('Biz Long Shot xG', num(lsXg)) + metric('Biz Own Goal xG', num(ogXg)) +
+          metric('Biz PDIM', pct(pressSupp)) + metric('Set-piece taker skill', num(setPieceSkill)) +
+          metric('Rakip oyuncu event xG', num(opponentPlayerXg)) + metric('Rakip takım event xG', num(opponentTeamXg)) +
+          metric('Rakip PNF xG', num(opponentPnfXg)) + metric('Rakip Own Goal xG', num(opponentOwnGoalXg)) +
+          metric('Rakip PDIM', pct(opponentPressSupp)) + metric('Calibration', esc(calStatus)) +
         '</div>' +
-        eventContributionTable(contributions) +
-        '<div style="margin-top:8px;color:#7a827d;font:10px/1.45 Arial">Appendix C.1/C.2 utilityleri hazır. Hidden taker/RT girdileri ve tarihsel calibration tamamlanmadan production coefficient olarak uygulanmıyor.</div>' +
+        eventContributionTable(contributions, 'Biz event katkıları') +
+        eventContributionTable(opponentContributions, 'Rakip event katkıları') +
+        '<div style="margin-top:8px;color:#7a827d;font:10px/1.45 Arial">Appendix C.1/C.2 utilityleri hazır. Hidden taker/RT ilişkisi ve tarihsel calibration kanıtlanmadan katsayı uydurulmuyor.</div>' +
         (notes ? '<div style="margin-top:5px;color:#7a827d;font:10px/1.45 Arial">'+esc(notes)+'</div>' : '') +
       '</div>' +
       '<div style="margin-top:12px;padding:11px;background:#fafbfa;border-radius:10px;border:1px solid #edf0ee">' +
@@ -107,13 +117,13 @@
           metric('En sık skor', esc(simScore) + ' ('+esc(simScorePct)+')') + metric('En sık sonuç', esc(outcomeLabel(simResult))) +
         '</div>' +
         scenarioTable(sim?.scenarios) +
-        '<div style="margin-top:8px;padding:8px 9px;background:#f4f7f4;border-radius:8px;color:#747c76;font:10px/1.4 Arial">M10 formation ranking henüz MC sonuçlarını karar fonksiyonuna katmıyor; bu panel MC'yi teşhis/kanıt çıktısı olarak gösterir.</div>' +
+        '<div style="margin-top:8px;padding:8px 9px;background:#f4f7f4;border-radius:8px;color:#747c76;font:10px/1.4 Arial">MC sonucu artık M10 formation competition'ı için kullanılan sinyallerden biridir; bu panel aynı sonucu tanısal ayrıntıyla gösterir.</div>' +
       '</div>';
   }
 
-  function eventContributionTable(items) {
-    if (!Array.isArray(items) || !items.length) return '<div style="margin-top:9px;color:#8a928d;font:10px Arial">Event contribution verisi bu sonuçta bulunmuyor.</div>';
-    let html = '<div style="margin-top:10px;font:10px Arial;color:#7a827d"><b>Event katkıları</b></div><div style="margin-top:5px;overflow:auto"><table style="width:100%;border-collapse:collapse;font:10px Arial;color:#59625d"><tr><th style="text-align:left;padding:5px 3px">Event</th><th style="text-align:right;padding:5px 3px">E</th><th style="text-align:right;padding:5px 3px">Gol %</th><th style="text-align:right;padding:5px 3px">xG</th></tr>';
+  function eventContributionTable(items, title) {
+    if (!Array.isArray(items) || !items.length) return '';
+    let html = '<div style="margin-top:10px;font:10px Arial;color:#7a827d"><b>'+esc(title)+'</b></div><div style="margin-top:5px;overflow:auto"><table style="width:100%;border-collapse:collapse;font:10px Arial;color:#59625d"><tr><th style="text-align:left;padding:5px 3px">Event</th><th style="text-align:right;padding:5px 3px">E</th><th style="text-align:right;padding:5px 3px">Gol %</th><th style="text-align:right;padding:5px 3px">xG</th></tr>';
     items.forEach(x => {
       const name = first(x.event, x.Event, '—');
       const expected = first(x.expectedEvents, x.ExpectedEvents);
