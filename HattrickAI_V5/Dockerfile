@@ -25,11 +25,10 @@ RUN sed -i \
   /app/wwwroot/index.html
 RUN sed -i 's#</style>#.slot-code,.slot-desc,.slot:not(.filled) .slot-name,.slot:not(.filled) .slot-rating{display:none!important}</style>#' /app/wwwroot/index.html
 COPY HattrickAI_V5/wwwroot/copy-teams.js /app/wwwroot/copy-teams.js
-COPY HattrickAI_V5/wwwroot/offline-export.js /app/wwwroot/offline-export.js
 COPY HattrickAI_V5/wwwroot/motor-logs.js /app/wwwroot/motor-logs.js
 COPY HattrickAI_V5/wwwroot/motor-render.js /app/wwwroot/motor-render.js
 COPY HattrickAI_V5/wwwroot/match-select.js /app/wwwroot/match-select.js
 COPY HattrickAI_V5/wwwroot/formation-competition.js /app/wwwroot/formation-competition.js
 COPY HattrickAI_V5/wwwroot/m9-prediction.js /app/wwwroot/m9-prediction.js
-RUN sed -i 's#</body>#<script src="/copy-teams.js"></script><script src="/offline-export.js"></script><script src="/motor-logs.js"></script><script src="/motor-render.js"></script><script src="/match-select.js"></script><script src="/formation-competition.js"></script><script src="/m9-prediction.js"></script></body>#' /app/wwwroot/index.html
+RUN sed -i 's#</body>#<script src="/copy-teams.js"></script><script src="/motor-logs.js"></script><script src="/motor-render.js"></script><script src="/match-select.js"></script><script src="/formation-competition.js"></script><script src="/m9-prediction.js"></script></body>#' /app/wwwroot/index.html
 ENTRYPOINT ["dotnet","HattrickAI.V5.dll","--hostBuilder:reloadConfigOnChange=false"]
