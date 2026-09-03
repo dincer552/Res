@@ -5,7 +5,8 @@ namespace HattrickAI.V5.Core;
 
 /// <summary>
 /// M11, ikinci aday database'inden gelen finalistleri son kez karşılaştırır.
-/// M10 finali kilitlemez; M11 gerçek final selector'dür.
+/// Final ranking uses the event-based Monte Carlo outcome distribution and keeps
+/// tactical/structural quality as supporting signals.
 /// </summary>
 public sealed class M11FinalSelectorEngine
 {
@@ -20,7 +21,7 @@ public sealed class M11FinalSelectorEngine
             .Where(IsValid)
             .Select(x => new RankedFinalist(x, FinalScore(x)))
             .OrderByDescending(x => x.FinalScore)
-            .ThenByDescending(x => x.Candidate.Prediction.WinProbability)
+            .ThenByDescending(x => MonteCarloWinProbability(x.Candidate.Prediction))
             .ThenByDescending(x => x.Candidate.TacticalCandidate.TacticalScore)
             .ThenBy(x => x.Candidate.TacticalCandidate.Lineup.Formation, StringComparer.Ordinal)
             .ThenBy(x => Signature(x.Candidate.TacticalCandidate.Lineup), StringComparer.Ordinal)
@@ -43,7 +44,7 @@ public sealed class M11FinalSelectorEngine
                 x.Candidate.TacticalCandidate.Lineup.Formation,
                 Signature(x.Candidate.TacticalCandidate.Lineup),
                 x.Candidate.TacticalCandidate.TacticalScore,
-                x.Candidate.Prediction.WinProbability,
+                MonteCarloWinProbability(x.Candidate.Prediction),
                 x.FinalScore)).ToList(),
             ranked.Count,
             ranked.Select(x => x.Candidate.TacticalCandidate.Lineup.Formation).Distinct(StringComparer.Ordinal).Count());
@@ -53,13 +54,19 @@ public sealed class M11FinalSelectorEngine
         => x.TacticalCandidate is not null && x.Prediction is not null &&
            double.IsFinite(x.TacticalCandidate.TacticalScore) && double.IsFinite(x.Prediction.WinProbability);
 
+    private static double MonteCarloWinProbability(MatchPrediction prediction)
+        => System.Math.Clamp(prediction.Simulation.Outcome.WinProbability, 0.0, 1.0);
+
     private static double FinalScore(M11CandidateEvaluation x)
     {
         var tactical = 1.0 / (1.0 + System.Math.Exp(-System.Math.Clamp(x.TacticalCandidate.TacticalScore, -20.0, 20.0)));
-        var prediction = System.Math.Clamp(x.Prediction.WinProbability, 0.0, 1.0);
+        var simulation = x.Prediction.Simulation.Outcome;
+        var win = System.Math.Clamp(simulation.WinProbability, 0.0, 1.0);
+        var draw = System.Math.Clamp(simulation.DrawProbability, 0.0, 1.0);
         var structural = System.Math.Clamp(x.StructuralScore, 0.0, 1.0);
         var stability = System.Math.Clamp(x.StabilityScore, 0.0, 1.0);
-        return (0.45 * tactical) + (0.35 * prediction) + (0.15 * structural) + (0.05 * stability);
+        var riskAdjustedOutcome = win + (0.50 * draw);
+        return (0.35 * tactical) + (0.35 * win) + (0.15 * structural) + (0.05 * stability) + (0.10 * riskAdjustedOutcome);
     }
 
     private static string Signature(Lineup lineup)
