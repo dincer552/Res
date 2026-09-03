@@ -65,28 +65,26 @@ WEB
 
 Bu iterasyonda aşağıdaki işler **kod seviyesinde tamamlandı**. CI regression henüz yeşil olmadığı için bunlar ayrı ayrı tamamlanan geliştirmeler olarak işaretlenir; M9/Monte Carlo bütünüyle `✅` ilan edilmez.
 
-```text
-[✓] M9 Event → Goal breakdown genişletildi
-[✓] PNF (Powerful Normal Forward) extra-attack mekanizması eklendi
-[✓] PDIM normal-attack suppression mekanizması eklendi
-[✓] Appendix C.1 Set-piece goal probability utility eklendi
-[✓] Appendix C.2 Long Shot tactic conversion utility eklendi
-[✓] M9 event contribution kayıtları / expected-goal breakdown eklendi
-[✓] 18 × 5 dakikalık event-based Monte Carlo sampling eklendi
-[✓] 5 MC senaryosu korundu (Base / StrongOwn / StrongOpponent / Balanced / FastStart)
-[✓] 1000-match deterministic simulation yapısı korundu
-[✓] PNF'nin event-goal katkısının MC'de double-count edilmesi engellendi
-[✓] M9 offline regression fixture stabil baseline'a geri çekildi
-[✓] UI M9 paneli yeni Event → Goal / MC çıktılarıyla güncellendi
-[✓] UI simulation kaynağı nested full prediction sonucunu tercih edecek şekilde düzeltildi
-[✓] UI event contribution tablosu + PNF/PDIM/CA/LS/Own Goal diagnostics gösteriyor
-[ ] Opponent Specialty event wiring
-[ ] Long Shot scoring graph historical calibration
-[ ] Set-piece taker hidden-skill integration
-[ ] Specialty ↔ weather / tactic cross-effects
-[ ] V5 tactic level → paper RT exact mapping
-[ ] Full CI green checkpoint
-```
+- [x] M9 Event → Goal breakdown genişletildi
+- [x] PNF (Powerful Normal Forward) extra-attack mekanizması eklendi
+- [x] PDIM normal-attack suppression mekanizması eklendi
+- [x] Appendix C.1 Set-piece goal probability utility eklendi
+- [x] Appendix C.2 Long Shot tactic conversion utility eklendi
+- [x] M9 event contribution kayıtları / expected-goal breakdown eklendi
+- [x] 18 × 5 dakikalık event-based Monte Carlo sampling eklendi
+- [x] 5 MC senaryosu korundu (Base / StrongOwn / StrongOpponent / Balanced / FastStart)
+- [x] 1000-match deterministic simulation yapısı korundu
+- [x] PNF'nin event-goal katkısının MC'de double-count edilmesi engellendi
+- [x] M9 offline regression fixture stabil baseline'a geri çekildi
+- [x] UI M9 paneli yeni Event → Goal / MC çıktılarıyla güncellendi
+- [x] UI simulation kaynağı nested full prediction sonucunu tercih edecek şekilde düzeltildi
+- [x] UI event contribution tablosu + PNF/PDIM/CA/LS/Own Goal diagnostics gösteriyor
+- [ ] Opponent Specialty event wiring
+- [ ] Long Shot scoring graph historical calibration
+- [ ] Set-piece taker hidden-skill integration
+- [ ] Specialty ↔ weather / tactic cross-effects
+- [ ] V5 tactic level → paper RT exact mapping
+- [ ] Full CI green checkpoint
 
 ## PDF MATCH ENGINE FAZLARI
 
@@ -125,7 +123,7 @@ Build Docker image: PASS
 Deploy on Azure VM: PASS
 ```
 
-M9 geliştirmeleri sonrasında CI tekrar regression aşamasında çalışıyor. Bu nedenle yeni M9 adımları README'de tamamlanmış (`✅`) ilan edilmiyor; **kod seviyesinde tamamlanan alt parçalar yukarıdaki checkpoint'te ayrı gösteriliyor.**
+M9 geliştirmeleri sonrasında CI tekrar regression aşamasında çalışıyor. Bu nedenle yeni M9 adımları README'de tamamlanmış (`✅`) ilan edilmiyor; **kod seviyesinde tamamlanan alt parçalar yukarıdaki checklist'te ayrı gösteriliyor.**
 
 FAZ I kapsamında production'da LS fırsat hacmi açıkça `LMR × tactic conversion` olarak korunuyor; paper aralığı `%6–43`. Long-shot'ın gole dönüşüm ilişkisi için Appendix C.2'nin yayınlanan doğrusal TCR fonksiyonu M9'a utility olarak eklendi; V5 tactic level → paper `RT` eşlemesi kanıtlanmadığı için production'a körlemesine uygulanmıyor.
 
