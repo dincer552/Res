@@ -4,13 +4,32 @@ using System.Linq;
 
 namespace HattrickAI.V5.Core;
 
+/// <summary>
+/// M7.2: PDF'de tanımlanan taktik mekaniklerini M8'e taşınabilecek açık bir
+/// senaryo sözleşmesine dönüştürür. Buradaki oranlar araştırma modelinden gelir;
+/// gizli oyun girdileri bulunamadığında uydurma rating bonusu uygulanmaz.
+/// </summary>
 public sealed class AdvancedTacticalScenarioEngine
 {
+    public const double PdfAiMMin = 0.20;
+    public const double PdfAiMMax = 0.35;
+    public const double PdfAoWMin = 0.34;
+    public const double PdfAoWMax = 0.52;
+    public const double PdfCaMin = 0.04;
+    public const double PdfCaMax = 0.45;
+    public const double PdfCaMidfieldPenalty = 0.07;
+    public const double PdfLongShotsMin = 0.06;
+    public const double PdfLongShotsMax = 0.43;
+    public const double PdfPressingMin = 0.05;
+    public const double PdfPressingMax = 0.41;
+    public const double PdfPcBaseEventsPerTeam = 0.42;
+
     public AdvancedTacticalScenarioResult Calculate(IReadOnlyList<RegionalPlayer> players, MatchState state, double opponentAverageMainSkill = double.NaN)
     {
         ArgumentNullException.ThrowIfNull(players); ArgumentNullException.ThrowIfNull(state);
         var outfield = players.Where(p => p.Position != RegionalPosition.Goalkeeper).ToArray();
         if (outfield.Length == 0) return Empty(state, opponentAverageMainSkill);
+
         var totalPassing = outfield.Sum(p => Math.Max(0, p.Passing));
         var totalDefending = outfield.Sum(p => Math.Max(0, p.Defending));
         var totalPlaymaking = outfield.Sum(p => Math.Max(0, p.Playmaking));
@@ -61,8 +80,19 @@ public sealed class AdvancedTacticalScenarioEngine
 
     private static double CalculateTacticSkill(AdvancedTactic tactic, double passing, double defending, double scoring, double stamina, double experience, int count)
     {
-        if (count <= 0) return 0; var p = passing / count; var d = defending / count; var s = scoring / count; var st = stamina / count; var e = experience / count;
-        var skill = tactic switch { AdvancedTactic.AttackMiddle or AdvancedTactic.AttackWings => p, AdvancedTactic.CounterAttack => (d + p) / 2.0, AdvancedTactic.Creative => (p + e) / 2.0, AdvancedTactic.LongShots => (s + p) / 2.0, AdvancedTactic.Pressing => (d + st) / 2.0, _ => 0d };
+        if (count <= 0) return 0;
+        var p = passing / count; var d = defending / count; var s = scoring / count; var st = stamina / count; var e = experience / count;
+        // CHPP'de gerçek TacticSkill gelmediği sürece bu sadece V5'in 0-10
+        // senaryo ölçeğidir; PDF'nin RT katsayıları doğrudan bu değere bağlanmaz.
+        var skill = tactic switch
+        {
+            AdvancedTactic.AttackMiddle or AdvancedTactic.AttackWings => p,
+            AdvancedTactic.CounterAttack => (d + (2.0 * p)) / 3.0,
+            AdvancedTactic.Creative => (p + e) / 2.0,
+            AdvancedTactic.LongShots => (3.0 * s + p) / 4.0,
+            AdvancedTactic.Pressing => (d + st) / 2.0,
+            _ => 0d
+        };
         return Math.Clamp(skill / 2.0, 0.0, 10.0);
     }
 
@@ -81,21 +111,103 @@ public sealed record TacticalLevel(string Name, double Value)
 {
     public static TacticalLevel FromAggregate(AdvancedTactic tactic, double aggregate, double opponentAverageMainSkill)
     {
-        if (tactic == AdvancedTactic.Normal || aggregate <= 0) return new TacticalLevel("None", 0); var normalized = Math.Clamp(aggregate, 0.0, 10.0);
-        if (!double.IsNaN(opponentAverageMainSkill) && opponentAverageMainSkill > 0) { var opponentContext = Math.Clamp(opponentAverageMainSkill - 6.0, -2.0, 4.0); normalized = Math.Clamp(normalized * (1.0 + opponentContext * 0.015), 0.0, 10.0); }
-        var name = normalized switch { < 2 => "Weak", < 4 => "Inadequate", < 6 => "Passable", < 7.5 => "Solid", < 9 => "Formidable", _ => "Outstanding+" }; return new TacticalLevel(name, normalized);
+        if (tactic == AdvancedTactic.Normal || aggregate <= 0) return new TacticalLevel("None", 0);
+        var normalized = Math.Clamp(aggregate, 0.0, 10.0);
+        if (!double.IsNaN(opponentAverageMainSkill) && opponentAverageMainSkill > 0)
+        {
+            var opponentContext = Math.Clamp(opponentAverageMainSkill - 6.0, -2.0, 4.0);
+            normalized = Math.Clamp(normalized * (1.0 + opponentContext * 0.015), 0.0, 10.0);
+        }
+        var name = normalized switch { < 2 => "Weak", < 4 => "Inadequate", < 6 => "Passable", < 7.5 => "Solid", < 9 => "Formidable", _ => "Outstanding+" };
+        return new TacticalLevel(name, normalized);
     }
 }
+
 public sealed record ChanceDistributionEffect(double LeftShare, double CentreShare, double RightShare, double SetPieceShare, string Mechanism)
 {
+    public double AiMWingToCentreRate { get; init; }
+    public double AoWCentreToWingRate { get; init; }
+    public double LongShotConversionRate { get; init; }
+    public double PressingSuppressionRate { get; init; }
+    public double CounterAttackConversionRate { get; init; }
+    public bool CounterAttackEligible { get; init; }
+    public double CreativeEventMultiplier { get; init; } = 1.0;
+
     public static ChanceDistributionEffect For(AdvancedTactic tactic, TacticalLevel level)
     {
-        var shift = Math.Clamp(0.15 + (0.30 - 0.15) * (level.Value / 10.0), 0.15, 0.30);
-        return tactic switch { AdvancedTactic.AttackMiddle => new ChanceDistributionEffect(0.25 - (0.25 * shift), 0.35 + (0.50 * shift), 0.25 - (0.25 * shift), 0.15, "AIM directional shift; exact conversion awaits match calibration."), AdvancedTactic.AttackWings => new ChanceDistributionEffect(0.25 + (0.25 * shift), 0.35 - (0.50 * shift), 0.25 + (0.25 * shift), 0.15, "AOW directional shift; exact conversion awaits match calibration."), _ => new ChanceDistributionEffect(0.25, 0.35, 0.25, 0.15, "No directional distribution shift modelled.") };
+        var strength = Math.Clamp(level.Value, 0.0, 10.0);
+        var aiM = Range(PdfAiMMin, PdfAiMMax, strength);
+        var aoW = Range(PdfAoWMin, PdfAoWMax, strength);
+        var ca = Range(PdfCaMin, PdfCaMax, strength);
+        var ls = Range(PdfLongShotsMin, PdfLongShotsMax, strength);
+        var press = Range(PdfPressingMin, PdfPressingMax, strength);
+        var left = M8ChanceAllocationEngine.PaperLeftAttackShare;
+        var centre = M8ChanceAllocationEngine.PaperCentreAttackShare;
+        var right = M8ChanceAllocationEngine.PaperRightAttackShare;
+        var setPiece = M8ChanceAllocationEngine.PaperDirectFreeKickShare + M8ChanceAllocationEngine.PaperIndirectFreeKickShare + M8ChanceAllocationEngine.PaperPenaltyKickShare;
+
+        switch (tactic)
+        {
+            case AdvancedTactic.AttackMiddle:
+            {
+                var moved = (left + right) * aiM;
+                left -= (left / (left + right)) * moved;
+                right -= (right / (left + right)) * moved;
+                centre += moved;
+                break;
+            }
+            case AdvancedTactic.AttackWings:
+            {
+                var moved = centre * aoW;
+                centre -= moved;
+                left += moved / 2.0;
+                right += moved / 2.0;
+                break;
+            }
+        }
+
+        var sum = left + centre + right + setPiece;
+        var result = new ChanceDistributionEffect(left / sum, centre / sum, right / sum, setPiece / sum,
+            "PDF Eq3 base + tactic migration; CA/LS/PR event conversion kept as separate mechanisms.")
+        {
+            AiMWingToCentreRate = tactic == AdvancedTactic.AttackMiddle ? aiM : 0.0,
+            AoWCentreToWingRate = tactic == AdvancedTactic.AttackWings ? aoW : 0.0,
+            LongShotConversionRate = tactic == AdvancedTactic.LongShots ? ls : 0.0,
+            PressingSuppressionRate = tactic == AdvancedTactic.Pressing ? press : 0.0,
+            CounterAttackConversionRate = tactic == AdvancedTactic.CounterAttack ? ca : 0.0,
+            CounterAttackEligible = tactic == AdvancedTactic.CounterAttack,
+            CreativeEventMultiplier = tactic == AdvancedTactic.Creative ? PcMultiplier(strength) : 1.0
+        };
+        return result;
+    }
+
+    private static double Range(double min, double max, double level) => min + ((max - min) * Math.Clamp(level, 0.0, 10.0) / 10.0);
+    private static double PcMultiplier(double level)
+    {
+        // PDF: PC team 2.37x -> 3.8x; exact level relation uncertain.
+        return 2.37 + ((3.80 - 2.37) * Math.Clamp(level, 0.0, 10.0) / 10.0);
     }
 }
-public sealed record TacticalPressureProfile(double TotalDefending, double TotalStamina, double TacticalLevel) { public double RelativePressureInput => Math.Max(0, TotalDefending + TotalStamina); }
-public sealed record CounterAttackProfile(double TotalDefending, double TotalPassing, double TacticalLevel) { public double RelativeCounterInput => Math.Max(0, TotalDefending + (2.0 * TotalPassing)); }
-public sealed record LongShotsProfile(double TotalScoring, double TotalPassing, double TacticalLevel) { public double ShooterInput => Math.Max(0, TotalScoring); public double SupportInput => Math.Max(0, TotalPassing); }
-public sealed record CreativeProfile(double TotalPassing, double TotalExperience, double TacticalLevel) { public double CreativeInput => Math.Max(0, (4.0 * TotalPassing) + TotalExperience); }
+
+public sealed record TacticalPressureProfile(double TotalDefending, double TotalStamina, double TacticalLevel)
+{
+    public double RelativePressureInput => Math.Max(0, TotalDefending + TotalStamina);
+    public double NormalSuppressionRate => M8ChanceAllocationEngine.PressingMinSuppression + (M8ChanceAllocationEngine.PressingMaxSuppression - M8ChanceAllocationEngine.PressingMinSuppression) * Math.Clamp(TacticalLevel, 0, 10) / 10.0;
+}
+public sealed record CounterAttackProfile(double TotalDefending, double TotalPassing, double TacticalLevel)
+{
+    public double RelativeCounterInput => Math.Max(0, TotalDefending + (2.0 * TotalPassing));
+    public double ConversionRate => M8ChanceAllocationEngine.CounterAttackMinConversion + (M8ChanceAllocationEngine.CounterAttackMaxConversionRate - M8ChanceAllocationEngine.CounterAttackMinConversion) * Math.Clamp(TacticalLevel, 0, 10) / 10.0;
+}
+public sealed record LongShotsProfile(double TotalScoring, double TotalPassing, double TacticalLevel)
+{
+    public double ShooterInput => Math.Max(0, TotalScoring);
+    public double SupportInput => Math.Max(0, TotalPassing);
+    public double ConversionRate => M8ChanceAllocationEngine.LongShotsMinConversion + (M8ChanceAllocationEngine.LongShotsMaxConversion - M8ChanceAllocationEngine.LongShotsMinConversion) * Math.Clamp(TacticalLevel, 0, 10) / 10.0;
+}
+public sealed record CreativeProfile(double TotalPassing, double TotalExperience, double TacticalLevel)
+{
+    public double CreativeInput => Math.Max(0, (4.0 * TotalPassing) + TotalExperience);
+    public double EventMultiplier => 2.37 + ((3.80 - 2.37) * Math.Clamp(TacticalLevel, 0, 10) / 10.0);
+}
 public enum CalibrationStatus { ResearchBackedStructureNeedsMatchCalibration, CalibratedAgainstHistoricalMatches }
