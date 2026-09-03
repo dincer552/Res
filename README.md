@@ -53,9 +53,9 @@ WEB
 | M7 | ✅ | L/C/R defence + midfield + L/C/R attack |
 | M7.2 | ✅ | PDF taktik mekanikleri kodlandı; CI regression geçti |
 | M8 | ✅ | PDF Eq1–Eq4 + tactic context + opportunity volumes; CI regression geçti |
-| M9 | 🔧 | Event → goal katmanı başladı; hidden inputlar tamamlanacak |
-| Monte Carlo | 🔧 | Şu an geçiş katmanı; gerçek event sampling sıradaki hedef |
-| M10 | ✅/🔧 | Formation leaderboard hazır; final MC girdisi bekliyor |
+| M9 | 🔧 | Event → goal genişletildi; PNF/PDIM + Appendix C C.1/C.2 utilities eklendi; hidden inputs hâlâ tamamlanacak |
+| Monte Carlo | 🔧 | 18 adet 5-dakikalık event tick sampling aktif; full historical validation bekliyor |
+| M10 | ✅/🔧 | Formation leaderboard hazır; MC'nin ranking'e tam bağlanması sıradaki adım |
 | M6-B | ✅/🔧 | DB1 seed + refinement hazır; rank-driven depth geliştirilecek |
 | DB2 | ✅ | Formation depth korunuyor |
 | M11 | ✅/🔧 | Final selector hazır; gerçek event/MC çıktısıyla son kalibrasyon yapılacak |
@@ -74,11 +74,11 @@ FAZ G  Pressing suppression                            ✅
 FAZ H  Counter Attack opportunity engine               ✅
 FAZ I  Long Shots opportunity engine                   ✅
 FAZ J  Play Creatively event-volume layer              ✅
-FAZ K  Specialty event engine                          🔧 started
+FAZ K  Specialty event engine                          🔧 active
 FAZ L  Specialty ↔ tactic / weather                    🔜
-FAZ M  M9 event-based goal resolution                  🔧 started
+FAZ M  M9 event-based goal resolution                  🔧 active
 FAZ N  Historical event calibration                     🔜
-FAZ O  Full event-based Monte Carlo                    🔜
+FAZ O  Full event-based Monte Carlo                    🔧 active
 FAZ P  Offline regression + real-match validation       🔜
 ```
 
@@ -86,7 +86,7 @@ FAZ P  Offline regression + real-match validation       🔜
 
 03.09.2026 tarihinde M7.2/M8 compile regression kırmızıydı. Sorun, `AdvancedTacticalScenarioEngine` içindeki PDF alias sabitlerinin scope problemiydi. `PdfTacticalAliases` + global import ile düzeltildi.
 
-Long Shots Faz I regression gate eklendi ve son CI başarıyla tamamlandı:
+Long Shots Faz I regression gate eklendi ve son temiz CI checkpoint'i:
 
 ```text
 Commit: a66d03053f9e56f631b5be4e06521dc672afc69f
@@ -97,7 +97,9 @@ Build Docker image: PASS
 Deploy on Azure VM: PASS
 ```
 
-FAZ I kapsamında production'da LS fırsat hacmi açıkça `LMR × tactic conversion` olarak korunuyor; paper aralığı `%6–43`. Long-shot'ın gole dönüşüm olasılığı ayrı M9 işi olarak bırakıldı; paper bunu kapalı formül değil grafik/Beta çıktısı olarak tanımladığı için sahte denklem eklenmedi.
+M9 geliştirmeleri sonrasında CI tekrar regression aşamasında çalışıyor. Bu nedenle yeni M9 adımları README'de tamamlanmış (`✅`) ilan edilmiyor; kod tamamlandıkça ve CI geçtiğinde checkpoint yükseltilecek.
+
+FAZ I kapsamında production'da LS fırsat hacmi açıkça `LMR × tactic conversion` olarak korunuyor; paper aralığı `%6–43`. Long-shot'ın gole dönüşüm ilişkisi için Appendix C.2'nin yayınlanan doğrusal TCR fonksiyonu M9'a utility olarak eklendi; V5 tactic level → paper `RT` eşlemesi kanıtlanmadığı için production'a körlemesine uygulanmıyor.
 
 ## M3 — OYUNCU PROFİLİ
 
@@ -207,8 +209,6 @@ AiM / AoW  → sector migration
 PC         → special-event volume multiplier context
 ```
 
-Long Shot scoring probability M9'a bırakılmıştır; makale burada açık kapalı formül yerine grafiksel ilişki verdiği için sahte denklem üretilmemiştir.
-
 ## M9 — EVENT → GOAL ENGINE
 
 PDF Tables 4–5 üzerinden event sınıfları kodlanmıştır:
@@ -224,43 +224,74 @@ Inexperienced Defender
 Tired Defender
 ```
 
-Player-based baseline mean `0.841`; team-based baseline mean `0.372`.
+Player-based baseline `Binomial(n=4,p=0.841)` ve team-based baseline `Binomial(n=5,p=0.372)` korunur. Event eligibility current XI'daki Specialty + position üzerinden belirlenir.
 
-Event eligibility current XI'daki Specialty + position üzerinden belirlenir. Event oranı ve goal conversion rate aynı event üzerinden taşınır.
+### Appendix C mekanizmaları
 
-Henüz eksik olan hidden/az doğrulanmış girdiler:
+M9'a aşağıdaki yayınlanmış ilişkiler doğrudan utility olarak işlendi:
+
+```text
+C.1 Set-piece goal probability
+ATTACKSP = -0.0000380429·d³
+           + 0.0000226846·d²
+           + 0.0366246·d
+           + 0.45515
+
+where d = ISP attack − opponent ISP defence
+
+C.2 Long Shot tactic conversion
+TCR_LS(RT) = 0.00761935·RT + 0.07520052
+
+C.3 Powerful Normal Forward
+PNF=1: CD 0/1/2/3 → 9.6% / 6.9% / 3.3% / 2.0%
+PNF=2: CD 0/1/2/3 → 11.7% / 9.6% / 5.2% / 3.1%
+PNF≥3 → 6.6%
+
+PDIM:
+1 PDIM → average 6.5% normal-attack suppression
+```
+
+PNF artık başarısız normal denemeler üzerinden extra-attack hacmi üretir; PDIM normal attack volume'ünü azaltan ayrı bir suppression signal üretir. Opponent CD/specialty detayları CHPP inputuna bağlanana kadar default CD=3 yalnızca geriye dönük API uyumluluğu için kullanılır.
+
+Henüz production'a otomatik uygulanmayan girdiler:
 
 ```text
 Set-piece taker skill
-Long Shot scoring probability explicit equation
+Long Shot scoring probability / graph calibration
 Opponent Specialty detail
-PNF / PDIM exact conversion relationships
 Specialty ↔ weather / tactic cross-effects
+V5 tactic-level → paper RT exact mapping
 ```
 
-## NEDEN EVENT-BASED MONTE CARLO?
+## EVENT-BASED MONTE CARLO
 
-Makale gerçek motorun dinamik olduğunu ve olayların 90 dakika boyunca yaklaşık 5 dakikalık aralıklarla oluştuğunu; çalışmanın ise ortalama statik temsil kullandığını belirtiyor. V5'in uzun vadeli hedefi bu statik xG yaklaşımını olay seviyesinde örnekleyen simülasyona yükseltmektir.
+Makale gerçek motorun dinamik olduğunu ve olayların 90 dakika boyunca yaklaşık 5 dakikalık aralıklarla oluştuğunu; çalışmanın ise ortalama statik temsil kullandığını belirtiyor.
 
-Hedef:
+V5 M9 simulation katmanı artık **18 × 5 dakika tick** üzerinden örnekleme yapıyor:
 
 ```text
-M8 chance pool
+M8 chance / xG budget
       ↓
-Event selection
+18 match ticks
+      ↓
+Normal chance goal/no-goal sampling
       ↓
 M9 event eligibility
       ↓
-Event outcome
+Event occurrence sampling
       ↓
-Goal / no-goal
+Event goal conversion
       ↓
-90-minute Monte Carlo
+90-minute score
       ↓
-score distribution
+1000-match score distribution
       ↓
 W / D / L
 ```
+
+Simulation deterministic seed kullanır; offline regression aynı seed ile aynı most-likely score ve W/D/L üretimini kontrol eder.
+
+Şu an eksik olan bölüm: opponent tarafının tüm specialty eventleri ve Long Shot scoring graph'ının tarihsel calibration ile production'a bağlanması. Bunlar tamamlanmadan Monte Carlo `tam Hattrick motoru` olarak ilan edilmeyecek.
 
 ## CALIBRATION KURALI
 
@@ -286,12 +317,12 @@ Amaç `tek maça göre motoru eğmek` değil, large-sample calibration yapmaktı
 1. CI/build temizliği                                  ✅
 2. M7.2 → M8 tactic handoff stabilizasyonu            ✅
 3. M8 chance-volume + tactic effects stabilization     ✅
-4. M9 event → goal genişletme                          🔧 NEXT
-5. LS + PNF/PDIM                                     🔜
+4. M9 event → goal genişletme                          🔧 active
+5. LS + PNF/PDIM                                     🔧 PNF/PDIM + C.1/C.2 utility done
 6. Specialty ↔ weather/tactic                         🔜
 7. Historical event dataset                            🔜
-8. Event-based Monte Carlo                             🔜
-9. M10 ← MC sonuçları                                  🔜
+8. Event-based Monte Carlo                             🔧 18-tick sampling done
+9. M10 ← MC sonuçları                                  🔜 NEXT
 10. M6-B rank/depth refinement                         🔜
 11. M11 risk-adjusted final                            🔜
 12. Offline + gerçek maç regression                    🔜
