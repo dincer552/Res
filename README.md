@@ -4,240 +4,123 @@
 
 Aktif branch: `v5`
 
-V5'nin hedefi yalnızca iyi bir ilk 11 bulmak değil; **oyuncu → formasyon → XI → rating → taktik → chance → event → goal → W/D/L → formasyon karşılaştırması → final** zincirini tek ve tutarlı bir maç motoru olarak çalıştırmaktır.
+V5 hedefi tek bir ilk 11 bulmak değil; **oyuncu → formasyon → XI → rating → taktik → chance → event → goal → W/D/L → formation competition → refinement → final selector → WEB** zincirini tek ve tutarlı bir motor olarak çalıştırmaktır.
 
-2026 Hattrick araştırma makalesi M7.2/M8/M9 için ana araştırma referansıdır. Makale mekanizmaları production baseline olarak alınır; CHPP historical veri doğrulama ve kalibrasyon için kullanılır. Tek fixture veya küçük örneklem, güçlü bir araştırma mekanizmasının yerine otomatik geçirilemez.
+Makale referansı: Anthony C. Constantinou, Nicholas Higgins, Neville K. Kitson — *Decoding the mechanisms of the Hattrick football manager game using Bayesian network structure learning*, Entertainment Computing 57 (2026) 101131. DOI: `10.1016/j.entcom.2026.101131`.
 
-## ANA V5 MOTOR MİMARİSİ
+---
+
+## ANA MOTOR ZİNCİRİ
 
 ```text
-M3 Oyuncu Profili
-   ↓
-M4 Formasyon
-   ↓
-M5 XI Adayları
-   ↓
-M6 Global Search
-   ↓
-M7 Gerçek Takım Ratingleri
-   ↓
-M7.2 PDF Taktik Mekanikleri
-   ↓
+M3 Player Profile
+    ↓
+M4 Legal Formations
+    ↓
+M5 XI Candidates
+    ↓
+M6-A Global Search + DB1
+    ↓
+M7 Real Rating
+    ↓
+M7.2 Tactical Mechanisms
+    ↓
 M8 Chance Engine
-   ↓
-M9 Goal / Event Engine
-   ↓
-Poisson + Event-based Monte Carlo
-   ↓
+    ↓
+M9 Event → Goal
+    ↓
+18 × 5 min Event-based Monte Carlo
+    ↓
 W / D / L
-   ↓
+    ↓
 M10 Formation Competition
-   ↓
-M6-B Exploration + Refinement
-   ↓
-DB2
-   ↓
+    ↓
+M6-B Refinement + DB2
+    ↓
 M11 Final Selector
-   ↓
-WEB
+    ↓
+WEB / Motor Panel
 ```
 
-## MOTOR DURUMLARI
+## MOTOR DURUMU
 
-| Motor | Durum | Açıklama |
+| Motor | Durum | Gerçek durum |
 |---|---|---|
-| M3 | ✅ | Skill, position/order/side, experience, form/loyalty, Specialty taşınıyor |
+| M3 | ✅ | Oyuncu skill + position/order/side + form/experience/loyalty + Specialty taşınıyor |
 | M4 | ✅ | Legal formasyon havuzu korunuyor |
-| M5 | ✅ | Formasyon başına geniş XI adayı üretiliyor |
-| M6-A | ✅ | Formation-aware search + DB1 diversity |
-| M7 | ✅ | L/C/R defence + midfield + L/C/R attack |
-| M7.2 | ✅ | PDF taktik mekanikleri kodlandı; CI regression geçti |
-| M8 | ✅ | PDF Eq1–Eq4 + tactic context + opportunity volumes; CI regression geçti |
-| M9 | 🔧 | Event → goal genişletildi; **PNF/PDIM, Appendix C.1/C.2 ve event breakdown tamamlandı**; production entegrasyonunun eksik girdileri devam ediyor |
-| Monte Carlo | 🔧 | **18 × 5 dakikalık tick sampling tamamlandı**; deterministic seed + 1000-match distribution korunuyor; historical/event calibration bekliyor |
-| M10 | 🔧 | Formation leaderboard hazır; MC sonuçlarının ranking'e bağlanması sıradaki adım |
-| M6-B | 🔧 | DB1 seed + refinement hazır; rank-driven depth geliştirilecek |
-| DB2 | ✅ | Formation depth korunuyor |
-| M11 | 🔧 | Final selector hazır; gerçek event/MC çıktısıyla son kalibrasyon yapılacak |
-| UI / Motor Panel | ✅ | M9 event→goal breakdown, PNF/PDIM, 18-tick MC çıktıları ve event katkıları arayüzde gösteriliyor |
+| M5 | ✅ | Formasyon başına geniş XI adayı üretimi mevcut |
+| M6-A | ✅ | Formation-aware global search + DB1 diversity mevcut |
+| M7 | ✅ | L/C/R defence + midfield + L/C/R attack ratingleri mevcut |
+| M7.2 | ✅ | PDF taktik mekanikleri ve canonical handoff mevcut |
+| M8 | ✅ | Chance allocation + tactic opportunity katmanı mevcut |
+| M9 | 🔧 | Event→goal + PNF/PDIM + CA/LS + Appendix C utilities mevcut; üretim girdilerinin tamamı henüz bağlı değil |
+| Monte Carlo | 🔧 | 18×5 dk, 5 senaryo, 1000 maç ve deterministic seed mevcut; historical/event calibration bekliyor |
+| M10 | 🔧 | Formation competition + MC W/D/L ranking mevcut; son CI doğrulaması gerekiyor |
+| M6-B | 🔧 | DB1 seed/refinement mevcut; rank-driven depth daha da güçlendirilecek |
+| DB2 | ✅ | Formation depth ve diversity korunuyor |
+| M11 | 🔧 | Final selector MC/tactical/structural sinyallerini kullanıyor; son uçtan uca doğrulama bekliyor |
+| UI / Motor Panel | ✅ | M9 event breakdown, PNF/PDIM ve MC çıktıları gösteriliyor |
 
-## 03.09.2026 — TAMAMLANAN SON GELİŞTİRMELER
+---
 
-Bu iterasyonda aşağıdaki işler **kod seviyesinde tamamlandı**. CI regression henüz yeşil olmadığı için bunlar ayrı ayrı tamamlanan geliştirmeler olarak işaretlenir; M9/Monte Carlo bütünüyle `✅` ilan edilmez.
+## 03.09.2026 — TAMAMLANAN Geliştirmeler
 
-- [x] M9 Event → Goal breakdown genişletildi
-- [x] PNF (Powerful Normal Forward) extra-attack mekanizması eklendi
-- [x] PDIM normal-attack suppression mekanizması eklendi
-- [x] Appendix C.1 Set-piece goal probability utility eklendi
-- [x] Appendix C.2 Long Shot tactic conversion utility eklendi
-- [x] M9 event contribution kayıtları / expected-goal breakdown eklendi
-- [x] 18 × 5 dakikalık event-based Monte Carlo sampling eklendi
-- [x] 5 MC senaryosu korundu (Base / StrongOwn / StrongOpponent / Balanced / FastStart)
-- [x] 1000-match deterministic simulation yapısı korundu
-- [x] PNF'nin event-goal katkısının MC'de double-count edilmesi engellendi
-- [x] M9 offline regression fixture stabil baseline'a geri çekildi
-- [x] UI M9 paneli yeni Event → Goal / MC çıktılarıyla güncellendi
-- [x] UI simulation kaynağı nested full prediction sonucunu tercih edecek şekilde düzeltildi
-- [x] UI event contribution tablosu + PNF/PDIM/CA/LS/Own Goal diagnostics gösteriyor
-- [ ] Opponent Specialty event wiring
+- [x] M9 Event → Goal breakdown genişletildi.
+- [x] PNF (Powerful Normal Forward) extra-attack mekanizması eklendi.
+- [x] PDIM normal-attack suppression mekanizması eklendi.
+- [x] Appendix C.1 set-piece goal probability utility eklendi.
+- [x] Appendix C.2 Long Shot tactic conversion utility eklendi.
+- [x] M9 event contribution / expected-goal breakdown eklendi.
+- [x] 18 × 5 dakikalık event-based Monte Carlo sampling eklendi.
+- [x] Base / Sol kanat / Sağ kanat / Düşük şans / Yüksek şans senaryoları korundu.
+- [x] 1000-match deterministic simulation yapısı korundu.
+- [x] PNF event-goal katkısının MC'de double-count edilmesi engellendi.
+- [x] M9 offline regression fixture stabil baseline'a geri çekildi.
+- [x] UI M9 paneli yeni Event → Goal / MC çıktılarıyla güncellendi.
+- [x] UI simulation kaynağı nested/full prediction sonucunu kullanacak şekilde düzeltildi.
+- [x] UI event contribution tablosu + PNF/PDIM/CA/LS/Own Goal diagnostics gösterimi eklendi.
+- [x] M10 `RankedCandidate` compile blocker düzeltildi; tip kullanımını class scope'unun başına taşıdık.
+
+### HENÜZ TAMAMLANMAYAN
+
+- [ ] CI green checkpoint
+- [ ] M9 opponent Specialty event wiring
 - [ ] Long Shot scoring graph historical calibration
 - [ ] Set-piece taker hidden-skill integration
 - [ ] Specialty ↔ weather / tactic cross-effects
 - [ ] V5 tactic level → paper RT exact mapping
-- [ ] Full CI green checkpoint
+- [ ] M10 MC sonuçlarının formation ranking kararına production'da tam bağlanmasının doğrulanması
+- [ ] M6-B rank-driven search depth refinement
+- [ ] M11 end-to-end regression
+- [ ] Historical event calibration + gerçek maç validation
 
-## PDF MATCH ENGINE FAZLARI
+---
 
-```text
-FAZ A  CHPP Specialty → Player                         ✅
-FAZ B  M3 Specialty-aware profile                     ✅
-FAZ C1 M8 discrete chance allocation                  ✅
-FAZ C2 M9 chance-volume migration                     ✅
-FAZ D  Historical chance-volume validation             ✅
-FAZ E  PDF sector baseline + 60-match validation       ✅
-FAZ F  AiM / AoW migration + M7.2 handoff             ✅
-FAZ G  Pressing suppression                            ✅
-FAZ H  Counter Attack opportunity engine               ✅
-FAZ I  Long Shots opportunity engine                   ✅
-FAZ J  Play Creatively event-volume layer              ✅
-FAZ K  Specialty event engine                          🔧 active
-FAZ L  Specialty ↔ tactic / weather                    🔜
-FAZ M  M9 event-based goal resolution                  🔧 active
-FAZ N  Historical event calibration                     🔜
-FAZ O  Full event-based Monte Carlo                    🔧 active
-FAZ P  Offline regression + real-match validation       🔜
-```
+## SON CI CHECKPOINT
 
-## CI CHECKPOINT
-
-03.09.2026 tarihinde M7.2/M8 compile regression kırmızıydı. Sorun, `AdvancedTacticalScenarioEngine` içindeki PDF alias sabitlerinin scope problemiydi. `PdfTacticalAliases` + global import ile düzeltildi.
-
-Long Shots Faz I regression gate eklendi ve son temiz CI checkpoint'i:
+En son kırmızı workflow eski commit üzerinde şurada durdu:
 
 ```text
-Commit: a66d03053f9e56f631b5be4e06521dc672afc69f
-Workflow: HattrickAI V5 Deploy #423
-M7 → M7.1 → M7.2 → M8 offline regression: PASS
-FAZ I Long Shots opportunity regression: PASS
-Build Docker image: PASS
-Deploy on Azure VM: PASS
+Commit: 70265c056ec6a769658858e011d8a579465304d3
+Workflow job: 100125726900
+Failure: HattrickAI_V5/Core/M10FinalDecisionEngine.cs(33,30)
+Error: RankedCandidate could not be found
 ```
 
-M9 geliştirmeleri sonrasında CI tekrar regression aşamasında çalışıyor. Bu nedenle yeni M9 adımları README'de tamamlanmış (`✅`) ilan edilmiyor; **kod seviyesinde tamamlanan alt parçalar yukarıdaki checklist'te ayrı gösteriliyor.**
-
-FAZ I kapsamında production'da LS fırsat hacmi açıkça `LMR × tactic conversion` olarak korunuyor; paper aralığı `%6–43`. Long-shot'ın gole dönüşüm ilişkisi için Appendix C.2'nin yayınlanan doğrusal TCR fonksiyonu M9'a utility olarak eklendi; V5 tactic level → paper `RT` eşlemesi kanıtlanmadığı için production'a körlemesine uygulanmıyor.
-
-## M3 — OYUNCU PROFİLİ
-
-Specialty düz rating bonusu değildir. `Technical`, `Quick`, `Powerful`, `Unpredictable`, `Head` event bağlamında kullanılmak üzere profile taşınır.
-
-## M4 / M5 / M6 — FORMASYON ARAMA
+Bu hata için M10'daki nested `RankedCandidate` tanımı methodların üstüne taşındı.
 
 ```text
-M4 legal formations
-        ↓
-M5 candidates per formation
-        ↓
-M6-A formation-aware search
-        ↓
-DB1 minimum formation depth
-        ↓
-M10 formation leaderboard
-        ↓
-M6-B exploration/refinement
-        ↓
-DB2
-        ↓
-M11 final comparison
+Fix commit: 431cfcdc5c58ac4666f9d7160cd1ce7b27ea3dd7
+Durum: yeni CI doğrulaması bekleniyor
 ```
 
-Hiçbir legal formasyon M6 öncesinde global ranking ile silinmez. DB1/DB2 formation diversity korunur.
+**Bu nedenle CI şu anda README'de yeşil ilan edilmiyor.**
 
-## M7 — GERÇEK RATING
+---
 
-M3 oyuncu profilleri gerçek sektör ratinglerine dönüştürülür:
+## M9 — EVENT → GOAL
 
-```text
-Left Defence / Centre Defence / Right Defence
-Midfield
-Left Attack / Centre Attack / Right Attack
-```
-
-M8 ve M9 yeni rating uydurmaz; M7 ratinglerini kullanır.
-
-## M7.2 — PDF TAKTİK KATMANI
-
-Canonical tactic enum:
-
-```text
-Normal
-Attack in the Middle (AiM)
-Attack on the Wings (AoW)
-Counterattack (CA)
-Long Shots (LS)
-Pressing (PR)
-Play Creatively (PC)
-```
-
-M7.2 M7 ratinglerinden tactic context üretir ve M8'e canonical `M8TacticalMatchupInput` ile aktarır.
-
-Makalenin yayınladığı mechanism/range değerleri production baseline olarak kullanılır:
-
-```text
-AiM  : wing → centre 20–35%
-AoW  : centre → wing 34–52%
-CA   : missed normal → counterattack 4–45%
-LS   : LMR → long shot 6–43%
-PR   : normal attack suppression 5–41% (one-team PR case)
-PC   : own special-event multiplier 2.37×–3.80×
-```
-
-Mevcut V5 tactic level `0–10` ölçeğinin paper'daki `RT` ile birebir eşdeğer olduğu kanıtlanmadığı için Appendix C regresyonları doğrudan production coefficient kabul edilmez.
-
-## M8 — CHANCE ENGINE
-
-M8 canonical flow:
-
-```text
-Eq.1  midfield → possession
-Eq.2  5 exclusive + 5 shared structure
-Eq.3  L / C / R / DFK / IFK / PK distribution
-Eq.4  attack vs defence sector scoring probability
-        ↓
-AiM / AoW migration
-CA opportunity
-Pressing suppression
-LS opportunity
-```
-
-PDF Eq.3 baseline:
-
-```text
-Left   25.65%
-Centre 36.15%
-Right  25.65%
-DFK     5.86%
-IFK     4.18%
-PK      2.51%
-```
-
-LMR toplamı `%87.45`; expected normal attack volume `10`; dolayısıyla expected LMR volume `8.745`.
-
-60 CHPP maçlık validation datasetinde gözlenen LMR ortalaması `8.80` bulunmuştur. Bu veri production coefficient'lerini otomatik değiştirmemiştir.
-
-M8 artık tactic-specific opportunity hacimlerini de açıkça üretir:
-
-```text
-Pressing   → suppressed Normal volume
-CA         → opponent missed Normal → CA opportunity
-LS         → LMR → Long Shot opportunity
-AiM / AoW  → sector migration
-PC         → special-event volume multiplier context
-```
-
-## M9 — EVENT → GOAL ENGINE
-
-PDF Tables 4–5 üzerinden event sınıfları kodlanmıştır:
+PDF Tables 4–5 baseline event sınıfları kodlandı:
 
 ```text
 Winger
@@ -250,148 +133,218 @@ Inexperienced Defender
 Tired Defender
 ```
 
-Player-based baseline `Binomial(n=4,p=0.841)` ve team-based baseline `Binomial(n=5,p=0.372)` korunur. Event eligibility current XI'daki Specialty + position üzerinden belirlenir.
-
-### Appendix C mekanizmaları
-
-M9'a aşağıdaki yayınlanmış ilişkiler doğrudan utility olarak işlendi:
+Baseline event budget:
 
 ```text
-C.1 Set-piece goal probability
-ATTACKSP = -0.0000380429·d³
-           + 0.0000226846·d²
-           + 0.0366246·d
-           + 0.45515
-
-where d = ISP attack − ISP defence
-
-C.2 Long Shot tactic conversion
-TCR_LS(RT) = 0.00761935·RT + 0.07520052
-
-C.3 Powerful Normal Forward
-PNF=1: CD 0/1/2/3 → 9.6% / 6.9% / 3.3% / 2.0%
-PNF=2: CD 0/1/2/3 → 11.7% / 9.6% / 5.2% / 3.1%
-PNF≥3 → 6.6%
-
-PDIM:
-1 PDIM → average 6.5% normal-attack suppression
+Player events = Binomial(n=4, p=0.841)
+Team events   = Binomial(n=5, p=0.372)
 ```
 
-PNF artık başarısız normal denemeler üzerinden extra-attack hacmi üretir; PDIM normal attack volume'ünü azaltan ayrı bir suppression signal üretir. Opponent CD/specialty detayları CHPP inputuna bağlanana kadar default CD=3 yalnızca geriye dönük API uyumluluğu için kullanılır.
-
-Henüz production'a otomatik uygulanmayan girdiler:
+Appendix C utilities:
 
 ```text
-Set-piece taker skill
-Long Shot scoring probability / graph calibration
+C.1 ATTACKSP(d)
+= -0.0000380429·d³
+  + 0.0000226846·d²
+  + 0.0366246·d
+  + 0.45515
+
+d = ISP attack − ISP defence
+
+C.2 TCR_LS(RT)
+= 0.00761935·RT + 0.07520052
+```
+
+PNF:
+
+```text
+1 PNF → CD 0/1/2/3 = 9.6% / 6.9% / 3.3% / 2.0%
+2 PNF → CD 0/1/2/3 = 11.7% / 9.6% / 5.2% / 3.1%
+PNF ≥3             = 6.6%
+```
+
+PDIM baseline:
+
+```text
+1 PDIM ≈ 6.5% normal-attack suppression
+```
+
+### M9'da eksik girdiler
+
+Bunlar veri yokken uydurulmayacak. Önce input modeli ve historical validation kurulacak:
+
+```text
 Opponent Specialty detail
+Set-piece taker hidden skill
+Long Shot scoring graph / conversion calibration
 Specialty ↔ weather / tactic cross-effects
-V5 tactic-level → paper RT exact mapping
+V5 tactic level → paper RT exact mapping
 ```
+
+---
 
 ## EVENT-BASED MONTE CARLO
 
-Makale gerçek motorun dinamik olduğunu ve olayların 90 dakika boyunca yaklaşık 5 dakikalık aralıklarla oluştuğunu; çalışmanın ise ortalama statik temsil kullandığını belirtiyor.
-
-V5 M9 simulation katmanı artık **18 × 5 dakika tick** üzerinden örnekleme yapıyor:
+90 dakika artık tek bir maçlık Poisson çekişi olarak ele alınmıyor. Simulation katmanı:
 
 ```text
-M8 chance / xG budget
-      ↓
-18 match ticks
-      ↓
-Normal chance goal/no-goal sampling
-      ↓
-M9 event eligibility
-      ↓
-Event occurrence sampling
-      ↓
-Event goal conversion
-      ↓
-90-minute score
-      ↓
-1000-match score distribution
-      ↓
-W / D / L
+90 min
+ ↓
+18 × 5 min tick
+ ↓
+Normal chance sampling
+ ↓
+Event eligibility
+ ↓
+Event occurrence
+ ↓
+Event → goal conversion
+ ↓
+Final score
 ```
 
-Simulation deterministic seed kullanır; offline regression aynı seed ile aynı most-likely score ve W/D/L üretimini kontrol eder.
+Korunan özellikler:
 
-UI artık MC çıktısını event-aware M9 sonucu içinden okur ve 1000 maç / 18 tick yapısını, W/D/L oranlarını, en sık skoru ve senaryo dağılımını gösterir.
+```text
+1000 matches
+5 scenarios
+deterministic seed
+W / D / L
+score distribution
+most-likely score
+```
 
-Şu an eksik olan bölüm: opponent tarafının tüm specialty eventleri ve Long Shot scoring graph'ının tarihsel calibration ile production'a bağlanması. Bunlar tamamlanmadan Monte Carlo `tam Hattrick motoru` olarak ilan edilmeyecek.
+MC'nin production'a tam yükseltilmesi için opponent Specialty ve historical event/Long Shot calibration tamamlanmalıdır.
+
+---
+
+## M10 — FORMATION COMPETITION
+
+M10 artık yalnızca tactical score bakmıyor. Formation competition için:
+
+```text
+Tactical score
++ Monte Carlo Win probability
++ Structural score
+↓
+Composite score
+↓
+formation leaderboard
+```
+
+Her legal formasyon için candidate depth korunur. MC çıktısı formation ranking'e bağlanmıştır; yeni CI regression ile bunun uçtan uca stabil olduğu doğrulanacaktır.
+
+---
+
+## M6-B — REFINEMENT
+
+M6-B DB1'den gelen seed'lerle ikinci arama yapar ve DB2 oluşturur.
+
+Mevcut korumalar:
+
+```text
+DB1 → M10 competition
+DB1 → M6-B seeds
+M6-B → DB2
+DB2 → M11
+```
+
+Her legal formasyon için minimum depth korunur. Bir sonraki geliştirme, M10 formation ranking sonucunu M6-B arama derinliğine doğrudan yön vermektir; güçlü formasyon daha fazla refinement bütçesi almalı, zayıf formasyon ise tamamen silinmeden daha düşük bütçeyle devam etmelidir.
+
+---
+
+## M11 — FINAL SELECTOR
+
+M11 DB2 finalistlerini son kez karşılaştırır:
+
+```text
+35% tactical
+35% MC win
+15% structural
+ 5% stability
+10% risk-adjusted outcome
+```
+
+Final çıktı:
+
+```text
+Best Formation
+Best XI
+Best Rating
+Best Matchup
+MC W / D / L
+Most likely score
+```
+
+M11'in tamamlanma kriteri yalnızca derlenmek değildir; gerçek pipeline regression ile seçilen finalist ve tüm legal formationların DB2 → M11 zincirinde korunması gerekir.
+
+---
 
 ## UI / MOTOR PANELİ
 
-Web arayüzündeki M9 paneli yeni motor hesaplarına göre güncellendi:
+Panelde artık:
 
 ```text
-Tahmini sonuç + analitik skor
-Galibiyet / beraberlik / rakip olasılığı
-Beklenen gol + possession
-7 rating / pozisyon eşleşmesi
+Analitik tahmin
+W / D / L
+Expected goals
+Possession
+7 rating / position matchup
 
-Event → Goal Motoru
-  Player event E
-  Team event E
+M9 Event → Goal
   Player event xG
   Team event xG
   PNF xG
   CA xG
   Long Shot xG
   Own Goal xG
-  Pressing suppression
-  Calibration durumu
-  Event contribution tablosu
+  PDIM suppression
+  Calibration status
+  Event contributions
 
-1000 maç × 18 tick (5 dk)
-  Sim. W / D / L
-  En sık skor
-  En sık sonuç
-  Senaryo dağılımları
+Monte Carlo
+  1000 matches
+  18 ticks
+  Most likely score
+  W / D / L
+  Scenario distribution
 ```
 
-UI, M10'un MC'yi henüz formation ranking kararına katmadığını açıkça gösterir. Bu nedenle arayüzde MC tanısal/kanıt çıktısıdır; M10 MC entegrasyonu bir sonraki motor fazıdır.
+MC şu aşamada tanısal/kanıt çıktısıdır. M10 ranking'e bağlanmış mekanizma mevcut olsa da production checkpoint'i için CI + end-to-end regression beklenmektedir.
+
+---
+
+## UYGULAMA SIRASI — BURADAN DEVAM
+
+```text
+1. CI / compile temizliği                       ← ŞİMDİ
+2. M9 production event integration
+3. Historical event + LS calibration
+4. M10 formation ranking validation
+5. M6-B rank-driven depth refinement
+6. M11 end-to-end regression
+7. Real-match / CHPP validation
+8. Final WEB release
+```
+
+Bu sıra tamamlanmadan yeni bir motoru `✅ tamamlandı` ilan etmiyoruz.
+
+---
 
 ## CALIBRATION KURALI
 
 ```text
-PDF / verified mechanism
-          ↓
+Verified paper mechanism
+        ↓
 production baseline
-          +
-CHPP historical observations
-          ↓
-error / residual analysis
-          ↓
+        +
+CHPP historical data
+        ↓
+residual/error analysis
+        ↓
 confidence test
-          ↓
-only if justified → production adjustment
+        ↓
+only then → production coefficient update
 ```
 
-Amaç `tek maça göre motoru eğmek` değil, large-sample calibration yapmaktır.
-
-## UYGULAMA SIRASI
-
-```text
-1. CI/build temizliği                                  ✅
-2. M7.2 → M8 tactic handoff stabilizasyonu            ✅
-3. M8 chance-volume + tactic effects stabilization     ✅
-4. M9 event → goal genişletme                          🔧 active
-5. LS + PNF/PDIM                                     🔧 PNF/PDIM + C.1/C.2 utility done
-6. Specialty ↔ weather/tactic                         🔜
-7. Historical event dataset                            🔜
-8. Event-based Monte Carlo                             🔧 18-tick sampling done
-9. M10 ← MC sonuçları                                  🔜 NEXT
-10. M6-B rank/depth refinement                         🔜
-11. M11 risk-adjusted final                            🔜
-12. Offline + gerçek maç regression                    🔜
-```
-
-## KAYNAK REFERANSI
-
-Ana paper:
-
-`Anthony C. Constantinou, Nicholas Higgins, Neville K. Kitson — Decoding the mechanisms of the Hattrick football manager game using Bayesian network structure learning, Entertainment Computing 57 (2026) 101131.`
-
-DOI: `10.1016/j.entcom.2026.101131`
+Tek maç sonucu veya küçük örneklem üzerinden motor eğilmeyecek.
