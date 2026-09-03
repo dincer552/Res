@@ -10,7 +10,9 @@ public sealed record MatchDataContext(
     string OwnTeamName,
     OpponentMatchProfile Opponent,
     RatingContext RatingContext,
-    MatchQuestionnaire Questionnaire);
+    MatchQuestionnaire Questionnaire,
+    Lineup? OpponentLineup = null,
+    IReadOnlyList<Player>? OpponentPlayers = null);
 
 public sealed record PlayerAnalysisResult(IReadOnlyList<PlayerAnalysisProfile> Players)
 {
