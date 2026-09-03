@@ -41,6 +41,7 @@ public sealed class PlayerAnalysisEngine : IPlayerAnalysisEngine
             eligible,
             player.InjuryLevel,
             player.Specialty,
+            BuildSpecialtyProfile(player.Specialty),
             candidates,
             candidates.FirstOrDefault()?.PositionCode,
             candidates.Skip(1).FirstOrDefault()?.PositionCode);
@@ -64,6 +65,76 @@ public sealed class PlayerAnalysisEngine : IPlayerAnalysisEngine
             _ => double.NegativeInfinity
         };
     }
+
+    private static PlayerSpecialtyProfile BuildSpecialtyProfile(PlayerSpecialty specialty)
+        => specialty switch
+        {
+            PlayerSpecialty.Technical => new(
+                specialty,
+                HasSpecialEventContext: true,
+                HasWeatherInteraction: true,
+                HasCounterAttackInteraction: false,
+                HasPressingInteraction: false,
+                HasQuickEventInteraction: false,
+                HasHeaderInteraction: true,
+                HasPlayCreativelyInteraction: false,
+                Notes: "Technical specialty; weather and Technical-vs-Head interactions are retained for later event resolution."),
+
+            PlayerSpecialty.Quick => new(
+                specialty,
+                HasSpecialEventContext: true,
+                HasWeatherInteraction: false,
+                HasCounterAttackInteraction: true,
+                HasPressingInteraction: false,
+                HasQuickEventInteraction: true,
+                HasHeaderInteraction: false,
+                HasPlayCreativelyInteraction: false,
+                Notes: "Quick specialty; quick events and counter-attack interaction are retained for later tactical/event resolution."),
+
+            PlayerSpecialty.Powerful => new(
+                specialty,
+                HasSpecialEventContext: true,
+                HasWeatherInteraction: true,
+                HasCounterAttackInteraction: false,
+                HasPressingInteraction: true,
+                HasQuickEventInteraction: false,
+                HasHeaderInteraction: false,
+                HasPlayCreativelyInteraction: false,
+                Notes: "Powerful specialty; weather and pressing interactions are retained for later tactical/event resolution."),
+
+            PlayerSpecialty.Unpredictable => new(
+                specialty,
+                HasSpecialEventContext: true,
+                HasWeatherInteraction: false,
+                HasCounterAttackInteraction: false,
+                HasPressingInteraction: false,
+                HasQuickEventInteraction: false,
+                HasHeaderInteraction: false,
+                HasPlayCreativelyInteraction: true,
+                Notes: "Unpredictable specialty; unexpected actions and Play Creatively interaction are retained for later event resolution."),
+
+            PlayerSpecialty.Head => new(
+                specialty,
+                HasSpecialEventContext: true,
+                HasWeatherInteraction: false,
+                HasCounterAttackInteraction: false,
+                HasPressingInteraction: false,
+                HasQuickEventInteraction: false,
+                HasHeaderInteraction: true,
+                HasPlayCreativelyInteraction: false,
+                Notes: "Head specialty; own header and opponent anti-header interaction are retained for later event resolution."),
+
+            _ => new(
+                PlayerSpecialty.None,
+                HasSpecialEventContext: false,
+                HasWeatherInteraction: false,
+                HasCounterAttackInteraction: false,
+                HasPressingInteraction: false,
+                HasQuickEventInteraction: false,
+                HasHeaderInteraction: false,
+                HasPlayCreativelyInteraction: false,
+                Notes: "No specialty; no specialty-specific event context."),
+        };
 
     private static bool IsEligible(Player player)
         => player.Id > 0 && player.InjuryLevel != 999;
@@ -90,12 +161,24 @@ public sealed class PlayerAnalysisEngine : IPlayerAnalysisEngine
 
 public sealed record PlayerPositionCandidate(string PositionCode, double Score);
 
+public sealed record PlayerSpecialtyProfile(
+    PlayerSpecialty Specialty,
+    bool HasSpecialEventContext,
+    bool HasWeatherInteraction,
+    bool HasCounterAttackInteraction,
+    bool HasPressingInteraction,
+    bool HasQuickEventInteraction,
+    bool HasHeaderInteraction,
+    bool HasPlayCreativelyInteraction,
+    string Notes);
+
 public sealed record PlayerAnalysisProfile(
     int PlayerId,
     string PlayerName,
     bool IsEligible,
     int InjuryLevel,
     PlayerSpecialty Specialty,
+    PlayerSpecialtyProfile SpecialtyProfile,
     IReadOnlyList<PlayerPositionCandidate> Positions,
     string? PrimaryPosition,
     string? SecondaryPosition)
