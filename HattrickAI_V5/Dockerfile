@@ -42,5 +42,6 @@ RUN sed -i \
   -e 's#\${active\.message}#\${displayMotorText(active.message)}#g' \
   -e 's#\${log\.finalMessage}#\${displayMotorText(log.finalMessage)}#g' \
   /app/wwwroot/motor-logs.js
-RUN sed -i 's#</body>#<script src="/copy-teams.js?v=2"></script><script src="/motor-logs.js?v=4"></script><script src="/motor-render.js?v=2"></script><script src="/match-select.js?v=2"></script><script src="/formation-competition.js?v=2"></script><script src="/m9-prediction.js?v=2"></script></body>#' /app/wwwroot/index.html
+RUN sed -i 's#</head>#<style>[id="v5MotorLogList"] b{width:155px!important;min-width:155px!important;flex:0 0 155px!important;line-height:1.2!important}</style></head>#' /app/wwwroot/index.html
+RUN sed -i 's#</body>#<script src="/copy-teams.js?v=2"></script><script src="/motor-logs.js?v=5"></script><script src="/motor-render.js?v=2"></script><script src="/match-select.js?v=2"></script><script src="/formation-competition.js?v=2"></script><script src="/m9-prediction.js?v=2"></script></body>#' /app/wwwroot/index.html
 ENTRYPOINT ["dotnet","HattrickAI.V5.dll","--hostBuilder:reloadConfigOnChange=false"]
