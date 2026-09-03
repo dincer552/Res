@@ -51,33 +51,11 @@ public sealed class M9MatchPredictionEngine
         var opponentSetPieceGoals = opponentSetPieceExpected * SetPieceNeutralConversion;
 
         var ownEvents = players is not null && players.Count > 0
-            ? new M9EventGoalEngine().Calculate(
-                candidate.Lineup,
-                players,
-                candidate.Rating.Midfield,
-                opponent.Midfield,
-                chance.Tactic,
-                chance.CreativeEventMultiplier,
-                ownNormalChanceVolume,
-                chance.OpponentRegularChanceExpected,
-                ownRegularQuality,
-                opponentRegularQuality,
-                opponentCentralDefenders: 3)
+            ? new M9EventGoalEngine().Calculate(candidate.Lineup, players, candidate.Rating.Midfield, opponent.Midfield, chance.Tactic, chance.CreativeEventMultiplier, ownNormalChanceVolume, chance.OpponentRegularChanceExpected, ownRegularQuality, opponentRegularQuality, opponentCentralDefenders: 3)
             : M9EventGoalBreakdown.Empty;
 
         var opponentEvents = opponentLineup is not null && opponentPlayers is not null && opponentPlayers.Count > 0
-            ? new M9EventGoalEngine().Calculate(
-                opponentLineup,
-                opponentPlayers,
-                opponent.Midfield,
-                candidate.Rating.Midfield,
-                chance.Tactic,
-                chance.CreativeEventMultiplier,
-                chance.OpponentRegularChanceExpected,
-                ownNormalChanceVolume,
-                opponentRegularQuality,
-                ownRegularQuality,
-                opponentCentralDefenders: 3)
+            ? new M9EventGoalEngine().Calculate(opponentLineup, opponentPlayers, opponent.Midfield, candidate.Rating.Midfield, chance.Tactic, chance.CreativeEventMultiplier, chance.OpponentRegularChanceExpected, ownNormalChanceVolume, opponentRegularQuality, ownRegularQuality, opponentCentralDefenders: 3)
             : M9EventGoalBreakdown.Empty;
 
         var ownNormalVolumeAfterPdim = ownNormalChanceVolume * (1.0 - opponentEvents.PressingSuppressionSignal);
@@ -85,9 +63,7 @@ public sealed class M9MatchPredictionEngine
         var ownNormalGoals = ownNormalVolumeAfterPdim * ownRegularQuality;
         var opponentNormalGoals = opponentNormalVolumeAfterPdim * opponentRegularQuality;
 
-        // Own team's event goals plus opponent's Own Goal events.
         var ownSpecialGoals = ownEvents.PlayerBasedSpecialEventGoals + ownEvents.TeamBasedSpecialEventGoals + ownEvents.CounterAttackGoals + ownEvents.LongShotGoals + ownEvents.PowerfulNormalForwardGoals + opponentEvents.ExpectedGoalsConcededFromOwnGoalEvents;
-        // Opponent's event goals plus our Own Goal events.
         var opponentSpecialGoals = opponentEvents.PlayerBasedSpecialEventGoals + opponentEvents.TeamBasedSpecialEventGoals + opponentEvents.CounterAttackGoals + opponentEvents.LongShotGoals + opponentEvents.PowerfulNormalForwardGoals + ownEvents.ExpectedGoalsConcededFromOwnGoalEvents;
 
         var ownExpected = ClampGoals(ownNormalGoals + ownCounterAttackGoals + ownSetPieceGoals + ownSpecialGoals);
@@ -100,8 +76,6 @@ public sealed class M9MatchPredictionEngine
         };
         var structuralChance = Clamp01(ownChanceShare * ownRegularQuality + chance.SetPieceChanceShare * SetPieceNeutralConversion);
 
-        // M9PredictionResult exposes our own event breakdown; opponent event contribution
-        // is retained as diagnostics so UI and regression can inspect both sides.
         return new M9PredictionResult(
             candidate.Lineup.Formation,
             CandidateId(candidate.Lineup),
@@ -228,6 +202,7 @@ public sealed record M9PredictionResult(
             return $"{bestOwn}-{bestOpponent}";
         }
     }
+
     public string ConfidenceLabel
     {
         get
@@ -236,10 +211,32 @@ public sealed record M9PredictionResult(
             return top >= 0.65 ? "Yüksek" : top >= 0.50 ? "Orta" : "Düşük";
         }
     }
+
     private static double PoissonProbability(double lambda, int goals)
     {
         var p = Math.Exp(-Math.Max(0.05, lambda));
         for (var i = 1; i <= goals; i++) p *= lambda / i;
         return p;
     }
+
+    public static implicit operator M9PredictionResult(MatchPrediction prediction)
+        => new(
+            "Unknown",
+            "match-prediction",
+            prediction,
+            0.0,
+            prediction.PossessionProbability,
+            1.0 - prediction.PossessionProbability,
+            0.5,
+            0.5,
+            0.5,
+            0.5,
+            0.5,
+            0.5,
+            0.5,
+            prediction.Location,
+            M9CalibrationStatus.StructuralModelAwaitingHistoricalCalibration)
+        {
+            EventGoals = prediction.EventGoals
+        };
 }
