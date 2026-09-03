@@ -147,7 +147,7 @@ public sealed class M9EventGoalEngine
             _ => 0.0
         };
 
-        var pdimSuppression = Math.Clamp(pdimCount * 0.065, 0.0, 1.0);
+        var pdimSuppression = PdimSuppressionRate(pdimCount);
         var suppressedOpponentNormalVolume = Math.Max(0.0, opponentNormalChanceVolume * pdimSuppression);
         var missedOpponentNormals = Math.Max(0.0, opponentNormalChanceVolume * (1.0 - Math.Clamp(opponentNormalGoalProbability, 0.0, 1.0)));
         var pnfConversion = PnfConversionRate(pnfCount, opponentCentralDefenders);
@@ -203,6 +203,9 @@ public sealed class M9EventGoalEngine
             _ => 0.066
         };
     }
+
+    public static double PdimSuppressionRate(int pdimCount)
+        => Math.Clamp(Math.Max(0, pdimCount) * 0.065, 0.0, 1.0);
 
     private static double LinearPossession(double ownMidfieldRating, double opponentMidfieldRating)
     {
