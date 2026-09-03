@@ -53,8 +53,6 @@ public sealed class ChppV5
 
         if (!response.IsSuccessStatusCode)
         {
-            // Same compatibility fallback used by the proven V1 CHPP client:
-            // retry with a fresh nonce/timestamp and OAuth Authorization header.
             var oauth2 = CreateOAuth(callback, null, null);
             var signed2 = Sign("GET", RequestTokenUrl, oauth2, null, null);
             using var fallback = CreateRequest(HttpMethod.Get, RequestTokenUrl, signed2.AuthorizationHeader);
@@ -204,5 +202,6 @@ public static class XmlV5
     public static XElement? Root(string xml) => XDocument.Parse(xml).Root;
     public static string Text(XElement? e, string name) => e?.Element(name)?.Value?.Trim() ?? e?.Descendants(name).FirstOrDefault()?.Value?.Trim() ?? string.Empty;
     public static int Int(XElement? e, string name) => int.TryParse(Text(e,name), NumberStyles.Integer, CultureInfo.InvariantCulture, out var v) ? v : 0;
+    public static double Double(XElement? e, string name) => double.TryParse(Text(e,name), NumberStyles.Float | NumberStyles.AllowThousands, CultureInfo.InvariantCulture, out var v) ? v : 0d;
     public static DateTimeOffset Date(XElement? e, string name) => DateTimeOffset.TryParse(Text(e,name), CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal, out var v) ? v : default;
 }
