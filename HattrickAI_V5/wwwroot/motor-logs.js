@@ -6,7 +6,7 @@
   const box = document.createElement('section');
   box.id = 'v5MotorLogBox';
   box.style.cssText = 'margin-top:14px;background:#fff;border-radius:15px;box-shadow:0 2px 9px #0002;overflow:hidden;border:1px solid #dfe5e1';
-  box.innerHTML = `<button id="v5MotorLogToggle" type="button" style="width:100%;border:0;background:#fff;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;color:#27322d;font:800 13px Arial;cursor:pointer"><span>🧠 V5 Motor Logları • M3 → M11</span><span id="v5MotorLogArrow">⌄</span></button><div id="v5MotorLogBody" style="display:none;border-top:1px solid #e5ebe7"><div style="padding:9px 12px;display:flex;gap:7px;align-items:center;color:#747c76;font:11px Arial"><span id="v5MotorLogState" style="flex:1">Analiz bekleniyor…</span><button id="v5MotorLogExport" type="button" style="border:1px solid #cfdad3;background:#f7faf8;color:#267448;font-weight:800;border-radius:7px;padding:6px 8px;cursor:pointer">📥 Sonuçları JSON Al</button><button id="v5MotorLogRefresh" type="button" style="border:1px solid #d5ddd8;background:#f7f9f7;border-radius:7px;padding:6px 8px;cursor:pointer">↻ Yenile</button></div><div id="v5MotorLogList" style="padding:0 12px 12px"></div></div>`;
+  box.innerHTML = `<button id="v5MotorLogToggle" type="button" style="width:100%;border:0;background:#fff;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;color:#27322d;font:800 13px Arial;cursor:pointer"><span>🧠 V5 Motor Paneli • M3 → M11</span><span id="v5MotorLogArrow">⌄</span></button><div id="v5MotorLogBody" style="display:none;border-top:1px solid #e5ebe7"><div style="padding:9px 12px;display:flex;gap:7px;align-items:center;color:#747c76;font:11px Arial"><span id="v5MotorLogState" style="flex:1">Analiz bekleniyor…</span><button id="v5MotorLogExport" type="button" style="border:1px solid #cfdad3;background:#f7faf8;color:#267448;font-weight:800;border-radius:7px;padding:6px 8px;cursor:pointer">📥 Sonuçları JSON Al</button><button id="v5MotorLogRefresh" type="button" style="border:1px solid #d5ddd8;background:#f7f9f7;border-radius:7px;padding:6px 8px;cursor:pointer">↻ Yenile</button></div><div id="v5MotorLogList" style="padding:0 12px"></div><div id="v5MotorDiagnostics" style="padding:0 12px 12px"></div></div>`;
 
   const deployBox = document.getElementById('deployLogBox');
   if (deployBox && deployBox.parentNode) deployBox.parentNode.insertBefore(box, deployBox);
@@ -15,6 +15,7 @@
   const body = document.getElementById('v5MotorLogBody');
   const arrow = document.getElementById('v5MotorLogArrow');
   const list = document.getElementById('v5MotorLogList');
+  const diagnostics = document.getElementById('v5MotorDiagnostics');
   const state = document.getElementById('v5MotorLogState');
   const toggle = document.getElementById('v5MotorLogToggle');
   const refresh = document.getElementById('v5MotorLogRefresh');
@@ -23,6 +24,9 @@
   const esc = value => String(value ?? '').replace(/[&<>\"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#039;'}[m]));
   const motors = ['M3','M4','M5','M6','M7','M7.2','M8','M9','M10','M6-B','M11'];
   const orderName = value => ({0:'Normal',1:'Ofansif',2:'Defansif',3:'Merkeze',4:'Kanada'}[Number(value)] || String(value ?? ''));
+  const first = (...values) => values.find(value => value !== undefined && value !== null);
+  const num = value => Number.isFinite(Number(value)) ? Number(value).toFixed(2) : '—';
+  const pct = value => Number.isFinite(Number(value)) ? (Number(value) * 100).toFixed(1) + '%' : '—';
 
   function ensureProgress() {
     let progress = document.getElementById('v5AnalysisProgress');
@@ -40,13 +44,13 @@
   function setProgress(percent, text) {
     const progress = ensureProgress();
     if (!progress) return;
-    const pct = Math.max(0, Math.min(100, Math.round(percent)));
+    const value = Math.max(0, Math.min(100, Math.round(percent)));
     progress.style.display = 'block';
     const bar = document.getElementById('v5AnalysisProgressBar');
     const pctEl = document.getElementById('v5AnalysisProgressPct');
     const textEl = document.getElementById('v5AnalysisProgressText');
-    if (bar) bar.style.width = pct + '%';
-    if (pctEl) pctEl.textContent = pct + '%';
+    if (bar) bar.style.width = value + '%';
+    if (pctEl) pctEl.textContent = value + '%';
     if (textEl) textEl.textContent = text || 'Analiz çalışıyor…';
   }
 
@@ -78,10 +82,61 @@
   function renderUnavailable() {
     state.textContent = running ? 'Analiz başlatıldı • motor run bekleniyor…' : 'Analiz bekleniyor…';
     list.innerHTML = motors.map(m => `<div style="display:flex;align-items:center;gap:10px;border-bottom:1px solid #edf0ee;padding:9px 2px"><span style="width:22px;text-align:center;font-size:16px">○</span><b style="width:38px;font:900 12px Arial;color:#27322d">${m}</b><span style="color:#8a928d;font:11px Arial">Bekliyor</span></div>`).join('');
+    diagnostics.innerHTML = '';
+  }
+
+  function renderDiagnostics(data) {
+    const m9 = data?.m9Prediction || data?.m9 || data?.motorPipeline?.m9;
+    const p = m9?.prediction || data?.finalPrediction || data?.prediction;
+    if (!p) { diagnostics.innerHTML = ''; return; }
+    const sim = first(p?.simulation, m9?.simulation);
+    const events = first(m9?.eventGoals, p?.eventGoals, m9?.EventGoals, p?.EventGoals) || {};
+    const playerEvents = first(events.expectedPlayerBasedEvents, events.ExpectedPlayerBasedEvents);
+    const teamEvents = first(events.expectedTeamBasedEvents, events.ExpectedTeamBasedEvents);
+    const playerXg = first(events.playerBasedSpecialEventGoals, events.PlayerBasedSpecialEventGoals);
+    const teamXg = first(events.teamBasedSpecialEventGoals, events.TeamBasedSpecialEventGoals);
+    const pnfXg = first(events.powerfulNormalForwardGoals, events.PowerfulNormalForwardGoals);
+    const caXg = first(events.counterAttackGoals, events.CounterAttackGoals);
+    const lsXg = first(events.longShotGoals, events.LongShotGoals);
+    const ogXg = first(events.expectedGoalsConcededFromOwnGoalEvents, events.ExpectedGoalsConcededFromOwnGoalEvents);
+    const press = first(events.pressingSuppressionSignal, events.PressingSuppressionSignal);
+    const calibration = first(events.calibrationStatus, events.CalibrationStatus) || 'Kalibrasyon bekliyor';
+    const simWin = sim?.outcome?.winProbability;
+    const simDraw = sim?.outcome?.drawProbability;
+    const simLoss = sim?.outcome?.lossProbability;
+    const simScore = sim?.mostLikelyScore || '—';
+    const contributions = Array.isArray(events.contributions || events.Contributions) ? (events.contributions || events.Contributions) : [];
+    let html = '<section style="margin-top:12px;padding:11px;background:#f7f9f7;border:1px solid #edf0ee;border-radius:10px"><div style="font:900 12px Arial;color:#27322d">⚙️ M9 Event → Goal Tanı</div>';
+    html += '<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-top:9px">';
+    html += mini('Player event E', num(playerEvents))+mini('Team event E', num(teamEvents));
+    html += mini('Player event xG', num(playerXg))+mini('Team event xG', num(teamXg));
+    html += mini('PNF xG', num(pnfXg))+mini('CA xG', num(caXg));
+    html += mini('Long Shot xG', num(lsXg))+mini('Own Goal xG', num(ogXg));
+    html += mini('Pressing suppression', pct(press))+mini('Calibration', esc(calibration));
+    html += '</div>';
+    html += '<div style="margin-top:10px;padding-top:9px;border-top:1px solid #e5ebe7"><div style="font:900 11px Arial;color:#27322d">🎲 Monte Carlo</div><div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:7px;margin-top:7px">';
+    html += mini('Galibiyet', pct(simWin))+mini('Beraberlik', pct(simDraw))+mini('Rakip', pct(simLoss));
+    html += '</div><div style="margin-top:7px">'+mini('En sık skor', esc(simScore))+'</div>';
+    const scenarioText = sim?.scenarios?.length ? sim.scenarios.map(s => `${s.scenario || s.Scenario}: ${s.mostLikelyScore || s.MostLikelyScore || '—'}`).join(' • ') : 'Senaryo verisi yok';
+    html += '<div style="margin-top:7px;color:#747c76;font:10px/1.45 Arial">18 × 5 dk tick • 1000 maç • '+esc(scenarioText)+'</div>';
+    html += '</div>';
+    if (contributions.length) {
+      html += '<div style="margin-top:10px;padding-top:9px;border-top:1px solid #e5ebe7;overflow:auto"><div style="font:900 11px Arial;color:#27322d">Event katkıları</div><table style="width:100%;border-collapse:collapse;font:10px Arial;color:#59625d;margin-top:4px"><tr><th style="text-align:left;padding:4px 2px">Event</th><th style="text-align:right;padding:4px 2px">E</th><th style="text-align:right;padding:4px 2px">Gol</th><th style="text-align:right;padding:4px 2px">xG</th></tr>';
+      contributions.forEach(x => {
+        html += '<tr><td style="padding:3px 2px;border-top:1px solid #edf0ee">'+esc(first(x.event,x.Event,'—'))+'</td><td style="padding:3px 2px;border-top:1px solid #edf0ee;text-align:right">'+num(first(x.expectedEvents,x.ExpectedEvents))+'</td><td style="padding:3px 2px;border-top:1px solid #edf0ee;text-align:right">'+pct(first(x.goalProbability,x.GoalProbability))+'</td><td style="padding:3px 2px;border-top:1px solid #edf0ee;text-align:right;font-weight:800">'+num(first(x.expectedGoals,x.ExpectedGoals))+'</td></tr>';
+      });
+      html += '</table></div>';
+    }
+    html += '<div style="margin-top:8px;color:#7a827d;font:10px/1.45 Arial">Appendix C.1/C.2 utility aktif; hidden inputs ve historical calibration tamamlanana kadar production coefficientine zorlanmıyor. M10 formation ranking MC'yi henüz karar fonksiyonuna katmıyor.</div></section>';
+    diagnostics.innerHTML = html;
+  }
+
+  function mini(label, value) {
+    return '<div style="background:#fff;border:1px solid #edf0ee;border-radius:8px;padding:7px 8px"><div style="color:#7a827d;font:800 9px Arial">'+label+'</div><div style="margin-top:2px;color:#27322d;font:900 12px Arial">'+value+'</div></div>';
   }
 
   function render(data) {
-    if (!data?.available || !data.log) return renderUnavailable();
+    if (!data?.available || !data.log) { renderUnavailable(); return; }
     const log = data.log, byMotor = Object.fromEntries((log.stages || []).map(x => [x.motor, x]));
     const completed = (log.stages || []).filter(x => x.status === 'completed').length;
     const failed = (log.stages || []).find(x => x.status === 'failed');
@@ -98,6 +153,7 @@
       return `<div style="display:flex;align-items:center;gap:10px;border-bottom:1px solid #edf0ee;padding:10px 2px"><span style="width:22px;text-align:center;font-size:16px">${icon(x.status)}</span><b style="width:38px;font:900 12px Arial;color:#27322d">${esc(m)}</b><div style="flex:1;min-width:0"><div style="font:800 11px Arial;color:${x.status === 'failed' ? '#b33b32' : x.status === 'running' ? '#267448' : '#59625d'}">${esc(label(x.status))}${esc(progress)}</div><div style="margin-top:2px;color:#7a827d;font:11px/1.35 Arial;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(x.message || 'Bekliyor')}${esc(duration)}</div></div></div>`;
     }).join('');
     if (log.finalMessage) list.innerHTML += `<div style="margin-top:9px;padding:8px 10px;background:#f7f9f7;border-radius:8px;color:${log.status === 'failed' ? '#b33b32' : '#59625d'};font:11px/1.4 Arial">${esc(log.finalMessage)}</div>`;
+    renderDiagnostics(data);
   }
 
   async function load() {
@@ -122,19 +178,10 @@
       const logResponse = await fetch('/api/v5/motor-logs?motorExport=' + Date.now(), { cache:'no-store' });
       if (!logResponse.ok) throw new Error('Motor logu alınamadı (HTTP ' + logResponse.status + ').');
       const motorLog = await logResponse.json();
-      const payload = {
-        schema: 'hattrickai-v5-motor-results-v1',
-        exportedAt: new Date().toISOString(),
-        source: 'HattrickAI V5 web analysis',
-        analysis: analysis,
-        motorLog: motorLog
-      };
+      const payload = { schema:'hattrickai-v5-motor-results-v2', exportedAt:new Date().toISOString(), source:'HattrickAI V5 web analysis', analysis:analysis, motorLog:motorLog };
       const blob = new Blob([JSON.stringify(payload, null, 2)], { type:'application/json;charset=utf-8' });
       const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'HattrickAI_V5_MotorSonuclari_' + new Date().toISOString().replace(/[:.]/g,'-') + '.json';
-      document.body.appendChild(a); a.click(); a.remove();
+      const a = document.createElement('a'); a.href = url; a.download = 'HattrickAI_V5_MotorSonuclari_' + new Date().toISOString().replace(/[:.]/g,'-') + '.json'; document.body.appendChild(a); a.click(); a.remove();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
       exportButton.textContent = 'JSON HAZIR ✓';
       setTimeout(() => { exportButton.textContent = old; exportButton.disabled = false; }, 1600);
@@ -172,7 +219,7 @@
       if (String(url).includes('/api/v5/analysis') && response.ok) {
         response.clone().json().then(data => {
           window.__v5LastAnalysis = data;
-          window.dispatchEvent(new CustomEvent('v5:analysis-ready', { detail: data }));
+          window.dispatchEvent(new CustomEvent('v5:analysis-ready', { detail:data }));
         }).catch(() => {});
         setTimeout(load, 50);
       }
