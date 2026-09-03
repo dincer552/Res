@@ -1,502 +1,673 @@
 # HattrickAI V5
 
-## V5 GÜNCEL ÇALIŞMA DURUMU — 2026-09-02
+## V5 GÜNCEL ÇALIŞMA DURUMU — 2026-09-03
 
 Aktif branch: `v5`
 
-V5 canlı analizde M3 → M11 çoklu aday zincirine sahiptir. Yeni hedef, motorun belirli bir formasyona erken kilitlenmesini engellemek ve tüm legal formasyonları rakibe karşı gerçek aday sonuçlarıyla yarıştırmaktır.
+V5 canlı analizde M3 → M11 çoklu aday zincirine sahiptir. Ana hedef; tüm legal formasyonları yeterli search derinliğiyle yarıştırmak ve M7 → M7.2 → M8 → M9 hattını gerçek Hattrick maç motoru davranışına mümkün olduğunca yaklaştırmaktır.
 
-### Güncel motor durumu
-
-```text
-M3   Oyuncu Analizi                    ✅ LOCK / LIVE
- ↓
-M4   Formasyon adayları                ✅ LIVE
- ↓
-M5   XI / pozisyon adayları            ✅ geniş XI havuzu
- ↓
-M6-A Global XI + behaviour search      🟡 ACTIVE / FORMATION SEARCH DÜZELTİLECEK
- ↓
-DB1  Candidate Database #1             🟡 ACTIVE / FORMATION QUOTA GÜÇLENDİRİLECEK
- ↓
-M7   Regional Rating Scenario           ✅ INTEGRATED
- ↓
-M7.2 Advanced Tactical Scenario         ✅ INTEGRATED
- ↓
-M8   Chance / Matchup                   ✅ INTEGRATED
- ↓
-M9   Match Prediction                   🔴 OUTPUT TUTARLILIĞI DÜZELTİLECEK
- ↓
-M10  Candidate Review / Search Gate     🟡 ACTIVE / GERÇEK FORMATION COMPETITION GEREKİYOR
- ↓
-M6-B İkinci search loop                 🟡 ACTIVE / FORMATION BAŞINA SEARCH GÜÇLENDİRİLECEK
- ↓
-DB2  Candidate Database #2              🟡 ACTIVE / FORMATION QUOTA GÜÇLENDİRİLECEK
- ↓
-M11  Final Decision                     🟡 ACTIVE / M9 SONRASI DOĞRULAMA GEREKİYOR
- ↓
-WEB  Final XI + Individual Order        ✅ CONNECTED
-```
-
-## 2026-09-02 MOTOR ÇIKTISI — İLK GERÇEK TEST SONUCU
-
-Sonuç JSON çıktısı üzerinden yapılan incelemede anti-lock mekanizmasının **kısmen çalıştığı**, ancak henüz gerçek anlamda formasyon rekabeti oluşturmadığı görüldü.
-
-### Gözlenen akış
+### Güncel motor zinciri
 
 ```text
-M4  → 6 legal formation
-M5  → 120 XI candidate (~20 / formation)
-M6-A → 44,372 evaluation
-DB1 → 100 candidate
-M10 → 35 candidate review
-M6-B → 8,585 evaluation
-DB2 → 100 candidate
-M11 → final 2-5-3
+M3    Oyuncu Analizi
+ ↓
+M4    Formasyon Üretimi
+ ↓
+M5    11 Adayı Üretimi
+ ↓
+M6-A  Global Arama / formation-aware search
+ ↓
+DB1   Candidate Database #1
+ ↓
+M7    Bölgesel Rating
+ ↓
+M7.2  Taktik Senaryo
+ ↓
+M8    Şans / Eşleşme
+ ↓
+M9    Maç Tahmini + W/D/L + Monte Carlo
+ ↓
+M10   Formasyon Kararı / Competition
+ ↓
+M6-B  İkinci Arama / Refinement + Exploration
+ ↓
+DB2   Candidate Database #2
+ ↓
+M11   Final Seçici
+ ↓
+WEB   Final XI + Individual Order
 ```
 
-DB1 ve DB2 dağılımı:
+## FORMATION COMPETITION / ANTI-LOCK HEDEFİ
 
-```text
-2-5-3   30
-3-4-3    1
-3-5-2    1
-4-4-2    1
-4-5-1    1
-5-3-2    1
-```
-
-Bu sonuç bize önemli bir ayrım gösteriyor:
-
-> **Anti-lock şu anda formasyonların tamamen elenmesini engelliyor; fakat formasyonları eşit veya yeterli derinlikte yarıştırmıyor.**
-
-Yani `30 / 1 / 1 / 1 / 1 / 1` dağılımı teknik olarak diversity kontrolünü geçebilir, fakat "hangi formasyon gerçekten daha iyi?" sorusunu güvenilir biçimde cevaplamak için yeterli değildir.
-
-### M10 formasyon karşılaştırmasının mevcut durumu
-
-İlk testte M10 altı formasyonu gördü; ancak alternatif formasyonların her birinde yalnızca tek aday vardı. Bu nedenle M10'un yaptığı karşılaştırma:
-
-```text
-2-5-3 → 30 aday arasından en iyi aday
-Diğer 5 formasyon → 1 aday
-```
-
-şeklindeydi.
-
-Bu nedenle 2-5-3'ün birinci çıkması **yanlış olmak zorunda değildir**, fakat henüz "global olarak en iyi formasyon" kanıtı değildir. Önce formasyon başına yeterli search derinliği oluşturulmalıdır.
-
-## YENİ ANA HEDEF — GERÇEK FORMATION COMPETITION / ANTI-LOCK
-
-V5 bundan sonra **2-5-3'e özel avantaj veya ceza vermeyecektir.** Bunun yerine her legal formasyon kendi search bütçesi içinde yeterli sayıda güçlü XI + Individual Order adayı üretmeli, bu adaylar rakibe karşı M7 → M7.2 → M8 → M9 hattında karşılaştırılmalı ve final karar bu gerçek yarıştan çıkmalıdır.
-
-Buradaki hedef yalnızca DB'nin son aşamada her formasyondan bir kayıt tutması değildir. Asıl hedef:
+V5 hiçbir formasyona önceden avantaj veya ceza vermemelidir. Her legal formasyon kendi search bütçesi içinde güçlü XI + Individual Order adayları üretmeli ve aynı rakip koşullarında M7 → M7.2 → M8 → M9 hattından geçirilmelidir.
 
 ```text
 Her legal formation
       ↓
-kendi search budget'ı
+kendi search budget
       ↓
-kendi güçlü aday havuzu
+kendi aday havuzu
       ↓
 M7 → M7.2 → M8 → M9
       ↓
-aynı kriterlerle karşılaştırma
+aynı composite kriterler
       ↓
 M10 formation competition
       ↓
-M6-B targeted refinement + exploration
+M6-B refinement + exploration
       ↓
 DB2
       ↓
 M11 final comparison
 ```
 
-### Anti-lock prensipleri
+Temel kurallar:
 
-1. **Her legal formasyon yarışta kalmalı.**
-2. Her formasyon yalnızca 1 "koruma adayı" ile temsil edilmemeli; yeterli search derinliği olmalı.
-3. M5 formasyon başına yaklaşık 20 XI üretmeye devam etmeli.
-4. M6-A global beam search, güçlü bir formasyonun diğer formasyonları erken boğmasına izin vermemeli.
-5. M6-A mümkünse **formation-aware / per-formation beam budget** kullanmalı.
-6. DB1 her formasyon için yeterli sayıda güçlü adayı korumalı.
-7. M10 DB1'i gerçek çoklu aday ve formasyon karşılaştırması olarak incelemeli.
-8. M10 sonucu M6-B'ye search feedback vermeli.
-9. M6-B hem lider çevresinde refinement hem de geride kalan formasyonlarda exploration yapmalı.
-10. DB2'de aynı formasyon çeşitliliği ve aday derinliği korunmalı.
-11. M11 tüm finalistleri aynı composite kriterlerle karşılaştırmalı.
-12. Final sonuç yanında **formasyon bazlı karşılaştırma tablosu** gösterilmeli.
+1. Her legal formasyon yarışta kalmalı.
+2. Bir formasyon yalnızca tek "koruma adayı" ile temsil edilmemeli.
+3. M5 formasyon başına geniş XI havuzu üretmeye devam etmeli.
+4. M6-A global beam search bir formasyonun diğerlerini erken boğmasına izin vermemeli.
+5. M6-A mümkün olduğunca formation-aware / per-formation search budget kullanmalı.
+6. DB1 search diversity'nin yerine geçmemeli; yalnızca koruyucu ikinci katman olmalı.
+7. M10 gerçek çoklu aday + formasyon karşılaştırması yapmalı.
+8. M10 sonucu M6-B'ye refinement/exploration feedback vermeli.
+9. M6-B az temsil edilen formasyonları yeniden aramalı.
+10. DB2 aynı çeşitliliği korumalı.
+11. M11 tüm finalistleri aynı kriterlerle karşılaştırmalı.
+12. Finalde formasyon bazlı karşılaştırma ve search-depth bilgisi gösterilmeli.
 
-## KRİTİK DÜZELTME #1 — M9 PROBABILITY / EXPECTED GOALS TUTARLILIĞI
+## YENİ ARAŞTIRMA PROGRAMI — HATTRICK MATCH ENGINE
 
-İlk gerçek motor çıktısında M9 için önemli bir tutarsızlık görüldü.
+Bu bölüm **hemen kodlanacak özellik listesi değil**, araştırma ve doğrulama yol haritasıdır. Önce Hattrick mekanikleri kaynaklardan ve gerçek maçlardan çıkarılacak, sonra mevcut V5 ile karşılaştırılacak, ancak yeterli kanıt oluştuğunda motorlara uygulanacaktır.
 
-Örneğin çıktıdaki yaklaşık değerler:
+Üç ana konu özellikle takip edilecek:
 
 ```text
-Expected Home Goals ≈ 1.006
-Expected Away Goals ≈ 1.984
-
-Win Probability  ≈ 1.23%
-Draw Probability ≈ 8.34%
-Loss Probability ≈ 90.43%
+1. ÖZEL YETENEKLER / SPECIALTIES
+2. TAKTİKLER / TACTICS
+3. ŞANS DAĞILIMI / CHANCE ALLOCATION
 ```
 
-Expected goals değerleri bu yöndeyken Win/Draw/Loss dağılımının bu kadar ters yönde olması matematiksel olarak şüphelidir. Basit Poisson kontrolünde yaklaşık olarak:
+Bu üç konu birbirinden ayrı incelenecek fakat sonunda tek bir maç-event çekirdeğinde birleştirilecek.
+
+---
+
+# 1 — ÖZEL YETENEKLER / SPECIALTIES
+
+### Amaç
+
+CHPP'den gelen oyuncu specialty bilgisini M3 → M11 zincirine taşıyıp specialty'lerin gerçek etkisini **düz rating bonusu vermeden**, bağlama göre modellemek.
+
+### Araştırma hedefleri
+
+- Technical
+- Quick
+- Powerful
+- Head
+- Unpredictable
+- Support
+- pozisyona göre specialty etkileri
+- specialty vs specialty karşılaşmaları
+- specialty + individual order etkileşimi
+- specialty + weather etkileşimi
+- specialty + tactic etkileşimi
+- pozitif ve negatif Special Event'ler
+- specialty event'lerinin gol olasılığına etkisi
+- specialty'nin normal 7 ratingden bağımsız etkileri
+
+### Şimdiden doğrulanan önemli prensip
+
+Specialty çoğu durumda doğrudan `+rating` değildir. Örneğin Head, Quick veya Unpredictable oyuncuya keyfi `+0.x rating` eklemek yerine Special Event, taktik katkısı, hava durumu veya rakip specialty etkileşimi üzerinden modellenmelidir.
+
+### CHPP
+
+CHPP `players` / `playerDetails` verilerinde Specialty alanı bulunur.
 
 ```text
-Home win  ≈ 18.6%
-Draw      ≈ 21.3%
-Away win  ≈ 60.1%
+0 = No specialty
+1 = Technical
+2 = Quick
+3 = Powerful
+4 = Unpredictable
+5 = Head
 ```
 
-seviyesinde bir dağılım beklenir.
-
-Bu nedenle **M9'un home/away semantiği, expected-goals üretimi ve Win/Draw/Loss hesaplaması birlikte incelenmeden final formasyon yarışmasına güvenilmemelidir.**
-
-### M9 düzeltme kriterleri
+### Hedef mimari
 
 ```text
-1. ExpectedHomeGoals / ExpectedAwayGoals anlamını doğrula
-2. WinProbability hangi takımın kazanma olasılığı netleştir
-3. DrawProbability doğrula
-4. LossProbability hangi takımın kaybetme olasılığı netleştir
-5. Win + Draw + Loss = 1 kontrolü ekle
-6. Expected goals → probability yönünün tutarlı olduğunu test et
-7. Home/Away swap test ekle
-8. M9 çıktısını M8 StructuralChanceIndex ile karıştırmadığını doğrula
+CHPP Player
+    ↓
+Specialty
+    ↓
+M3 Player Profile
+    ↓
+M5/M6 lineup + behaviour evaluation
+    ↓
+M7 rating context
+    ↓
+M7.2 tactic interaction
+    ↓
+M8 event inputs
+    ↓
+M9 Special Event resolution
 ```
 
-M9 düzeltilmeden M10/M11'in formasyon sıralamasını nihai kalite göstergesi olarak kabul etmeyeceğiz.
+### Uygulama kuralı
 
-## KRİTİK DÜZELTME #2 — M6-A GERÇEK FORMATION SEARCH BÜTÇESİ
+Kesin katsayı bulunamayan specialty etkileri uydurma sabit bonus olarak kodlanmayacak. Kaynakta belirtilen mekanizma ayrı tutulacak; katsayı gerekiyorsa historical calibration ile belirlenecek.
 
-Mevcut ilk testte M6-A 44,372 aday değerlendirmiş olsa da DB1'e:
+---
+
+# 2 — TAKTİKLER / TACTICS
+
+Hattrick'te Normal dışında altı temel taktik takip edilecek:
 
 ```text
-2-5-3 → 30
-diğer formasyonlar → 1'er
+Pressing
+Counter Attack
+Attack in the Middle (AIM)
+Attack on Wings (AOW)
+Long Shots (LS)
+Play Creatively (PC)
 ```
 
-taşınmıştır.
+### Araştırma hedefi
 
-Bu, global beam search'ün belirli bir formasyonda çok daha fazla arama derinliği oluşturduğunu ve diğer formasyonların DB'ye gelmeden önce aşırı budandığını gösteriyor.
-
-### Tercih edilen çözüm
-
-Sadece DB'nin sonradan `MaxPerFormation` ile trim edilmesi yeterli değildir. Çünkü sorun DB'ye gelmeden önce oluşmaktadır.
-
-Öncelikli mimari seçenek:
+Her taktik için dört ayrı şeyi ayırmak:
 
 ```text
-M5
- ↓
-Formation A ── kendi beam/search budget
-Formation B ── kendi beam/search budget
-Formation C ── kendi beam/search budget
-Formation D ── kendi beam/search budget
-Formation E ── kendi beam/search budget
-Formation F ── kendi beam/search budget
- ↓
-M7 → M7.2 → M8 → M9
- ↓
-merge
- ↓
-DB1
+A) Tactical Level nasıl oluşuyor?
+B) Hangi oyuncu skill'leri kullanılıyor?
+C) Normal ratinglere hangi yan etkiler uygulanıyor?
+D) Maçta hangi chance/event üretim mekanizması değişiyor?
 ```
 
-Böylece bir formasyonun global beam'de erken öne çıkması diğer formasyonların search edilmesini engellemez.
+### Araştırmada doğrulanan temel davranışlar
 
-### İlk hedef değerler
+**Pressing**
 
-İlk iterasyonda kesin sayı kod incelemesinden sonra belirlenecek; ancak tasarım hedefi:
+- potansiyel normal şansları azaltır,
+- Special Event'leri doğrudan azaltmaz,
+- oyuncu Defending/Stamina kapasitesi önemlidir,
+- Powerful oyuncular pressing'e özel katkı sağlayabilir.
+
+**Counter Attack**
+
+- rakibin kaçırdığı normal ataktan ekstra hücum üretir,
+- normal şansların yerine geçen basit bir dağılım değildir,
+- CA kullanan takım midfield'de yaklaşık %7 ceza alır,
+- savunmacıların Passing + Defending değerleri CA seviyesinde önemlidir,
+- Quick oyuncular da CA seviyesine katkı sağlayabilir.
+
+**Attack in the Middle (AIM)**
+
+- toplam normal şans sayısını değiştirmek yerine wing → middle dönüşümü yapar,
+- taktik seviyesi outfield Passing üzerinden oluşur,
+- wing defence tarafında dezavantaj oluşturur.
+
+**Attack on Wings (AOW)**
+
+- middle → wing dönüşümü yapar,
+- taktik seviyesi outfield Passing üzerinden oluşur,
+- central defence tarafında dezavantaj oluşturur.
+
+**Long Shots (LS)**
+
+- middle/wing normal ataklarının bir kısmını long-shot eventine çevirir,
+- Scoring + Set Pieces kullanır; Scoring daha ağırdır,
+- shooter ile goalkeeper doğrudan karşılaştırılır,
+- pressing long-shot fırsatını da engelleyebilir.
+
+**Play Creatively (PC)**
+
+- specialty ve diğer özel event mekanizmalarını daha fazla kullanmayı hedefler,
+- normal chance redistribution değildir,
+- takım savunmasında dezavantajı vardır,
+- specialty yoğun takım için daha anlamlıdır.
+
+### V5'te hedeflenen taktik katmanı
 
 ```text
-Legal formation sayısı : 6
-M5 aday/formasyon      : ~20
-DB1 minimum/formasyon  : anlamlı bir çoklu aday sayısı
-M10 aday/formasyon     : birden fazla güçlü aday
-M6-B aday/formasyon    : refinement + exploration
-DB2 minimum/formasyon  : anlamlı bir çoklu aday sayısı
+M7 Regional Ratings
+       ↓
+M7.2 Tactical Level + Tactical Side Effects
+       ↓
+Tactical Chance/Event Engine
+       ↓
+M8 Chance Resolution
+       ↓
+M9 Match Prediction
 ```
 
-**Önemli:** `6 × 20` değerini otomatik olarak DB1'e zorlamak doğru çözüm değildir. M6'nın search stratejisi, M5'ten gelen çeşitliliği gerçekten değerlendirecek şekilde tasarlanmalıdır.
+Mevcut M7.2 yapısal olarak bu taktikleri içeriyor; ancak bazı dönüşüm katsayılarının gerçek maç verisiyle calibration ihtiyacı var. Bu nedenle mevcut yapı **research-backed structure**, nihai gerçek motor değildir.
 
-## M10 — GERÇEK FORMATION COMPETITION
+---
 
-M10'un görevi artık sadece DB1 içinden sıralama yapmak değildir.
+# 3 — ŞANS DAĞILIMI / CHANCE ALLOCATION
 
-M10 şunları üretmelidir:
+Bu alan şu anda V5 için en kritik araştırma başlıklarından biridir.
 
-- formasyon başına aday sayısı,
-- formasyon başına en iyi aday,
-- formasyon başına en iyi tactical score,
-- formasyon başına Win/Draw/Loss,
-- composite score,
-- lider ile ikinci arasındaki fark,
-- formasyonun search depth'i,
-- hangi formasyonların yeterli aday sayısına ulaşamadığı,
-- M6-B için exploration/refinement feedback.
-
-Örnek hedef çıktı:
+### Gerçek Hattrick mantığını hedefleyen akış
 
 ```text
-FORMATION COMPETITION
-
-#1  2-5-3   12 candidates   Best Composite X.XXX
-#2  3-5-2   12 candidates   Best Composite X.XXX
-#3  3-4-3   12 candidates   Best Composite X.XXX
-#4  4-5-1   12 candidates   Best Composite X.XXX
-#5  4-4-2   12 candidates   Best Composite X.XXX
-#6  5-3-2   12 candidates   Best Composite X.XXX
-
-WINNER: 2-5-3
-MARGIN vs #2: +X.XXX
+MIDFIELD
+   ↓
+POSSESSION / OPEN-CHANCE ALLOCATION
+   ↓
+EXCLUSIVE + OPEN CHANCES
+   ↓
+NORMAL CHANCE COUNT
+   ↓
+LEFT / CENTRE / RIGHT / SET PIECE
+   ↓
+TACTIC CONVERSION
+   ↓
+ATTACK vs DEFENCE
+   ↓
+GOAL RESOLUTION
 ```
 
-Sayılar örnektir. Gerçek minimum değer kod ve performans testlerinden sonra belirlenecektir.
+### Araştırmada kullanılan baseline
 
-M10 ayrıca şu ayrımı açıkça göstermelidir:
+Normal chance dağılımı için mevcut kaynaklarda yaklaşık:
 
 ```text
-SEARCH-DEPTH OK
+Centre   35%
+Left     25%
+Right    25%
+Set Piece 15%
 ```
 
-veya
+baseline kullanılır.
+
+2026 akademik çalışmanın 1 milyon gerçek maçlık veri setinde normal saldırı dağılımı daha ayrıntılı olarak incelenmiş ve set-piece türleri ayrıca ayrıştırılmıştır. Bu veri V5 için önemli bir calibration referansıdır; kesin Hattrick server formülü olarak kabul edilmeyecektir.
+
+### Exclusive / open chance hedefi
+
+Araştırılan match-engine yapısında normal şanslar:
 
 ```text
-SEARCH-DEPTH INSUFFICIENT
+5 exclusive Home
+5 exclusive Away
+5 open/shared
 ```
 
-Böylece tek adayla temsil edilen bir formasyonun haksız biçimde "kaybettiği" düşünülmez.
+mantığıyla ele alınır. Exclusive şans rakibe aktarılmak yerine kazanılamadığında kaybolabilir; open şanslar midfield/possession karşılaştırmasına göre dağıtılır.
 
-## M6-B — İKİNCİ SEARCH LOOP
+Bu nedenle V5'te:
 
-M6-B artık yalnızca DB1 liderlerini tekrar değerlendiren bir motor olmamalıdır.
+> `chance volume = 0.35 + 0.65 × possession`
 
-M10 feedback'iyle iki paralel amaç yürütülmelidir:
+gibi yapay continuous bir taban yerine, gerçek chance allocation'a daha yakın discrete/probabilistic bir model hedeflenecektir.
+
+### Sektör dağılımı
+
+Normal baseline:
 
 ```text
-M6-B
- ├─ REFINEMENT
- │    └─ güçlü adayların çevresinde daha iyi order / assignment ara
- │
- └─ EXPLORATION
-      └─ DB1'de az temsil edilen formasyonları yeniden ara
+Left     ≈ 25%
+Centre   ≈ 35%
+Right    ≈ 25%
+SP       ≈ 15%
 ```
 
-Özellikle şu durum otomatik tetiklenmelidir:
+Ancak maçta gerçekleşen sayılar bu oranların birebir kopyası değildir. Örneğin 9 normal şansın 4'ünün merkezden gelmesi veya 2-2-2 gibi bir dağılım görülmesi normal rastlantısal sonuçlardır.
+
+### AIM / AOW
 
 ```text
-formation candidate count < minimum
+Normal
+  ↓
+AIM → wing attacks'ın bir kısmı middle'a
+AOW → middle attacks'ın bir kısmı wing'e
+```
+
+Taktik seviyesi arttıkça dönüşüm oranı değişir. Kaynaklarda yaklaşık AIM `%15–30`, AOW `%20–40` aralıkları verilir; 2026 akademik modelinde farklı ampirik aralıklar kullanıldığı için bu değerler calibration konusu olarak tutulacaktır.
+
+### Counter Attack
+
+CA normal chance distribution'ın basit bir yeniden ağırlıklandırması değildir.
+
+```text
+Opponent normal chance
         ↓
-formation exploration budget artır
+failed/missed
+        ↓
+CA check
+        ↓
+successful
+        ↓
+additional attack
 ```
 
-M6-B'nin başarı kriteri yalnızca daha yüksek score bulmak değildir. **Alternatif formasyonların gerçekten tekrar yarışa sokulmuş olması** da ölçülmelidir.
+### Pressing
 
-## DB1 / DB2 — CANDIDATE DATABASE KURALI
+Pressing normal chance dağılımını başka sektöre taşıyan bir mekanizma olarak değil, potansiyel normal şansları kıran/söndüren bir mekanizma olarak incelenecektir.
 
-DB diversity mekanizması gerekli ama tek başına yeterli değildir.
+### Long Shots
 
-DB'nin görevi:
-
-- güçlü adayları korumak,
-- formasyonların tamamen kaybolmasını önlemek,
-- aynı formasyonun DB'yi tamamen doldurmasını engellemek,
-- M10/M11 için yeterli karşılaştırma havuzu oluşturmak.
-
-Ancak:
-
-> **DB diversity, search diversity'nin yerine geçmez.**
-
-Eğer M6 yalnızca bir formasyondan aday üretirse DB'nin sonradan diğer formasyonlardan birer kayıt ayırması gerçek rekabet yaratmaz.
-
-## M11 — FINAL DECISION
-
-M11 DB2 finalistlerini aynı standartta karşılaştırır.
-
-Final sonuç:
-
-- Formation
-- XI
-- Individual Orders
-- M7 regional ratings
-- M7.2 tactical scenario
-- M8 matchup/chance
-- M9 Win/Draw/Loss
-- tactical score
-- structural score
-- robustness
-- formation competition rank
-- search depth / candidate count
-
-ile birlikte görünmelidir.
-
-M11 şu durumda final seçim yapmamalıdır:
+LS:
 
 ```text
-M9 probability consistency = FAIL
+normal middle/wing attack
+        ↓
+LS conversion
+        ↓
+shooter vs goalkeeper
 ```
 
-veya
+olarak ayrı event tipi şeklinde modellenmelidir.
+
+---
+
+# 4 — ÜÇ KONUNUN BİRLEŞTİRİLMESİ
+
+Nihai hedef:
 
 ```text
-required formation search depth = INSUFFICIENT
+                 PLAYER SKILLS
+                      │
+                      ▼
+              POSITION CONTRIBUTION
+                      │
+                      ▼
+                7 TEAM RATINGS
+                      │
+          ┌───────────┴───────────┐
+          ▼                       ▼
+   TACTICAL ENGINE         SPECIALTY ENGINE
+          │                       │
+          └───────────┬───────────┘
+                      ▼
+             CHANCE ALLOCATION
+                      │
+                      ▼
+             CHANCE / EVENT TYPE
+                      │
+          ┌───────────┼────────────┐
+          ▼           ▼            ▼
+       NORMAL        TACTICAL     SPECIAL
+       CHANCE        EVENTS       EVENTS
+          │           │            │
+          └───────────┴────────────┘
+                      ▼
+              ATTACK RESOLUTION
+                      ▼
+                     M9
 ```
 
-Bu durumda sonuç "candidate winner" olabilir ancak **confidence / validation warning** ile gösterilmelidir.
+Burada kritik prensip:
 
-## FORMATION COMPETITION GÖRÜNÜR SONUÇ
+> **Rating, chance ve event aynı matematik katmanı değildir.**
 
-M11 sonunda aşağıdaki tipte bir tablo hedeflenmektedir:
+M7 takımın bölgesel ratinglerini üretir. M7.2 taktik durumunu üretir. M8 hangi fırsatların oluşabileceğini ve eşleşmesini modeller. M9 ise bu olayları gol/W-D-L sonucuna dönüştürür.
+
+---
+
+# 5 — MEVCUT V5 İLE ARAŞTIRMA SONRASI KARŞILAŞTIRMA
+
+### Mevcut durum
 
 ```text
-FORMATION COMPETITION
+M7
+  7 bölgesel rating var
 
-FORMATION  CANDIDATES  BEST WIN  DRAW  LOSS  COMPOSITE  SEARCH
-2-5-3      12          XX.X%     XX.X% XX.X% X.XXX      OK
-3-5-2      12          XX.X%     XX.X% XX.X% X.XXX      OK
-3-4-3      12          XX.X%     XX.X% XX.X% X.XXX      OK
-4-5-1      12          XX.X%     XX.X% XX.X% X.XXX      OK
-4-4-2      12          XX.X%     XX.X% XX.X% X.XXX      OK
-5-3-2      12          XX.X%     XX.X% XX.X% X.XXX      OK
+M7.2
+  Taktik yapısı var
+  Pressing / CA / AIM / AOW / LS / PC yapısal olarak mevcut
 
-WINNER: 2-5-3
-MARGIN vs #2: +X.XXX
+M8
+  Midfield share + sector matchup var
+  Chance distribution var
+
+M9
+  xG + Poisson W/D/L var
+  1000x Monte Carlo var
 ```
 
-Buradaki değerler örnektir; gerçek değerler motor çıktısından gelecektir.
-
-## UYGULAMA SIRASI — AŞAMA AŞAMA
-
-### FAZ 1 — M9 doğruluk kilidi
+### Eksik / geliştirilecek ana parçalar
 
 ```text
-1. M9 home/away semantiğini incele
-2. Expected Goals ile Win/Draw/Loss bağlantısını düzelt
-3. Probability sum = 1 testi
-4. Home/Away swap testi
-5. Poisson sanity test
-6. Offline regression fixture oluştur
+[1] Gerçek discrete chance allocation
+[2] Exclusive/open chance mekanizması
+[3] Taktiklerin chance/event dönüşüm katsayılarının calibration'ı
+[4] CA ekstra chance üretimi
+[5] Pressing chance suppression
+[6] LS ayrı shooter-vs-GK event çözümü
+[7] PC special-event üretimi
+[8] Specialty event engine
+[9] Specialty ↔ opponent specialty interactions
+[10] Specialty ↔ tactic interactions
+[11] Weather ↔ specialty skill effects
+[12] Gerçek maçlardan historical calibration
 ```
 
-**Çıkış kriteri:** M9 olasılıkları expected-goals yönüyle tutarlı ve testlerle korunuyor.
+Mevcut M9 Monte Carlo, seçilmiş M9 sonucunu varyasyonlarla örnekleyen bir simülasyondur; henüz Hattrick'in tam event-by-event maç motorunun birebir simülasyonu değildir.
 
-### FAZ 2 — M6-A formation-aware search
+---
+
+# 6 — GERÇEK MAÇLARLA İLK REGRESSION VERİSİ
+
+2026-09-03 incelemesinde S4MSUNFC'nin iki gerçek maçı başlangıç referansı olarak not edildi.
+
+### S4MSUNFC 1–2 Kara Spor
 
 ```text
-1. M6-A'nın beam pruning noktasını tespit et
-2. Formation başına search budget oluştur
-3. Her legal formation için beam/search çalıştır
-4. Global merge aşamasında adayları birleştir
-5. DB1'e girmeden önce formation distribution logla
+Final: 1–2
+Normal chance / dağılım ekranı:
+S4M       1
+Kara     10
+
+S4M:
+Right     1
+
+Kara:
+Right     4
+Centre    2
+Left      2
+Other     1
+Special   1
 ```
 
-**Çıkış kriteri:** Hiçbir legal formasyon yalnızca sonradan eklenen "koruma kaydı" seviyesinde kalmıyor.
-
-### FAZ 3 — DB1 gerçek çoklu aday havuzu
+### Kaymakspor 0–4 S4MSUNFC
 
 ```text
-1. Formation başına minimum candidate depth tanımla
-2. DB1 trim/capacity mekanizmasını bu kuralla uyumlu hale getir
-3. Formation count + best candidate + search depth logla
-4. M10'a yeterli sayıda aday aktar
+Final: 0–4
+Chance:
+Kaymaks   2
+S4M       9
+
+S4M:
+Right     2
+Centre    4
+Left      2
+Other     1
+Special   0
 ```
 
-**Çıkış kriteri:** M10'da 30/1/1/1/1/1 gibi sahte diversity yerine gerçek çoklu aday dağılımı oluşuyor.
+Bu maçlar **model katsayısı olarak doğrudan hard-code edilmeyecek**. İlk regression/calibration örnekleri olarak tutulacak.
 
-### FAZ 4 — M10 Formation Competition
+Özellikle şu değişkenler karşılaştırılacak:
 
 ```text
-1. Formation bazlı leaderboard
-2. Best candidate
-3. Candidate count
-4. Composite score
-5. Win/Draw/Loss
-6. Margin vs next formation
-7. Search-depth warning
-8. M6-B feedback
+Possession
+Normal chance count
+Left/Centre/Right chance count
+Set-piece / Other chance count
+Special Event count
+Tactic
+Tactic level
+7 regional ratings
+Final score
 ```
 
-**Çıkış kriteri:** M10 "2-5-3 lider" demenin yanında diğer formasyonların ne kadar ve hangi veriyle geride kaldığını gösterebiliyor.
+Yeni gerçek maçlar geldikçe bu veri havuzu büyütülecek.
 
-### FAZ 5 — M6-B refinement + exploration
+---
+
+# 7 — ARAŞTIRMA KAYNAKLARI / BOOKMARKS
+
+Bu kaynaklar V5 match-engine araştırmasının temel referans listesi olarak korunacaktır.
+
+### Hattrick Wiki — ana referans
+
+- https://wiki.hattrick.org/wiki/Match_engine
+- https://wiki.hattrick.org/wiki/Regular_chances
+- https://wiki.hattrick.org/wiki/Tactics
+- https://wiki.hattrick.org/wiki/Rules
+- https://wiki.hattrick.org/wiki/Specialty
+- https://wiki.hattrick.org/wiki/Special_event
+- https://wiki.hattrick.org/wiki/New_Framework_for_Specialities_%26_Special_Events
+
+### Specialty araştırmaları
+
+- https://wiki.hattrick.org/wiki/Technical
+- https://wiki.hattrick.org/wiki/Quick
+- https://wiki.hattrick.org/wiki/Powerful
+- https://wiki.hattrick.org/wiki/Head
+- https://wiki.hattrick.org/wiki/Unpredictable
+- https://wiki.hattrick.org/wiki/Support
+
+### Taktik araştırmaları
+
+- https://wiki.hattrick.org/wiki/Pressing
+- https://wiki.hattrick.org/wiki/Counter-attacks
+- https://wiki.hattrick.org/wiki/Attack_in_the_middle
+- https://wiki.hattrick.org/wiki/Attack_on_wings
+- https://wiki.hattrick.org/wiki/Long_shots
+- https://wiki.hattrick.org/wiki/Play_creatively
+
+### CHPP
+
+- https://wiki.hattrick.org/wiki/CHPP_Development/XML/players
+- https://wiki.hattrick.org/wiki/CHPP_Development/XML/playerDetails
+
+CHPP, oyuncu specialty bilgisinin kaynağı olarak kullanılacak. Specialty değeri tahmin edilmeyecek veya oyuncu adına göre çıkarılmayacaktır.
+
+### Akademik match-engine araştırması — 2026
+
+**Decoding the mechanisms of the Hattrick football manager game using Bayesian network structure learning**
+
+DOI:
+https://doi.org/10.1016/j.entcom.2026.101131
+
+ScienceDirect:
+https://www.sciencedirect.com/science/article/pii/S1875952126000534
+
+Bu çalışma özellikle değerlidir çünkü gerçek CHPP verisinden **250 değişken / 1 milyon maç** içeren veri seti kullanır ve regular chances, tactics, specialities, set-pieces ve match outcomes arasındaki ilişkileri Bayesian network ile inceler.
+
+### Hattrick Context Pack
+
+`rmagasi/hattrick-context-pack`
+
+Bu kaynak Hattrick mekaniklerini doğrulamak ve V5'e kural katmanı sağlamak için kullanılacaktır. Model eğitimi olarak kullanılmayacaktır.
+
+---
+
+# 8 — ARAŞTIRMA KURALI: KESİN / ARAŞTIRILMIŞ / CALIBRATED AYRIMI
+
+V5 match-engine çalışmalarında üç bilgi seviyesi açıkça ayrılacaktır:
 
 ```text
-1. DB1 liderlerinde refinement
-2. Az temsil edilen formasyonlarda exploration
-3. Preserved player/order seed kullan
-4. Formation başına sonuç dağılımını ölç
-5. DB2'ye gerçek alternatif adayları taşı
+OFFICIAL / DOCUMENTED
+  Hattrick'in açıkladığı kural veya mekanizma
+
+RESEARCHED / COMMUNITY
+  Wiki, Unwritten Manual, uzun süreli community araştırmaları
+
+CALIBRATED / EMPIRICAL
+  Gerçek maç verisinden çıkarılan katsayı veya ilişki
 ```
 
-**Çıkış kriteri:** M6-B yalnızca mevcut lideri cilalamıyor; geride kalan legal formasyonları da yeniden arıyor.
+Bir katsayının kaynağı bilinmiyorsa onu "kesin Hattrick formülü" olarak sunmayacağız.
 
-### FAZ 6 — DB2 + M11 final competition
+Özellikle hidden match-engine mekaniklerinde amaç:
 
 ```text
-1. DB2 formation diversity
-2. Formation leaderboard
-3. M9 consistency gate
-4. Search-depth gate
-5. Final composite ranking
-6. Winner + margin
-7. Validation warning
+kaynak
+  ↓
+mekanizma
+  ↓
+formül / katsayı
+  ↓
+real-match validation
+  ↓
+regression
+  ↓
+production
 ```
 
-**Çıkış kriteri:** M11 sonucu hem kazananı hem de kazananın hangi şartlarda seçildiğini kanıtlayabiliyor.
+olacaktır.
 
-### FAZ 7 — Offline / Web doğrulama
+---
+
+# 9 — UYGULAMA ROADMAP'I
+
+Mevcut formation competition çalışmalarından sonra match-engine araştırma sırası:
 
 ```text
-1. M9 regression
-2. Formation anti-lock test
-3. Search-depth test
-4. M10 formation competition test
-5. M6-B exploration test
-6. DB2 diversity test
-7. End-to-end M3 → M11 test
-8. Web final output doğrulaması
+FAZ 1   M9 W/D/L tutarlılığı                         ✅
+FAZ 2   M6-A formation-aware search                 🔜 / devam
+FAZ 3   DB1 gerçek formation depth                   🔜
+FAZ 4   M10 formation leaderboard                   🔜
+FAZ 5   M6-B exploration + refinement               🔜
+FAZ 6   DB2 formation depth                         🔜
+FAZ 7   M11 final comparison                        🔜
+FAZ 8   Web finalist / alternatif görünüm            🔜
+FAZ 9   Offline regression                          🔜
+
+MATCH ENGINE RESEARCH TRACK
+
+R1  Chance allocation araştırması                   🔜
+R2  Exclusive/open chance modeli                    🔜
+R3  Sector distribution + AIM/AOW calibration       🔜
+R4  Pressing chance suppression                     🔜
+R5  Counter Attack extra-chance model               🔜
+R6  Long Shots event model                          🔜
+R7  Play Creatively + SE model                      🔜
+R8  CHPP Specialty pipeline                         🔜
+R9  Specialty event engine                          🔜
+R10 Specialty ↔ tactic interaction                  🔜
+R11 Weather ↔ specialty effects                     🔜
+R12 Historical calibration dataset                  🔜
+R13 Event-by-event M8/M9 engine                     🔜
+R14 Full Monte Carlo match simulation                🔜
+R15 Offline regression / real-match validation       🔜
 ```
 
-## SEARCH LOCK TESTİ
+### Uygulama sırası için karar
 
-Her analizde minimum olarak şu kontroller yapılmalıdır:
+**R1–R7 tamamlanmadan specialty katsayılarını production rating sistemine gömmeyeceğiz.**
+
+Önce şans ve taktik çekirdeğinin doğru ayrıştırılması, ardından specialty event katmanının eklenmesi hedefleniyor.
+
+---
+
+# 10 — ÇALIŞMA PRENSİBİ
+
+Bu araştırma tek seferlik değildir.
+
+Yeni gerçek Hattrick maçları, match report verileri, CHPP verileri veya yeni community/academic araştırmaları geldikçe:
 
 ```text
-Formasyon sayısı: 6
-
-M5  → her formasyon candidate üretmiş mi?
-M6-A → her formasyon yeterli search depth'e ulaşmış mı?
-DB1 → her formasyon minimum aday sayısını koruyor mu?
-M10 → her formasyon gerçek karşılaştırma için yeterli mi?
-M6-B → eksik formasyonlar yeniden aranmış mı?
-DB2 → her formasyon minimum aday sayısını koruyor mu?
-M11 → final karşılaştırması tam mı?
+Yeni veri
+   ↓
+README / research notes
+   ↓
+mekanizma karşılaştırması
+   ↓
+V5 mevcut model ile fark analizi
+   ↓
+calibration adayı
+   ↓
+offline regression
+   ↓
+ancak sonra production kod
 ```
 
-Bir formasyon M5'te üretildiği halde daha sonraki aşamada yetersiz kalıyorsa sistem bunu sessizce kabul etmemeli; **hangi aşamada ve neden** kaybettiğini loglamalıdır.
+Amaç yalnızca "Hattrick'e benzeyen" bir motor yapmak değil;
 
-## BAŞARI KRİTERLERİ
+> **Hattrick'in gözlemlenebilir match-engine davranışını kaynak + gerçek maç verisi + regression ile adım adım yeniden kurmak.**
 
-V5 formation competition tamamlanmış sayılmadan önce:
-
-- [ ] M9 probability / expected-goals tutarlılığı doğrulandı
-- [ ] M9 home/away swap testi geçiyor
-- [ ] Her legal formation için gerçek search budget var
-- [ ] M6-A'da formation starvation yok
-- [ ] DB1 yalnızca diversity görüntüsü üretmiyor
-- [ ] M10'da formasyon başına birden fazla güçlü aday var
-- [ ] M10 search-depth durumunu raporluyor
-- [ ] M6-B refinement + exploration yapıyor
-- [ ] DB2 gerçek alternatif adayları koruyor
-- [ ] M11 formation leaderboard üretiyor
-- [ ] Final winner + margin gösteriliyor
-- [ ] Offline regression testleri geçiyor
-- [ ] Web çıktısı motorun tüm kritik sonuçlarını gösteriyor
-
-## TASARIM KURALI
-
-> **Motor bir formasyonu sevdiği için seçmeyecek. Formasyonlar gerçek search bütçeleriyle yarışacak; aynı standartta ölçülecek; en iyi doğrulanmış aday kazanacak.**
-
-2-5-3 tekrar birinci çıkabilir. Önemli olan bunun artık bir varsayım değil, **diğer legal formasyonlarla yeterli search derinliğinde ölçülmüş ve M9 tutarlılığı doğrulanmış bir sonuç** olmasıdır.
+Bu bölüm ileride tekrar tekrar incelenmek üzere kalıcı araştırma notu olarak tutulacaktır.
