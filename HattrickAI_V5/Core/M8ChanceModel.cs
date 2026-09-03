@@ -3,7 +3,8 @@ namespace HattrickAI.V5.Core;
 
 /// <summary>
 /// M8: M7 rating + M7.2 PDF tactical scenario -> chance allocation -> sector scoring probability.
-/// M7.2 owns tactical distribution and special-event volume context; M8 resolves chance ownership and sector matchups.
+/// M7.2 owns tactical distribution and special-event volume context; M8 resolves chance ownership,
+/// sector matchups and tactic-specific opportunity volumes.
 /// </summary>
 public sealed class M8ChanceModel
 {
@@ -40,16 +41,52 @@ public sealed class M8ChanceModel
         var opponentLeftAttack = ScoreProbability(opponent.LeftAttack, own.OwnRating.RightDefence);
         var opponentCentreAttack = ScoreProbability(opponent.CentralAttack, own.OwnRating.CentralDefence);
         var opponentRightAttack = ScoreProbability(opponent.RightAttack, own.OwnRating.LeftDefence);
+
         var ownRegularQuality = WeightedRegularQuality(leftAttack, centreAttack, rightAttack, distribution.LeftShare, distribution.CentreShare, distribution.RightShare);
-        var ownRegularOwnership = allocation.OwnRegularChanceExpected / Math.Max(1e-9, allocation.OwnRegularChanceExpected + allocation.OpponentRegularChanceExpected);
+        var opponentRegularQuality = WeightedRegularQuality(opponentLeftAttack, opponentCentreAttack, opponentRightAttack, distribution.LeftShare, distribution.CentreShare, distribution.RightShare);
+        var totalRegular = Math.Max(1e-9, allocation.OwnRegularChanceExpected + allocation.OpponentRegularChanceExpected);
+        var ownRegularOwnership = allocation.OwnRegularChanceExpected / totalRegular;
         var structuralChance = Clamp01(ownRegularOwnership * ownRegularQuality + distribution.SetPieceShare * 0.5);
 
-        return new M8ChanceResult(own.CandidateId, allocation.PossessionProbability, leftAttack, centreAttack, rightAttack, distribution.LeftShare, distribution.CentreShare, distribution.RightShare, distribution.SetPieceShare, structuralChance, own.Tactic, own.CalibrationStatus)
+        // PDF §4.3: CA converts an opponent's missed Normal chance into a CA opportunity,
+        // only when CA starts with lower midfield before the 7% midfield penalty.
+        var missedOpponentNormal = allocation.OpponentRegularChanceExpected * (1.0 - opponentRegularQuality);
+        var counterAttackExpected = own.Tactic == AdvancedTactic.CounterAttack && allocation.CounterAttackEligible
+            ? missedOpponentNormal * allocation.CounterAttackConversionRate
+            : 0.0;
+
+        // PDF §4.3: LS exchanges a percentage of LMR attacks for long-shot attacks.
+        // The scoring probability is resolved later in M9 because the paper provides a plotted
+        // relationship rather than a published closed-form equation.
+        var longShotExpected = own.Tactic == AdvancedTactic.LongShots
+            ? allocation.OwnRegularChanceExpected * allocation.LongShotConversionRate
+            : 0.0;
+        var normalRegularExpectedAfterLongShots = Math.Max(0.0, allocation.OwnRegularChanceExpected - longShotExpected);
+
+        return new M8ChanceResult(
+            own.CandidateId,
+            allocation.PossessionProbability,
+            leftAttack,
+            centreAttack,
+            rightAttack,
+            distribution.LeftShare,
+            distribution.CentreShare,
+            distribution.RightShare,
+            distribution.SetPieceShare,
+            structuralChance,
+            own.Tactic,
+            own.CalibrationStatus)
         {
             Allocation = allocation,
             OpponentLeftAttackVsOwnRightDefence = opponentLeftAttack,
             OpponentCentreAttackVsOwnCentreDefence = opponentCentreAttack,
             OpponentRightAttackVsOwnLeftDefence = opponentRightAttack,
+            OwnRegularQuality = ownRegularQuality,
+            OpponentRegularQuality = opponentRegularQuality,
+            MissedOpponentNormalChanceExpected = missedOpponentNormal,
+            CounterAttackChanceExpected = counterAttackExpected,
+            LongShotChanceExpected = longShotExpected,
+            NormalRegularChanceExpectedAfterLongShots = normalRegularExpectedAfterLongShots,
             CreativeEventMultiplier = distribution.CreativeEventMultiplier
         };
     }
@@ -94,5 +131,12 @@ public sealed record M8ChanceResult(
     public double TacticConversionRate => Allocation.TacticConversionRate;
     public double LongShotConversionRate => Allocation.LongShotConversionRate;
     public double CounterAttackConversionRate => Allocation.CounterAttackConversionRate;
+    public bool CounterAttackEligible => Allocation.CounterAttackEligible;
+    public double OwnRegularQuality { get; init; }
+    public double OpponentRegularQuality { get; init; }
+    public double MissedOpponentNormalChanceExpected { get; init; }
+    public double CounterAttackChanceExpected { get; init; }
+    public double LongShotChanceExpected { get; init; }
+    public double NormalRegularChanceExpectedAfterLongShots { get; init; }
     public double CreativeEventMultiplier { get; init; } = 1.0;
 }
