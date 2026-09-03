@@ -3,6 +3,7 @@
   function setCard(prefix,name,venue,logo){
     const card=document.getElementById(prefix+'Title')?.closest('.lineup-card');
     if(!card)return;
+    card.querySelectorAll('.copy-btn').forEach(x=>x.remove());
     const title=document.getElementById(prefix+'Title');
     const info=title?.closest('.lineup-info');
     const sub=info?.querySelector('.lineup-sub');
