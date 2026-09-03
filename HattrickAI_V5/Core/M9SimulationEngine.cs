@@ -23,6 +23,20 @@ public sealed class M9SimulationEngine
         new("Yüksek şans", 1.04, 0.96, 1.02)
     };
 
+    public static M9SimulationResult Simulate(MatchPrediction prediction, int simulationCount = DefaultSimulationCount, int seed = 9051)
+    {
+        ArgumentNullException.ThrowIfNull(prediction);
+        var wrapper = new M9PredictionResult(
+            "Unknown", "canonical-match-prediction", prediction, 0.0,
+            prediction.PossessionProbability, 1.0 - prediction.PossessionProbability,
+            0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5,
+            prediction.Location, M9CalibrationStatus.StructuralModelAwaitingHistoricalCalibration)
+        {
+            EventGoals = prediction.EventGoals
+        };
+        return new M9SimulationEngine().Simulate(wrapper, simulationCount, seed);
+    }
+
     public M9SimulationResult Simulate(M9PredictionResult basePrediction, int simulationCount = DefaultSimulationCount, int seed = 9051)
     {
         ArgumentNullException.ThrowIfNull(basePrediction);
