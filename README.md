@@ -38,14 +38,14 @@ M3 → M4 → M5 → M6-A / DB1 → M7 → M7.2 → M8 → M9
 | M6-A | ✅ | Formation-aware global search + DB1 |
 | M7 | ✅ | Bölgesel gerçek ratingler |
 | M7.2 | ✅ | PDF tactical mechanisms + canonical handoff |
-| M8 | ✅ | Chance allocation + tactic opportunity layer |
-| M9 | 🔧 | Event→Goal + PNF/PDIM + symmetric opponent Specialty wiring + Appendix C utilities; historical calibration eksik |
-| Monte Carlo | 🔧 | 18×5 dk + 5 senaryo + 1000 maç + deterministic seed; M9 event contribution entegre |
+| M8 | ✅ | Chance allocation + tactic opportunity + C.2 tactic conversion handoff |
+| M9 | 🔧 | Event→Goal + PNF/PDIM + symmetric opponent Specialty + C.1/C.2 utilities; historical calibration eksik |
+| Monte Carlo | 🔧 | 18×5 dk + 5 senaryo + 1000 maç + deterministic seed; event-aware |
 | M10 | ✅ | Formation competition + MC W/D/L composite ranking; offline acceptance geçti |
-| M6-B | ✅ | M10 formation rank → tiered beam/iteration budget doğrudan pipeline'a bağlandı; DB2 diversity korunuyor |
+| M6-B | ✅ | M10 formation rank → tiered beam/iteration budget doğrudan pipeline'a bağlandı |
 | DB2 | ✅ | Formation diversity/depth korunuyor |
 | M11 | ✅ | Offline full-pipeline final comparison geçti |
-| UI / Motor Panel | ✅ | M9 event / opponent event / set-piece input / MC diagnostics gösteriliyor |
+| UI / Motor Panel | ✅ | M9 own/opponent event + set-piece + MC diagnostics gösteriliyor |
 
 ---
 
@@ -55,33 +55,28 @@ M3 → M4 → M5 → M6-A / DB1 → M7 → M7.2 → M8 → M9
 - [x] PNF extra-attack mekanizması eklendi.
 - [x] PDIM normal-attack suppression eklendi.
 - [x] Appendix C.1 set-piece goal probability utility eklendi.
-- [x] Appendix C.2 Long Shot conversion utility eklendi.
+- [x] Appendix C.2 Long Shot / tactic conversion curve engine'e taşındı.
 - [x] Event contribution / expected-goal breakdown eklendi.
 - [x] 18 × 5 dakikalık event-based Monte Carlo sampling eklendi.
 - [x] 5 MC senaryosu ve 1000-match deterministic yapı korundu.
 - [x] PNF double-count engellendi.
-- [x] M9 regression fixture stabil baseline'a geri çekildi.
-- [x] M9 regression Tables 4–5 + Appendix C.1/C.2 + PNF + PDIM mekanizmalarını kontrol ediyor.
-- [x] M9 `EventGoals` downstream wrapper kaybına karşı nested `MatchPrediction.EventGoals` fallback'i eklendi.
-- [x] M9 opponent tarafı için CHPP oyuncu roster'ı ve son resmi maç lineup'ı `OpponentMatchProfile` içine bağlandı.
-- [x] M9 opponent Specialty event hesabı artık rakip lineup + Specialty verisi mevcutsa çalışıyor.
-- [x] CHPP `SetPiecesSkill` oyuncu modeline alındı ve M9 set-piece taker diagnostics'e taşındı.
-- [x] M10 `RankedCandidate` compile blocker düzeltildi.
-- [x] M10 full offline formation leaderboard validation geçti.
-- [x] M11 full offline end-to-end final comparison geçti.
-- [x] M10 formation rank → M6-B beam/iteration budget entegrasyonu pipeline'a bağlandı.
-- [x] M6-B seed sırası M10 formation rank'a göre düzenlendi.
-- [x] M6-B her formation için minimum pozitif refinement bütçesini koruyor.
-- [x] UI M9 / MC paneli güncellendi.
-- [x] UI opponent event contributions + set-piece taker skill gösteriyor.
+- [x] M9 opponent CHPP roster + historical final XI entegrasyonu eklendi.
+- [x] Opponent Specialty event resolution simetrik hale getirildi.
+- [x] CHPP `SetPiecesSkill` Player modeline taşındı.
+- [x] M10 formation leaderboard offline acceptance geçti.
+- [x] M10 formation rank → M6-B budget entegrasyonu kodlandı.
+- [x] M6-B seed sırası M10 rank'a bağlandı.
+- [x] M11 full offline final comparison acceptance geçti.
+- [x] UI own/opponent event diagnostics ve MC görünümü güncellendi.
+- [x] M9 wrapper compatibility compile blocker düzeltildi.
 
 ### SIRADAKİ İŞLER — SIRA BOZULMADAN
 
 - [ ] Current HEAD CI green + Azure deployment checkpoint
-- [ ] Long Shot scoring graph historical calibration
+- [ ] Historical event + Long Shot calibration
 - [ ] Set-piece taker skill → exact goal conversion calibration
 - [ ] Specialty ↔ weather / tactic cross-effects
-- [ ] V5 tactic level → paper RT exact mapping
+- [ ] Exact V5 tactic-level → paper RT mapping
 - [ ] Historical event + real-match validation
 - [ ] Final WEB release
 
@@ -89,32 +84,17 @@ M3 → M4 → M5 → M6-A / DB1 → M7 → M7.2 → M8 → M9
 
 ## CI CHECKPOINT
 
-Son doğrulanmış workflow'da offline regression geçti; yeni M9 opponent/set-piece değişiklikleri için HEAD CI yeniden doğrulanıyor.
+Son doğrulanmış workflow sonucu: önceki run'da M7–M8 offline regression build hatası nedeniyle durdu; sonraki commit'ler bu compile zincirini düzeltti ve yeni HEAD için doğrulama yeniden çalıştırılıyor.
+
+Önceki kritik hatalar:
 
 ```text
-M7-M8 Offline Regression: PASS
-M9 Event/Goal regression: PASS
-M10 formation leaderboard regression: PASS
-M11 final comparison regression: PASS
-M9 1000× Monte Carlo regression: PASS
-Docker Build: PASS
+CS0246: M9CalibrationStatus could not be found
+CS1503: MatchPrediction → M9PredictionResult conversion
+CS7036: M9PredictionResult constructor argument mismatch
 ```
 
-Önceki compile blocker:
-
-```text
-70265c056ec6a769658858e011d8a579465304d3
-M10FinalDecisionEngine.cs(33,30)
-CS0246: RankedCandidate could not be found
-```
-
-Düzeltme:
-
-```text
-431cfcdc5c58ac4666f9d7160cd1ce7b27ea3dd7
-```
-
-**Full Azure deployment green sonucu, mevcut HEAD için ayrıca doğrulanmadan `CI ✅` ilan edilmiyor.**
+Bu nedenle README yalnızca gerçekten doğrulanmış testleri `✅` kabul eder. **Current HEAD CI + Azure deploy henüz green ilan edilmedi.**
 
 ---
 
@@ -154,45 +134,63 @@ PDIM
 
 ### Opponent Specialty wiring
 
-Opponent CHPP rosterı artık `OpponentMatchProfile.Players`, son resmi maçın final 11'i ise `LastMatchLineup` olarak taşınıyor. M9 aynı event engine'i rakip perspektifinden de çalıştırıyor:
-
 ```text
-Opponent lineup + Specialty
-        ↓
-Opponent M9 events
-        ↓
-Opponent PNF / PDIM / event goals
-        ↓
-Own normal-volume suppression + opponent event xG
+Opponent CHPP players + last official final XI
+                    ↓
+             Specialty event engine
+                    ↓
+          PNF / PDIM / event goals
+                    ↓
+        normal-volume suppression + xG
 ```
 
-Böylece M9 artık yalnızca kendi takımının Specialty'lerine bakmıyor. Opponent roster/lineup yoksa fallback olarak eski one-sided davranış korunuyor.
+Opponent roster/lineup yoksa eski fallback korunuyor.
 
-### Set-piece taker input
+### Set-piece taker
 
-CHPP `SetPiecesSkill` Player modeline taşındı. Mevcut M9, final XI içindeki en yüksek set-piece skill'i taker diagnostic olarak işaretliyor. Bu değer henüz Appendix C.1 fonksiyonuna ek bir katsayı olarak uygulanmıyor; bunun için doğrulanmış historical relationship gerekiyor.
+CHPP `SetPiecesSkill` Player modeline taşındı ve M9 diagnostics'e açıldı. Paper, taker skill'inin gizli olması nedeniyle bunun doğrudan gözlemlenebilir historical coefficient'ini sağlamıyor; bu nedenle değer **diagnostic input** olarak tutuluyor, uydurma conversion katsayısı uygulanmıyor.
 
-### Appendix C
+### Appendix C.1
 
 ```text
-C.1 ATTACKSP(d)
+ATTACKSP(d)
 = -0.0000380429·d³ + 0.0000226846·d² + 0.0366246·d + 0.45515
-
-C.2 TCR_LS(RT)
-= 0.00761935·RT + 0.07520052
 ```
 
-### Production'da hâlâ calibration isteyenler
+### Appendix C.2
+
+Beş tactic için paper'daki regression curves M7.2 → M8 handoff'unda kullanılacak şekilde bağlandı:
 
 ```text
-Long Shot scoring graph / conversion
-Set-piece taker skill → exact conversion
-Specialty ↔ weather / tactic cross-effects
-V5 tactic level → paper RT exact mapping
-Historical event coefficients
+Counter
+-0.617941717072569 + 0.104274398·RT - 0.00358354796·RT² + 0.0000434356·RT³
+
+AiM
+-0.00036765·RT² + 0.02180462·RT + 0.0705084
+
+AoW
+-0.00046569·RT² + 0.02894608·RT + 0.10514706
+
+Long Shot
+0.00761935·RT + 0.07520052
+
+Pressing
+-0.00780421·RT² + 0.471402·RT - 1.10735
 ```
 
-Bu alanlarda veri yokken katsayı uydurulmayacak.
+C.2 artık yalnızca dead utility değil; aktif tactic conversion diagnostic/handoff değeridir. Buna rağmen `RT` değerinin V5 tactic-level ile birebir eşlemesi hâlâ ayrı bir calibration problemidir.
+
+### Hâlâ veri isteyen production alanları
+
+```text
+Historical event calibration
+Long Shot scoring graph calibration
+Set-piece taker skill → exact conversion
+Specialty ↔ weather/tactic cross-effects
+V5 tactic level → paper RT exact mapping
+```
+
+Veri yokken katsayı uydurulmayacak.
 
 ---
 
@@ -214,7 +212,7 @@ Final score
 1000-match W/D/L distribution
 ```
 
-Offline regression ile:
+Acceptance hedefleri:
 
 ```text
 1000 simulations
@@ -225,8 +223,6 @@ most likely score mevcut
 scenario total = 1000
 deterministic repeat mevcut
 ```
-
-Own ve opponent event katkıları M9 prediction'a taşınıyor; PNF ve own-goal double-count korunuyor.
 
 ---
 
@@ -242,9 +238,7 @@ Composite score
 Formation leaderboard
 ```
 
-Offline regression her legal formasyonun leaderboard'da bulunmasını, depth status'unu ve finite composite score'u doğruluyor.
-
-**M10 acceptance geçti.**
+Offline acceptance ile her legal formasyonun leaderboard'a taşındığı, depth status ve finite composite score korunuyor.
 
 ---
 
@@ -262,9 +256,7 @@ M6-B formation search
 DB2
 ```
 
-M10 rank doğrudan M6-B budget üretimine giriyor. Seed'ler de rank sırasına göre düzenleniyor. Legal formasyon anti-lock nedeniyle tamamen silinmiyor.
-
-**M10 → M6-B entegrasyonu kodlandı ve pipeline'a bağlandı.**
+M10 rank doğrudan budget sözleşmesine ve seed sırasına bağlandı. Anti-lock korunuyor.
 
 ---
 
@@ -288,8 +280,6 @@ winner final score finite
 deterministic finalist
 ```
 
-**M11 offline acceptance geçti.**
-
 ---
 
 ## UI / MOTOR PANELİ
@@ -301,17 +291,12 @@ Expected goals
 Possession
 7 rating / position matchup
 
-M9 Event → Goal
-Biz oyuncu event xG
-Biz takım event xG
+M9 own Event → Goal
+M9 opponent Event → Goal
 PNF / PDIM / CA / LS / Own Goal
 Set-piece taker skill
-
-Opponent Event → Goal
-Rakip oyuncu event xG
-Rakip takım event xG
-Rakip PNF / PDIM / Own Goal
-Event contribution tabloları
+Event contribution tables
+Calibration status
 
 Monte Carlo
 1000 matches
@@ -320,8 +305,6 @@ Most likely score
 W / D / L
 Scenario distribution
 ```
-
-M10 formation competition, MC win probability'yi karar sinyali olarak kullanıyor; UI aynı sonucu tanısal detaylarla gösteriyor.
 
 ---
 
@@ -337,4 +320,14 @@ M10 formation competition, MC win probability'yi karar sinyali olarak kullanıyo
 7. Final WEB release
 ```
 
-Her gerçek kod değişikliğinden sonra README aynı sırayı ve gerçek acceptance durumunu yansıtacak. Kodlandı ama doğrulanmadıysa `🔧`, regression geçtiyse `✅` olarak kalacak.
+### Kabul kriteri
+
+Bir iş yalnızca kodlandığı için `✅` yapılmaz. Şu üç aşama ayrı tutulur:
+
+```text
+CODED       → mekanizma kodda var
+REGRESSION  → offline test geçiyor
+PRODUCTION  → gerçek CHPP/maç verisiyle doğrulandı
+```
+
+Bu README her commit'te gerçek durumun kaydı olarak güncellenir.
