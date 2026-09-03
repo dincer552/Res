@@ -62,7 +62,7 @@ public sealed class M9SimulationEngine
 
             var ownNormalGoals = SamplePoisson(rng, ownNormalMean);
             var opponentNormalGoals = SamplePoisson(rng, opponentNormalMean);
-            var ownEventGoals = SampleEventGoals(rng, basePrediction.EventGoals, ownSpecialGoalMeanForSimulation);
+            var ownEventGoals = SampleEventGoals(rng, basePrediction.EventGoals);
             var opponentEventGoals = SampleOpponentEventGoals(rng, opponentSpecialGoalMean);
 
             var ownGoals = ownNormalGoals + ownEventGoals;
@@ -95,24 +95,20 @@ public sealed class M9SimulationEngine
             database);
     }
 
-    private static int SampleEventGoals(Random rng, M9EventGoalBreakdown events, double specialGoalMean)
+    private static int SampleEventGoals(Random rng, M9EventGoalBreakdown events)
     {
-        if (specialGoalMean <= 0) return 0;
-
-        // Each event class has an expected event count and a documented goal
-        // conversion rate. Sample event occurrence first, then resolve goal/no-goal.
         var goals = 0;
         foreach (var contribution in events.Contributions)
         {
+            // Own-goal is an opponent scoring event and is resolved on the
+            // opponent side below; never count it as our own goal here.
+            if (contribution.Event == "UnpredictableOwnGoal") continue;
             if (contribution.ExpectedEvents <= 0 || contribution.GoalProbability <= 0) continue;
+
             var eventCount = SamplePoisson(rng, contribution.ExpectedEvents);
             for (var i = 0; i < eventCount; i++)
                 if (rng.NextDouble() < contribution.GoalProbability) goals++;
         }
-
-        // If the event list is incomplete, preserve its calibrated aggregate mean
-        // rather than creating an artificial extra goal source. The current engine
-        // exposes all active documented classes, so this should normally be zero.
         return goals;
     }
 
