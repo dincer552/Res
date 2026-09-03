@@ -53,12 +53,36 @@ WEB
 | M7 | ✅ | L/C/R defence + midfield + L/C/R attack |
 | M7.2 | ✅ | PDF taktik mekanikleri kodlandı; CI regression geçti |
 | M8 | ✅ | PDF Eq1–Eq4 + tactic context + opportunity volumes; CI regression geçti |
-| M9 | 🔧 | Event → goal genişletildi; PNF/PDIM + Appendix C C.1/C.2 utilities eklendi; hidden inputs hâlâ tamamlanacak |
-| Monte Carlo | 🔧 | 18 adet 5-dakikalık event tick sampling aktif; full historical validation bekliyor |
-| M10 | ✅/🔧 | Formation leaderboard hazır; MC'nin ranking'e tam bağlanması sıradaki adım |
-| M6-B | ✅/🔧 | DB1 seed + refinement hazır; rank-driven depth geliştirilecek |
+| M9 | 🔧 | Event → goal genişletildi; **PNF/PDIM, Appendix C.1/C.2 ve event breakdown tamamlandı**; production entegrasyonunun eksik girdileri devam ediyor |
+| Monte Carlo | 🔧 | **18 × 5 dakikalık tick sampling tamamlandı**; deterministic seed + 1000-match distribution korunuyor; historical/event calibration bekliyor |
+| M10 | 🔧 | Formation leaderboard hazır; MC sonuçlarının ranking'e bağlanması sıradaki adım |
+| M6-B | 🔧 | DB1 seed + refinement hazır; rank-driven depth geliştirilecek |
 | DB2 | ✅ | Formation depth korunuyor |
-| M11 | ✅/🔧 | Final selector hazır; gerçek event/MC çıktısıyla son kalibrasyon yapılacak |
+| M11 | 🔧 | Final selector hazır; gerçek event/MC çıktısıyla son kalibrasyon yapılacak |
+
+## 03.09.2026 — TAMAMLANAN SON GELİŞTİRMELER
+
+Bu iterasyonda aşağıdaki işler **kod seviyesinde tamamlandı**. CI regression henüz yeşil olmadığı için bunlar ayrı ayrı tamamlanan geliştirmeler olarak işaretlenir; M9/Monte Carlo bütünüyle `✅` ilan edilmez.
+
+```text
+[✓] M9 Event → Goal breakdown genişletildi
+[✓] PNF (Powerful Normal Forward) extra-attack mekanizması eklendi
+[✓] PDIM normal-attack suppression mekanizması eklendi
+[✓] Appendix C.1 Set-piece goal probability utility eklendi
+[✓] Appendix C.2 Long Shot tactic conversion utility eklendi
+[✓] M9 event contribution kayıtları / expected-goal breakdown eklendi
+[✓] 18 × 5 dakikalık event-based Monte Carlo sampling eklendi
+[✓] 5 MC senaryosu korundu (Base / StrongOwn / StrongOpponent / Balanced / FastStart)
+[✓] 1000-match deterministic simulation yapısı korundu
+[✓] PNF'nin event-goal katkısının MC'de double-count edilmesi engellendi
+[✓] M9 offline regression fixture stabil baseline'a geri çekildi
+[ ] Opponent Specialty event wiring
+[ ] Long Shot scoring graph historical calibration
+[ ] Set-piece taker hidden-skill integration
+[ ] Specialty ↔ weather / tactic cross-effects
+[ ] V5 tactic level → paper RT exact mapping
+[ ] Full CI green checkpoint
+```
 
 ## PDF MATCH ENGINE FAZLARI
 
@@ -97,7 +121,7 @@ Build Docker image: PASS
 Deploy on Azure VM: PASS
 ```
 
-M9 geliştirmeleri sonrasında CI tekrar regression aşamasında çalışıyor. Bu nedenle yeni M9 adımları README'de tamamlanmış (`✅`) ilan edilmiyor; kod tamamlandıkça ve CI geçtiğinde checkpoint yükseltilecek.
+M9 geliştirmeleri sonrasında CI tekrar regression aşamasında çalışıyor. Bu nedenle yeni M9 adımları README'de tamamlanmış (`✅`) ilan edilmiyor; **kod seviyesinde tamamlanan alt parçalar yukarıdaki checkpoint'te ayrı gösteriliyor.**
 
 FAZ I kapsamında production'da LS fırsat hacmi açıkça `LMR × tactic conversion` olarak korunuyor; paper aralığı `%6–43`. Long-shot'ın gole dönüşüm ilişkisi için Appendix C.2'nin yayınlanan doğrusal TCR fonksiyonu M9'a utility olarak eklendi; V5 tactic level → paper `RT` eşlemesi kanıtlanmadığı için production'a körlemesine uygulanmıyor.
 
