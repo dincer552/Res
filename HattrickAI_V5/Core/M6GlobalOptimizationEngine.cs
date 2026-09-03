@@ -3,8 +3,8 @@ namespace HattrickAI.V5.Core;
 /// <summary>
 /// M6 bounded global behaviour optimizer.
 /// Search is formation-aware: each formation gets an independent beam/search pass
-/// before results are merged. Optional per-formation budgets allow M10 to steer
-/// M6-B toward targeted refinement and exploration without changing M6-A defaults.
+/// before results are merged. M6-B additionally allocates deeper budgets from the
+/// incoming DB1 formation rank while preserving the supplied input orders.
 /// </summary>
 public sealed class M6GlobalOptimizationEngine
 {
@@ -49,7 +49,9 @@ public sealed class M6GlobalOptimizationEngine
             cancellationToken.ThrowIfCancellationRequested();
             var formationBudget = formationBudgets is not null && formationBudgets.TryGetValue(formationGroup.Key, out var configured)
                 ? configured
-                : new M6FormationSearchBudget(beamWidth, maxIterations);
+                : preserveInputOrders
+                    ? BuildRefinementBudget(xiCandidates, formationGroup.Key, beamWidth, maxIterations)
+                    : new M6FormationSearchBudget(beamWidth, maxIterations);
 
             var formationBest = await OptimizeFormationAsync(formationGroup.ToList(), formationBudget);
             if (formationBest.BestCandidate is not null)
@@ -183,6 +185,32 @@ public sealed class M6GlobalOptimizationEngine
                 return result;
             }
         }
+    }
+
+    private static M6FormationSearchBudget BuildRefinementBudget(
+        IReadOnlyList<PositionAssignmentCandidate> allCandidates,
+        string formation,
+        int baseBeamWidth,
+        int baseIterations)
+    {
+        var ranked = allCandidates
+            .OrderByDescending(x => x.SuitabilityScore)
+            .ThenByDescending(x => x.StructuralScore)
+            .ThenBy(x => x.CandidateId, StringComparer.Ordinal)
+            .Select((candidate, index) => new { candidate.Formation, Rank = index + 1 })
+            .Where(x => x.Formation.Equals(formation, StringComparison.Ordinal))
+            .Select(x => x.Rank)
+            .DefaultIfEmpty(int.MaxValue)
+            .Min();
+
+        var formationCount = allCandidates.Select(x => x.Formation).Distinct(StringComparer.Ordinal).Count();
+        var tier = ranked <= Math.Max(1, formationCount / 3) ? 0 : ranked <= Math.Max(2, (2 * formationCount) / 3) ? 1 : 2;
+        return tier switch
+        {
+            0 => new M6FormationSearchBudget(Math.Max(baseBeamWidth, 8), Math.Max(baseIterations, 4)),
+            1 => new M6FormationSearchBudget(Math.Max(baseBeamWidth, 6), Math.Max(baseIterations, 3)),
+            _ => new M6FormationSearchBudget(Math.Max(4, baseBeamWidth - 1), Math.Max(2, baseIterations - 1))
+        };
     }
 
     private static Lineup ToNormalLineup(Lineup lineup, BehaviourCandidateSet matrix)
