@@ -264,5 +264,5 @@ public sealed record M9EventGoalBreakdown(
     string Notes)
 {
     public static M9EventGoalBreakdown Empty => new(0,0,0,0,0,0,0,0,0,0,Array.Empty<M9EventContribution>(),"Not calculated","No player/event context supplied.");
-    public double NetSpecialEventGoalContribution => PlayerBasedSpecialEventGoals + TeamBasedSpecialEventGoals - ExpectedGoalsConcededFromOwnGoalEvents;
+    public double NetSpecialEventGoalContribution => PlayerBasedSpecialEventGoals + TeamBasedSpecialEventGoals + PowerfulNormalForwardGoals - ExpectedGoalsConcededFromOwnGoalEvents;
 }
