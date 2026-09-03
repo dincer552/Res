@@ -45,9 +45,12 @@ public sealed class M9SimulationEngine
         var rng = new Random(seed);
         var database = new M9SimulationDatabase(simulationCount);
         var scenarioResults = Scenarios.ToDictionary(x => x.Name, x => new M9ScenarioSummary(x.Name), StringComparer.Ordinal);
-        var events = basePrediction.EventGoals.Contributions.Count > 0
+        var ownEvents = basePrediction.EventGoals.Contributions.Count > 0
             ? basePrediction.EventGoals
             : basePrediction.Prediction.EventGoals;
+        var opponentEvents = basePrediction.OpponentEventGoals.Contributions.Count > 0
+            ? basePrediction.OpponentEventGoals
+            : null;
 
         for (var i = 0; i < simulationCount; i++)
         {
@@ -56,8 +59,10 @@ public sealed class M9SimulationEngine
             var ownExpected = Math.Clamp(basePrediction.Prediction.ExpectedHomeGoals * scenario.ChanceVolumeFactor * homeFactor, 0.05, 5.0);
             var opponentExpected = Math.Clamp(basePrediction.Prediction.ExpectedAwayGoals * scenario.OpponentFactor, 0.05, 5.0);
 
-            var ownEventGoalMean = Math.Max(0.0, events.NetSpecialEventGoalContribution * scenario.ChanceVolumeFactor);
-            var opponentEventGoalMean = Math.Max(0.0, events.ExpectedGoalsConcededFromOwnGoalEvents * scenario.OpponentFactor);
+            var ownEventGoalMean = Math.Max(0.0, ownEvents.NetSpecialEventGoalContribution * scenario.ChanceVolumeFactor);
+            var opponentEventGoalMean = opponentEvents is not null
+                ? Math.Max(0.0, opponentEvents.NetSpecialEventGoalContribution * scenario.OpponentFactor)
+                : Math.Max(0.0, ownEvents.ExpectedGoalsConcededFromOwnGoalEvents * scenario.OpponentFactor);
             var ownNormalMean = Math.Max(0.0, ownExpected - ownEventGoalMean);
             var opponentNormalMean = Math.Max(0.0, opponentExpected - opponentEventGoalMean);
 
@@ -67,8 +72,10 @@ public sealed class M9SimulationEngine
             {
                 ownGoals += SamplePoisson(rng, ownNormalMean / MatchTicks);
                 opponentGoals += SamplePoisson(rng, opponentNormalMean / MatchTicks);
-                ownGoals += SampleEventGoalsForTick(rng, events, scenario.ChanceVolumeFactor);
-                opponentGoals += SampleOpponentEventGoalsForTick(rng, opponentEventGoalMean);
+                ownGoals += SampleEventGoalsForTick(rng, ownEvents, scenario.ChanceVolumeFactor);
+                opponentGoals += opponentEvents is not null
+                    ? SampleEventGoalsForTick(rng, opponentEvents, scenario.OpponentFactor)
+                    : SampleOpponentEventGoalsForTick(rng, opponentEventGoalMean);
             }
 
             var outcome = ownGoals > opponentGoals ? "Galibiyet" : ownGoals == opponentGoals ? "Beraberlik" : "Rakip Galibiyeti";
