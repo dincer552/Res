@@ -75,7 +75,7 @@ public static class M9EventGoalRegression
             opponentNormalGoalProbability: 0.5,
             opponentCentralDefenders: 3);
 
-        Check(ApproximatelyValue(mechanism.PressingSuppressionSignal, 0.065, 1e-12), "PDIM one-count suppression", out failure);
+        Check(ApproximatelyValue(mechanism.PressingSuppressionSignal, 0.13, 1e-12), "PDIM two-count suppression", out failure);
         if (failure is not null) return Fail(failure);
         Check(ApproximatelyValue(mechanism.PowerfulNormalForwardGoals, 0.05, 1e-12), "PNF one-count goal contribution", out failure);
         if (failure is not null) return Fail(failure);
