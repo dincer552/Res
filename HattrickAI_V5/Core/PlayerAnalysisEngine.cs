@@ -4,6 +4,8 @@ namespace HattrickAI.V5.Core;
 /// Motor 3: Oyuncu Analiz Motoru.
 /// Sadece oyuncu uygunluk profilini üretir. XI seçmez, diziliş seçmez,
 /// rakip skoru kullanmaz ve takım ratingi üretmez.
+/// Specialty bu aşamada rating bonusu olarak uygulanmaz; oyuncu profiline
+/// taşınır ve sonraki motorların context'i için korunur.
 /// </summary>
 public sealed class PlayerAnalysisEngine : IPlayerAnalysisEngine
 {
@@ -38,6 +40,7 @@ public sealed class PlayerAnalysisEngine : IPlayerAnalysisEngine
             player.Name,
             eligible,
             player.InjuryLevel,
+            player.Specialty,
             candidates,
             candidates.FirstOrDefault()?.PositionCode,
             candidates.Skip(1).FirstOrDefault()?.PositionCode);
@@ -92,6 +95,7 @@ public sealed record PlayerAnalysisProfile(
     string PlayerName,
     bool IsEligible,
     int InjuryLevel,
+    PlayerSpecialty Specialty,
     IReadOnlyList<PlayerPositionCandidate> Positions,
     string? PrimaryPosition,
     string? SecondaryPosition)
