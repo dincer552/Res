@@ -46,6 +46,7 @@ public sealed class M9EventGoalEngine
         ArgumentNullException.ThrowIfNull(ownPlayers);
         var byId = ownPlayers.ToDictionary(p => p.Id);
         var profiles = ownLineup.Slots.Where(s => s.PlayerId > 0 && byId.ContainsKey(s.PlayerId)).Select(s => new SlotProfile(s.Code, byId[s.PlayerId])).ToArray();
+        var setPieceTaker = profiles.OrderByDescending(x => x.Player.SetPiecesSkill).ThenBy(x => x.Player.Id).FirstOrDefault();
         var quickOffensive = CountSpecial(profiles, PlayerSpecialty.Quick, IsOffensive);
         var quickDefenders = CountSpecial(profiles, PlayerSpecialty.Quick, IsDefender);
         var technicalOffensive = CountSpecial(profiles, PlayerSpecialty.Technical, IsOffensive);
@@ -126,7 +127,11 @@ public sealed class M9EventGoalEngine
 
         return new M9EventGoalBreakdown(playerSpecialGoals, teamSpecialGoals, ownGoalExpected, 0.0, 0.0, pnfGoals, pdimSuppression, playerEventRate, teamEventRate, technicalCaRate, contributions,
             "PDF Tables 4-5 + Appendix C hooks; baseline preserved, PNF/PDIM enabled, LS scoring/hidden inputs pending.",
-            $"PNF={pnfCount}; opponent CDs={Math.Clamp(opponentCentralDefenders, 0, 5)}; PNF conversion={pnfConversion:P2}. PDIM={pdimCount}; suppression={pdimSuppression:P2}. LS scoring remains a graph/calibration input.");
+            $"PNF={pnfCount}; opponent CDs={Math.Clamp(opponentCentralDefenders, 0, 5)}; PNF conversion={pnfConversion:P2}. PDIM={pdimCount}; suppression={pdimSuppression:P2}. LS scoring remains a graph/calibration input.")
+        {
+            SetPieceTakerPlayerId = setPieceTaker?.Player.Id,
+            SetPieceTakerSkill = setPieceTaker?.Player.SetPiecesSkill ?? 0
+        };
     }
 
     public static double SetPieceGoalProbability(double ownIspAttackRating, double opponentIspDefenceRating)
@@ -186,6 +191,8 @@ public sealed class M9EventGoalEngine
 public sealed record M9EventContribution(string Event, double ExpectedEvents, double GoalProbability, double ExpectedGoals);
 public sealed record M9EventGoalBreakdown(double PlayerBasedSpecialEventGoals, double TeamBasedSpecialEventGoals, double ExpectedGoalsConcededFromOwnGoalEvents, double CounterAttackGoals, double LongShotGoals, double PowerfulNormalForwardGoals, double PressingSuppressionSignal, double ExpectedPlayerBasedEvents, double ExpectedTeamBasedEvents, double TechnicalCounterAttackOpportunityRate, IReadOnlyList<M9EventContribution> Contributions, string CalibrationStatus, string Notes)
 {
+    public int? SetPieceTakerPlayerId { get; init; }
+    public int SetPieceTakerSkill { get; init; }
     public static M9EventGoalBreakdown Empty => new(0,0,0,0,0,0,0,0,0,0,Array.Empty<M9EventContribution>(),"Not calculated","No player/event context supplied.");
     public double NetSpecialEventGoalContribution => PlayerBasedSpecialEventGoals + TeamBasedSpecialEventGoals + PowerfulNormalForwardGoals - ExpectedGoalsConcededFromOwnGoalEvents;
 }
