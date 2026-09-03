@@ -35,10 +35,7 @@ public sealed class AnalysisService
         if (ownPlayers.Count < 11)
             throw new InvalidOperationException("Kullanıcı takımında analiz için yeterli oyuncu verisi yok.");
 
-        var matchesXml = await _chpp.GetXmlAsync(
-            "matches",
-            new Dictionary<string, string?> { ["version"] = "2.2", ["teamID"] = teamId.ToString(CultureInfo.InvariantCulture) },
-            ct);
+        var matchesXml = await _chpp.GetXmlAsync("matches", new Dictionary<string, string?> { ["version"] = "2.2", ["teamID"] = teamId.ToString(CultureInfo.InvariantCulture) }, ct);
         var matches = ReadMatches(matchesXml, teamId);
         var now = DateTimeOffset.UtcNow;
 
@@ -54,36 +51,22 @@ public sealed class AnalysisService
         var opponentName = next.HomeId == teamId ? next.AwayName : next.HomeName;
         if (opponentId <= 0) throw new InvalidOperationException("Rakip takım ID'si bulunamadı.");
 
-        var opponentMatchesXml = await _chpp.GetXmlAsync(
-            "matches",
-            new Dictionary<string, string?> { ["version"] = "2.2", ["teamID"] = opponentId.ToString(CultureInfo.InvariantCulture) },
-            ct);
+        var opponentMatchesXml = await _chpp.GetXmlAsync("matches", new Dictionary<string, string?> { ["version"] = "2.2", ["teamID"] = opponentId.ToString(CultureInfo.InvariantCulture) }, ct);
         var opponentMatches = ReadMatches(opponentMatchesXml, opponentId);
-        var lastMatch = opponentMatches
-            .Where(x => x.Date != default && x.Date <= now && IsCompetitiveMatchType(x.MatchType))
-            .OrderByDescending(x => x.Date)
-            .FirstOrDefault();
+        var lastMatch = opponentMatches.Where(x => x.Date != default && x.Date <= now && IsCompetitiveMatchType(x.MatchType)).OrderByDescending(x => x.Date).FirstOrDefault();
+        if (lastMatch.MatchId <= 0) throw new InvalidOperationException("Rakibin resmi tamamlanmış maçı bulunamadı.");
 
-        if (lastMatch.MatchId <= 0)
-            throw new InvalidOperationException("Rakibin resmi tamamlanmış maçı bulunamadı.");
-
-        var lineupXml = await _chpp.GetXmlAsync(
-            "matchlineup",
-            new Dictionary<string, string?>
-            {
-                ["version"] = "1.1",
-                ["actionType"] = "view",
-                ["matchID"] = lastMatch.MatchId.ToString(CultureInfo.InvariantCulture),
-                ["teamID"] = opponentId.ToString(CultureInfo.InvariantCulture)
-            },
-            ct);
+        var lineupXml = await _chpp.GetXmlAsync("matchlineup", new Dictionary<string, string?>
+        {
+            ["version"] = "1.1", ["actionType"] = "view",
+            ["matchID"] = lastMatch.MatchId.ToString(CultureInfo.InvariantCulture),
+            ["teamID"] = opponentId.ToString(CultureInfo.InvariantCulture)
+        }, ct);
         var lineupRoot = XmlV5.Root(lineupXml);
-        if (XmlV5.Int(lineupRoot, "MatchID") != lastMatch.MatchId)
-            throw new InvalidOperationException("CHPP lineup MatchID uyuşmuyor.");
+        if (XmlV5.Int(lineupRoot, "MatchID") != lastMatch.MatchId) throw new InvalidOperationException("CHPP lineup MatchID uyuşmuyor.");
 
         var lineupNodes = SelectFinalFieldPlayers(lineupRoot);
-        if (lineupNodes.Count != 11)
-            throw new InvalidOperationException($"Rakibin son resmi maçında final saha 11'i belirlenemedi: {lineupNodes.Count}.");
+        if (lineupNodes.Count != 11) throw new InvalidOperationException($"Rakibin son resmi maçında final saha 11'i belirlenemedi: {lineupNodes.Count}.");
 
         var opponentHistoricalRating = await ReadDirectHistoricalOpponentRating(lastMatch.MatchId, opponentId, ct);
         var opponentPlayers = await ReadPlayers(opponentId, ct);
@@ -99,26 +82,16 @@ public sealed class AnalysisService
 
         var locationEnum = next.HomeId == teamId ? MatchLocation.Home : MatchLocation.Away;
         var ratingContext = new RatingContext(locationEnum, questionnaire.MatchImportance, TeamTactic.Normal);
-        var context = new MatchDataContext(ownPlayers, teamId, teamName, opponentProfile, ratingContext, questionnaire);
+        var context = new MatchDataContext(ownPlayers, teamId, teamName, opponentProfile, ratingContext, questionnaire, opponentLineup, opponentPlayers);
 
         var pipeline = await _motors.RunAsync(context, ownPlayers, ct);
         var finalLineup = pipeline.FinalPlan.Lineup;
         var finalRating = ConfidenceRatingAdjuster.Apply(pipeline.FinalPlan.Rating, selfConfidence);
         var appliedQuestionnaire = questionnaire with { MatchImportance = pipeline.SelectedMatchApproach };
-
         var location = next.HomeId == teamId ? "Ev sahibi" : "Deplasman";
         var title = $"{next.Date.ToLocalTime():dd.MM.yyyy HH:mm} • {opponentName} • {location}";
 
-        return new Analysis(
-            build,
-            teamName,
-            opponentName,
-            title,
-            finalLineup,
-            opponentLineup,
-            finalRating,
-            opponentHistoricalRating,
-            appliedQuestionnaire)
+        return new Analysis(build, teamName, opponentName, title, finalLineup, opponentLineup, finalRating, opponentHistoricalRating, appliedQuestionnaire)
         {
             M7Scenario = pipeline.M7,
             M72Scenario = pipeline.M72,
@@ -140,12 +113,10 @@ public sealed class AnalysisService
         var onField = starting.Select(p => XmlV5.Int(p, "PlayerID")).ToHashSet();
         foreach (var s in team.Descendants("Substitution"))
         {
-            var subject = XmlV5.Int(s, "SubjectPlayerID");
-            var obj = XmlV5.Int(s, "ObjectPlayerID");
+            var subject = XmlV5.Int(s, "SubjectPlayerID"); var obj = XmlV5.Int(s, "ObjectPlayerID");
             if (subject > 0 && obj > 0 && onField.Remove(subject)) onField.Add(obj);
         }
-        if (onField.Count == 0)
-            onField = finalPlayers.Where(p => XmlV5.Int(p, "RoleID") is >= 1 and <= 11).Select(p => XmlV5.Int(p, "PlayerID")).ToHashSet();
+        if (onField.Count == 0) onField = finalPlayers.Where(p => XmlV5.Int(p, "RoleID") is >= 1 and <= 11).Select(p => XmlV5.Int(p, "PlayerID")).ToHashSet();
         return finalPlayers.Where(p => onField.Contains(XmlV5.Int(p, "PlayerID")) && XmlV5.Int(p, "PositionCode") > 0).GroupBy(p => XmlV5.Int(p, "PlayerID")).Select(g => g.First()).ToList();
     }
 
@@ -164,12 +135,7 @@ public sealed class AnalysisService
             XmlV5.Int(team, "RatingMidfield") / 4.0, XmlV5.Int(team, "RatingLeftAtt") / 4.0, XmlV5.Int(team, "RatingMidAtt") / 4.0, XmlV5.Int(team, "RatingRightAtt") / 4.0);
     }
 
-    private static int TeamNodeId(XElement node) => node.Name.LocalName switch
-    {
-        "HomeTeam" => XmlV5.Int(node, "HomeTeamID"),
-        "AwayTeam" => XmlV5.Int(node, "AwayTeamID"),
-        _ => 0
-    };
+    private static int TeamNodeId(XElement node) => node.Name.LocalName switch { "HomeTeam" => XmlV5.Int(node, "HomeTeamID"), "AwayTeam" => XmlV5.Int(node, "AwayTeamID"), _ => 0 };
 
     private async Task<List<Player>> ReadPlayers(int teamId, CancellationToken ct)
     {
@@ -182,9 +148,7 @@ public sealed class AnalysisService
     private static PlayerSpecialty ParseSpecialty(XElement player)
     {
         var value = XmlV5.Int(player, "Specialty");
-        return Enum.IsDefined(typeof(PlayerSpecialty), value)
-            ? (PlayerSpecialty)value
-            : PlayerSpecialty.None;
+        return Enum.IsDefined(typeof(PlayerSpecialty), value) ? (PlayerSpecialty)value : PlayerSpecialty.None;
     }
 
     private static List<(int MatchId, DateTimeOffset Date, int HomeId, int AwayId, string HomeName, string AwayName, int MatchType)> ReadMatches(string xml, int teamId)
