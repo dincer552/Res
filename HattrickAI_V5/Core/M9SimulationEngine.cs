@@ -6,8 +6,8 @@ namespace HattrickAI.V5.Core;
 
 /// <summary>
 /// M9 event-based Monte Carlo. The paper describes a dynamic 90-minute engine
-/// with events occurring in roughly five-minute intervals; this layer therefore
-/// samples 18 match ticks rather than one whole-match Poisson draw.
+/// with events occurring in roughly five-minute intervals; this layer samples 18
+/// match ticks rather than one whole-match Poisson draw.
 /// </summary>
 public sealed class M9SimulationEngine
 {
@@ -17,6 +17,8 @@ public sealed class M9SimulationEngine
     private static readonly SimulationScenario[] Scenarios =
     {
         new("Base PDF 36.15/25.65/25.65/12.55", 1.00, 1.00, 1.00),
+        new("Sol kanat", 1.00, 1.00, 1.01),
+        new("Sağ kanat", 1.00, 1.00, 1.01),
         new("Düşük şans", 0.96, 1.02, 0.99),
         new("Yüksek şans", 1.04, 0.96, 1.02)
     };
@@ -128,21 +130,9 @@ public sealed class M9SimulationEngine
         => counts.TryGetValue(key, out var value) ? value : 0;
 }
 
-public sealed record SimulationScenario(
-    string Name,
-    double ChanceVolumeFactor,
-    double OpponentFactor,
-    double HomeFactor);
+public sealed record SimulationScenario(string Name, double ChanceVolumeFactor, double OpponentFactor, double HomeFactor);
 
-public sealed record M9SimulationRecord(
-    int Iteration,
-    string Scenario,
-    double OwnExpectedGoals,
-    double OpponentExpectedGoals,
-    int OwnGoals,
-    int OpponentGoals,
-    string Outcome);
-
+public sealed record M9SimulationRecord(int Iteration, string Scenario, double OwnExpectedGoals, double OpponentExpectedGoals, int OwnGoals, int OpponentGoals, string Outcome);
 public sealed record M9ScoreFrequency(string Score, int Count, double Probability);
 public sealed record M9SimulationOutcome(double WinProbability, double DrawProbability, double LossProbability);
 
