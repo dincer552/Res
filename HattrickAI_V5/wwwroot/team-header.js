@@ -1,18 +1,18 @@
 (function(){
   'use strict';
   const style=document.createElement('style');
-  style.textContent='.lineup-head{min-height:92px;padding:13px 18px;gap:14px}.team-logo{width:52px;height:52px;object-fit:contain;flex:0 0 52px}.lineup-info{display:flex;flex-direction:column;justify-content:center}.lineup-title{font-size:20px;line-height:1.08}.team-role{font-size:12px;font-weight:800;color:#2f7d4f;margin-top:5px}.lineup-head .shield{display:none}';
+  style.textContent='.lineup-head{min-height:92px;padding:13px 18px;gap:14px}.team-logo{width:52px;height:52px;object-fit:contain;flex:0 0 52px}.lineup-info{display:flex;flex-direction:column;justify-content:center}.lineup-title{font-size:20px;line-height:1.08}.team-role{font-size:12px;font-weight:800;color:#2f7d4f;margin-top:5px}.lineup-head .shield{display:none}.lineup-card .copy-btn{display:none!important}.lineup-info .lineup-sub{display:none!important}';
   document.head.appendChild(style);
   function setCard(prefix,name,venue,logo){
     const card=document.getElementById(prefix+'Title')?.closest('.lineup-card');
     if(!card)return;
-    card.querySelectorAll('.copy-btn').forEach(x=>x.remove());
+    card.querySelectorAll('.copy-btn').forEach(x=>x.style.display='none');
     const title=document.getElementById(prefix+'Title');
     const info=title?.closest('.lineup-info');
     const sub=info?.querySelector('.lineup-sub');
     const eyebrow=info?.querySelector('.eyebrow');
     if(eyebrow) eyebrow.textContent='';
-    if(sub) sub.remove();
+    if(sub) sub.style.display='none';
     if(title){title.textContent=name||'';title.style.display=name?'block':'none';}
     const head=title?.closest('.lineup-head');
     if(!head)return;
