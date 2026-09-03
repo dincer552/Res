@@ -24,8 +24,8 @@ jobs:
         run: |
           set -Eeuo pipefail
           echo "🧪 M7 → M7.1 → M7.2 → M8 offline regression başlıyor..."
-          dotnet run --project HattrickAI_V5.OfflineTests/HattrickAI_V5.OfflineTests.csproj -- HattrickAI_V5.OfflineTests/fixtures/s4msunfc-m7-m8.json
-          echo "✅ Offline regression geçti"
+          dotnet run --project HattrickAI_V5.OfflineTests/HattrickAI_V5.OfflineTests.csproj -- TestJSON/HattrickAI_V5_CHPP_FullOffline_2026-09-01.json
+          echo "✅ Full CHPP JSON offline regression geçti"
 
       - name: Build Docker image
         shell: bash
