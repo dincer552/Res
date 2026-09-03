@@ -6,8 +6,7 @@ namespace HattrickAI.V5.Core;
 
 /// <summary>
 /// M9: M8 chance allocation -> sector resolution -> documented event layer -> goals -> W/D/L.
-/// Explicit mechanisms are taken from the 2026 Hattrick research paper; hidden inputs are kept
-/// as explicit calibration gaps rather than invented coefficients.
+/// Explicit mechanisms are taken from the 2026 Hattrick research paper; hidden inputs remain explicit calibration gaps.
 /// </summary>
 public sealed class M9MatchPredictionEngine
 {
@@ -16,12 +15,7 @@ public sealed class M9MatchPredictionEngine
     private const double MaxGoals = 5.0;
     private const int PoissonGoalCutoff = 20;
 
-    public M9PredictionResult Predict(
-        TacticalCandidate candidate,
-        M8ChanceResult chance,
-        RegionalRatingSnapshot opponent,
-        MatchLocation location,
-        IReadOnlyList<Player>? players = null)
+    public M9PredictionResult Predict(TacticalCandidate candidate, M8ChanceResult chance, RegionalRatingSnapshot opponent, MatchLocation location, IReadOnlyList<Player>? players = null)
     {
         ArgumentNullException.ThrowIfNull(candidate);
         ArgumentNullException.ThrowIfNull(chance);
@@ -33,75 +27,42 @@ public sealed class M9MatchPredictionEngine
         var opponentLeft = chance.OpponentLeftAttackVsOwnRightDefence;
         var opponentCentre = chance.OpponentCentreAttackVsOwnCentreDefence;
         var opponentRight = chance.OpponentRightAttackVsOwnLeftDefence;
-
-        var ownRegularQuality = WeightedRegularQuality(ownLeft, ownCentre, ownRight,
-            chance.LeftChanceShare, chance.CentreChanceShare, chance.RightChanceShare);
-        var opponentRegularQuality = WeightedRegularQuality(opponentLeft, opponentCentre, opponentRight,
-            chance.LeftChanceShare, chance.CentreChanceShare, chance.RightChanceShare);
+        var ownRegularQuality = WeightedRegularQuality(ownLeft, ownCentre, ownRight, chance.LeftChanceShare, chance.CentreChanceShare, chance.RightChanceShare);
+        var opponentRegularQuality = WeightedRegularQuality(opponentLeft, opponentCentre, opponentRight, chance.LeftChanceShare, chance.CentreChanceShare, chance.RightChanceShare);
 
         var totalRegularChances = Math.Max(1e-9, chance.OwnRegularChanceExpected + chance.OpponentRegularChanceExpected);
         var ownChanceShare = Clamp01(chance.OwnRegularChanceExpected / totalRegularChances);
         var opponentChanceShare = Clamp01(chance.OpponentRegularChanceExpected / totalRegularChances);
-
         var ownNormalGoals = chance.OwnRegularChanceExpected * ownRegularQuality;
         var opponentNormalGoals = chance.OpponentRegularChanceExpected * opponentRegularQuality;
 
-        // PDF CA rule: lower midfield before the 7% CA penalty + conversion of opponent missed normal chances.
         var counterAttackGoals = 0.0;
         if (chance.Tactic == AdvancedTactic.CounterAttack && chance.Allocation.CounterAttackEligible)
         {
             var opponentMissedNormal = chance.OpponentRegularChanceExpected * (1.0 - opponentRegularQuality);
-            var counterAttackChances = opponentMissedNormal * chance.CounterAttackConversionRate;
-            counterAttackGoals = counterAttackChances * ownRegularQuality;
+            counterAttackGoals = opponentMissedNormal * chance.CounterAttackConversionRate * ownRegularQuality;
         }
 
-        // PDF Eq. 3 set-piece share. Exact taker skill is hidden from CHPP, so this remains conservative.
         var ownSetPieceExpected = 10.0 * PaperSetPieceShare * ownChanceShare;
         var opponentSetPieceExpected = 10.0 * PaperSetPieceShare * opponentChanceShare;
         var ownSetPieceGoals = ownSetPieceExpected * SetPieceNeutralConversion;
         var opponentSetPieceGoals = opponentSetPieceExpected * SetPieceNeutralConversion;
 
-        M9EventGoalBreakdown events;
-        if (players is not null && players.Count > 0)
-        {
-            var linearOpponentPossession = 1.0 - chance.MidfieldShare;
-            var linearOwnPossession = chance.MidfieldShare;
-            events = new M9EventGoalEngine().Calculate(
-                candidate.Lineup,
-                players,
-                chance.MidfieldShare,
-                linearOpponentPossession,
-                chance.Tactic,
-                chance.Tactic == AdvancedTactic.Creative ? EstimateCreativeMultiplier(chance) : 1.0,
-                linearOpponentPossession);
-        }
-        else
-        {
-            events = M9EventGoalBreakdown.Empty;
-        }
+        var events = players is not null && players.Count > 0
+            ? new M9EventGoalEngine().Calculate(candidate.Lineup, players, candidate.Rating.Midfield, opponent.Midfield, chance.Tactic, chance.CreativeEventMultiplier)
+            : M9EventGoalBreakdown.Empty;
 
         var ownSpecialGoals = events.PlayerBasedSpecialEventGoals + events.TeamBasedSpecialEventGoals + events.CounterAttackGoals + events.LongShotGoals + events.PowerfulNormalForwardGoals;
         var opponentSpecialGoals = events.ExpectedGoalsConcededFromOwnGoalEvents;
-
         var ownExpected = ClampGoals(ownNormalGoals + counterAttackGoals + ownSetPieceGoals + ownSpecialGoals);
         var opponentExpected = ClampGoals(opponentNormalGoals + opponentSetPieceGoals + opponentSpecialGoals);
-
         var probabilities = CalculatePoissonOutcomeProbabilities(ownExpected, opponentExpected);
-        var prediction = new MatchPrediction(
-            chance.MidfieldShare,
-            ownExpected,
-            opponentExpected,
-            probabilities.Win,
-            probabilities.Draw,
-            probabilities.Loss);
+        var prediction = new MatchPrediction(chance.MidfieldShare, ownExpected, opponentExpected, probabilities.Win, probabilities.Draw, probabilities.Loss);
+        var structuralChance = Clamp01(ownChanceShare * ownRegularQuality + chance.SetPieceChanceShare * SetPieceNeutralConversion);
 
-        var structuralChance = Clamp01(
-            ownChanceShare * ownRegularQuality +
-            chance.SetPieceChanceShare * SetPieceNeutralConversion);
-
-        return BuildResult(
+        return new M9PredictionResult(
             candidate.Lineup.Formation,
-            candidate.Lineup,
+            CandidateId(candidate.Lineup),
             prediction,
             structuralChance,
             ownChanceShare,
@@ -115,7 +76,10 @@ public sealed class M9MatchPredictionEngine
             opponentCentre,
             opponentRight,
             location,
-            events);
+            M9CalibrationStatus.StructuralModelAwaitingHistoricalCalibration)
+        {
+            EventGoals = events
+        };
     }
 
     public M9PredictionResult Predict(TacticalCandidate candidate, M8ChanceResult chance, MatchLocation location)
@@ -135,7 +99,7 @@ public sealed class M9MatchPredictionEngine
             InverseRating(own.LeftAttack, candidate.Matchup.RightAttackMargin),
             InverseRating(own.CentralAttack, candidate.Matchup.CentralAttackMargin),
             InverseRating(own.RightAttack, candidate.Matchup.LeftAttackMargin),
-            0, 0, 0, 0, 0, 0, 0);
+            0,0,0,0,0,0,0);
     }
 
     internal static (double Win, double Draw, double Loss) CalculatePoissonOutcomeProbabilities(double ownExpected, double opponentExpected)
@@ -154,30 +118,11 @@ public sealed class M9MatchPredictionEngine
         return (win / total, draw / total, loss / total);
     }
 
-    private static M9PredictionResult BuildResult(
-        string formation, Lineup lineup, MatchPrediction prediction, double structuralChance,
-        double ownChanceShare, double opponentChanceShare, double ownAttackQuality, double opponentAttackQuality,
-        double ownLeft, double ownCentre, double ownRight, double opponentLeft, double opponentCentre,
-        double opponentRight, MatchLocation location, M9EventGoalBreakdown events)
-        => new(
-            formation, CandidateId(lineup), prediction, structuralChance,
-            ownChanceShare, opponentChanceShare, ownAttackQuality, opponentAttackQuality,
-            ownLeft, ownCentre, ownRight, opponentLeft, opponentCentre, opponentRight,
-            location, events.NetSpecialEventGoalContribution == 0 && events.ExpectedPlayerBasedEvents == 0
-                ? M9CalibrationStatus.StructuralModelAwaitingHistoricalCalibration
-                : M9CalibrationStatus.StructuralModelAwaitingHistoricalCalibration)
-        {
-            EventGoals = events
-        };
-
     private static double WeightedRegularQuality(double left, double centre, double right, double leftWeight, double centreWeight, double rightWeight)
     {
-        var regularWeight = leftWeight + centreWeight + rightWeight;
-        return regularWeight <= 0 ? 0.5 : Clamp01(((left * leftWeight) + (centre * centreWeight) + (right * rightWeight)) / regularWeight);
+        var sum = leftWeight + centreWeight + rightWeight;
+        return sum <= 0 ? 0.5 : Clamp01((left * leftWeight + centre * centreWeight + right * rightWeight) / sum);
     }
-
-    private static double EstimateCreativeMultiplier(M8ChanceResult chance)
-        => chance.Tactic == AdvancedTactic.Creative ? 2.37 + (1.43 * Math.Clamp(chance.TacticConversionRate, 0.0, 1.0)) : 1.0;
 
     private static double InverseRating(double own, double signedMargin)
     {
@@ -212,9 +157,7 @@ public sealed record M9PredictionResult(
     private M9SimulationResult? _simulation;
     public M9SimulationResult Simulation => _simulation ??= new M9SimulationEngine().Simulate(this);
     public M9EventGoalBreakdown EventGoals { get; init; } = M9EventGoalBreakdown.Empty;
-    public string PredictedResult => Prediction.WinProbability >= Prediction.LossProbability
-        ? (Prediction.WinProbability >= Prediction.DrawProbability ? "Galibiyet" : "Beraberlik")
-        : (Prediction.LossProbability >= Prediction.DrawProbability ? "Rakip Galibiyeti" : "Beraberlik");
+    public string PredictedResult => Prediction.WinProbability >= Prediction.LossProbability ? (Prediction.WinProbability >= Prediction.DrawProbability ? "Galibiyet" : "Beraberlik") : (Prediction.LossProbability >= Prediction.DrawProbability ? "Rakip Galibiyeti" : "Beraberlik");
     public string MostLikelyScore
     {
         get
@@ -244,8 +187,4 @@ public sealed record M9PredictionResult(
     }
 }
 
-public enum M9CalibrationStatus
-{
-    StructuralModelAwaitingHistoricalCalibration,
-    CalibratedAgainstHistoricalMatches
-}
+public enum M9CalibrationStatus { StructuralModelAwaitingHistoricalCalibration, CalibratedAgainstHistoricalMatches }
