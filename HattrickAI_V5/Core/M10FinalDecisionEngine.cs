@@ -11,6 +11,9 @@ namespace HattrickAI.V5.Core;
 /// </summary>
 public sealed class M10FinalDecisionEngine
 {
+    private sealed record RankedCandidate(M10CandidateEvaluation Candidate, double CompositeScore);
+    private sealed record RankedApproach(M10ApproachEvaluation Approach, double CompositeScore);
+
     public const int RequiredFormationDepth = CandidateEvaluationDatabase.MinimumPerFormation;
 
     public M10DecisionResult Select(
@@ -184,9 +187,6 @@ public sealed class M10FinalDecisionEngine
             .OrderBy(s => s.Code, StringComparer.Ordinal)
             .ThenBy(s => s.PlayerId)
             .Select(s => $"{s.Code}:{s.PlayerId}:{(int)s.Order}"));
-
-    private sealed record RankedCandidate(M10CandidateEvaluation Candidate, double CompositeScore);
-    private sealed record RankedApproach(M10ApproachEvaluation Approach, double CompositeScore);
 }
 
 public sealed record M10CandidateEvaluation(
