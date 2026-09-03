@@ -5,9 +5,9 @@ using System.Linq;
 namespace HattrickAI.V5.Core;
 
 /// <summary>
-/// M9 Monte Carlo katmanı. Ana M8 chance hacmini üretmez; M8'den gelen
-/// chance volume ve sektör çözümünü örnekler. Base dağılımı 2026 Hattrick
-/// araştırma makalesinin Eq. 3 değerlerine hizalanmıştır.
+/// M9 event-based Monte Carlo layer. M8 owns chance volume; M9 samples normal
+/// scoring and documented event goals separately so special-event expectation is
+/// not silently folded into a single Poisson lambda.
 /// </summary>
 public sealed class M9SimulationEngine
 {
@@ -42,19 +42,33 @@ public sealed class M9SimulationEngine
             var ownQuality = WeightedSectorQuality(basePrediction, scenario);
             var opponentQuality = WeightedOpponentQuality(basePrediction, scenario);
 
-            var ownLambda = Math.Clamp(
+            var ownSpecialGoalMean = Math.Max(0.0, basePrediction.EventGoals.NetSpecialEventGoalContribution);
+            var ownSpecialGoalMeanForSimulation = Math.Max(0.0, ownSpecialGoalMean * scenario.ChanceVolumeFactor);
+            var opponentSpecialGoalMean = Math.Max(0.0, basePrediction.EventGoals.ExpectedGoalsConcededFromOwnGoalEvents * scenario.OpponentFactor);
+
+            var totalOwnExpected = Math.Clamp(
                 basePrediction.Prediction.ExpectedHomeGoals * venueFactor * scenario.ChanceVolumeFactor *
                 QualityAdjustment(ownQuality, basePrediction.OwnAttackQuality) * RandomFactor(rng, 0.94, 1.06),
                 0.05, 5.0);
-            var opponentLambda = Math.Clamp(
+            var totalOpponentExpected = Math.Clamp(
                 basePrediction.Prediction.ExpectedAwayGoals * scenario.OpponentFactor *
                 QualityAdjustment(opponentQuality, basePrediction.OpponentAttackQuality) * RandomFactor(rng, 0.94, 1.06),
                 0.05, 5.0);
 
-            var ownGoals = SamplePoisson(rng, ownLambda);
-            var opponentGoals = SamplePoisson(rng, opponentLambda);
+            // Decompose the pre-existing M9 expectation into normal and event
+            // components. The event component is sampled independently below.
+            var ownNormalMean = Math.Max(0.0, totalOwnExpected - ownSpecialGoalMeanForSimulation);
+            var opponentNormalMean = Math.Max(0.0, totalOpponentExpected - opponentSpecialGoalMean);
+
+            var ownNormalGoals = SamplePoisson(rng, ownNormalMean);
+            var opponentNormalGoals = SamplePoisson(rng, opponentNormalMean);
+            var ownEventGoals = SampleEventGoals(rng, basePrediction.EventGoals, ownSpecialGoalMeanForSimulation);
+            var opponentEventGoals = SampleOpponentEventGoals(rng, opponentSpecialGoalMean);
+
+            var ownGoals = ownNormalGoals + ownEventGoals;
+            var opponentGoals = opponentNormalGoals + opponentEventGoals;
             var outcome = ownGoals > opponentGoals ? "Galibiyet" : ownGoals == opponentGoals ? "Beraberlik" : "Rakip Galibiyeti";
-            var record = new M9SimulationRecord(i + 1, scenario.Name, ownLambda, opponentLambda, ownGoals, opponentGoals, outcome);
+            var record = new M9SimulationRecord(i + 1, scenario.Name, totalOwnExpected, totalOpponentExpected, ownGoals, opponentGoals, outcome);
             database.Add(record);
             scenarioResults[scenario.Name].Add(record);
         }
@@ -80,6 +94,30 @@ public sealed class M9SimulationEngine
             scenarioResults.Values.ToArray(),
             database);
     }
+
+    private static int SampleEventGoals(Random rng, M9EventGoalBreakdown events, double specialGoalMean)
+    {
+        if (specialGoalMean <= 0) return 0;
+
+        // Each event class has an expected event count and a documented goal
+        // conversion rate. Sample event occurrence first, then resolve goal/no-goal.
+        var goals = 0;
+        foreach (var contribution in events.Contributions)
+        {
+            if (contribution.ExpectedEvents <= 0 || contribution.GoalProbability <= 0) continue;
+            var eventCount = SamplePoisson(rng, contribution.ExpectedEvents);
+            for (var i = 0; i < eventCount; i++)
+                if (rng.NextDouble() < contribution.GoalProbability) goals++;
+        }
+
+        // If the event list is incomplete, preserve its calibrated aggregate mean
+        // rather than creating an artificial extra goal source. The current engine
+        // exposes all active documented classes, so this should normally be zero.
+        return goals;
+    }
+
+    private static int SampleOpponentEventGoals(Random rng, double mean)
+        => mean <= 0 ? 0 : SamplePoisson(rng, mean);
 
     private static double WeightedSectorQuality(M9PredictionResult p, SimulationScenario s)
         => Clamp01((p.OwnLeftAttackVsRightDefence * s.LeftWeight) +
@@ -107,6 +145,7 @@ public sealed class M9SimulationEngine
 
     private static int SamplePoisson(Random rng, double lambda)
     {
+        if (lambda <= 0) return 0;
         var threshold = Math.Exp(-lambda);
         var product = 1.0;
         var k = 0;
@@ -114,7 +153,7 @@ public sealed class M9SimulationEngine
         {
             k++;
             product *= Math.Max(1e-12, rng.NextDouble());
-        } while (product > threshold && k < 20);
+        } while (product > threshold && k < 50);
         return Math.Max(0, k - 1);
     }
 
