@@ -7,7 +7,11 @@ public sealed class M8ChanceModel
     {
         ArgumentNullException.ThrowIfNull(own); ArgumentNullException.ThrowIfNull(opponent);
 
-        var allocation = M8ChanceAllocationEngine.Calculate(own.OwnRating.Midfield, opponent.Midfield);
+        var allocation = M8ChanceAllocationEngine.Calculate(
+            own.OwnRating.Midfield,
+            opponent.Midfield,
+            own.Tactic,
+            own.TacticalLevel.Value);
         var sectorShares = M8ChanceAllocationEngine.CalculateSectorShares(own.Tactic, own.TacticalLevel.Value);
 
         // Hattrick sector matchups: left attack vs opponent right defence,
@@ -64,8 +68,6 @@ public sealed class M8ChanceModel
     }
 
     // PDF Eq. 4: 0.92*(4A-3)^3.5 / (0.92*(4A-3)^3.5 + (4D-3)^3.5).
-    // Used here as the normal L/M/R scoring probability; set-piece scoring is
-    // kept separate because the taker's hidden skill is not available to CHPP.
     private static double ScoreProbability(double attack, double defence)
     {
         var a = Math.Max(0.0, attack) * 4.0 - 3.0;
@@ -98,4 +100,7 @@ public sealed record M8ChanceResult(
     public double OwnRegularChanceExpected => Allocation.OwnRegularChanceExpected;
     public double OpponentRegularChanceExpected => Allocation.OpponentRegularChanceExpected;
     public double OpenChancePool => Allocation.OpenChancePool;
+    public double PressingSuppression => Allocation.PressingSuppression;
+    public double TacticConversionRate => Allocation.TacticConversionRate;
+    public double LongShotConversionRate => Allocation.LongShotConversionRate;
 }
