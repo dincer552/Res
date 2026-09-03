@@ -18,7 +18,7 @@ public static class M9EventGoalRegression
             P(3, PlayerSpecialty.Head),
             P(4, PlayerSpecialty.Unpredictable),
             P(5, PlayerSpecialty.Unpredictable),
-            P(6, PlayerSpecialty.Unpredictable),
+            P(6, PlayerSpecialty.None),
             P(7, PlayerSpecialty.None),
             P(8, PlayerSpecialty.None),
             P(9, PlayerSpecialty.None),
@@ -26,11 +26,14 @@ public static class M9EventGoalRegression
             P(11, PlayerSpecialty.None)
         };
 
+        // Deliberately place specialties so every documented Table-4 event class
+        // is eligible at least once: Quick/Technical on attack, Head on defence,
+        // Unpredictable on defence + forward, and Winger on a wing.
         var slots = new[]
         {
-            S("GK", 1), S("DEF-CL", 2), S("DEF-C", 3), S("DEF-CR", 4),
-            S("DEF-L", 5), S("DEF-R", 6), S("IM-L", 7), S("IM-C", 8),
-            S("IM-R", 9), S("W-L", 10), S("FW-C", 11)
+            S("GK", 6), S("DEF-CL", 4), S("DEF-C", 3), S("DEF-CR", 7),
+            S("DEF-L", 8), S("DEF-R", 9), S("IM-L", 10), S("IM-C", 11),
+            S("IM-R", 2), S("W-L", 1), S("FW-C", 5)
         };
 
         var lineup = new Lineup("Regression", "4-3-3", slots);
