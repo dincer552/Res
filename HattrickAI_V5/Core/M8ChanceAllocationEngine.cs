@@ -4,15 +4,14 @@ namespace HattrickAI.V5.Core;
 
 /// <summary>
 /// M8 chance-allocation layer based on the 2026 Hattrick research paper.
-/// The paper-derived mechanism is kept as the production baseline; the local
-/// CHPP calibration set remains validation data and does not overwrite it.
+/// The paper-derived mechanism is the production baseline; local CHPP data is
+/// validation only and never overwrites the research mechanism automatically.
 /// </summary>
 public static class M8ChanceAllocationEngine
 {
     public const int ExclusiveChancesPerTeam = 5;
     public const int OpenChancePool = 5;
 
-    // Paper Eq. 3: distribution over all normal attacks.
     public const double PaperLeftAttackShare = 0.2565;
     public const double PaperCentreAttackShare = 0.3615;
     public const double PaperRightAttackShare = 0.2565;
@@ -20,13 +19,10 @@ public static class M8ChanceAllocationEngine
     public const double PaperIndirectFreeKickShare = 0.0418;
     public const double PaperPenaltyKickShare = 0.0251;
     public const double PaperRegularSectorShare = PaperLeftAttackShare + PaperCentreAttackShare + PaperRightAttackShare;
-
-    // Paper Eq. 2: 10 expected normal attacks per match before sector allocation.
     public const double PaperExpectedNormalAttacks = 10.0;
     public const double PaperExpectedRegularSectorChances = PaperExpectedNormalAttacks * PaperRegularSectorShare;
 
-    // Research ranges used where the paper gives a range but not a production-safe
-    // closed form in the main KB-probabilistic model.
+    // Main-text KB-probabilistic ranges.
     public const double AiMMinWingConversion = 0.20;
     public const double AiMMaxWingConversion = 0.35;
     public const double AoWMinCentreConversion = 0.34;
@@ -35,9 +31,12 @@ public static class M8ChanceAllocationEngine
     public const double LongShotsMaxConversion = 0.43;
     public const double PressingMinSuppression = 0.05;
     public const double PressingMaxSuppression = 0.41;
+    public const double CounterAttackMinConversion = 0.04;
+    public const double CounterAttackMaxConversion = 0.45;
     public const double CounterAttackMidfieldPenalty = 0.07;
 
-    // Compatibility/diagnostic constants retained from the prior calibration.
+    // Appendix C diagnostic coefficients. These are exposed for later raw-RT
+    // calibration; they are not mixed into the applied V5 level scale.
     public const double CalibratedTotalRegularChances = 8.8;
     public const double CalibratedOwnershipIntercept = -0.4380926172;
     public const double CalibratedOwnershipMidfieldSlope = 1.9561688498;
@@ -48,46 +47,41 @@ public static class M8ChanceAllocationEngine
         AdvancedTactic tactic = AdvancedTactic.Normal,
         double tacticStrength = 0.0)
     {
-        // Paper: Counterattack trades 7% midfield for counterattack opportunities.
         var effectiveOwnMidfield = tactic == AdvancedTactic.CounterAttack
             ? Math.Max(0.0, ownMidfieldRating * (1.0 - CounterAttackMidfieldPenalty))
             : ownMidfieldRating;
 
         var possession = CalculatePossessionProbability(effectiveOwnMidfield, opponentMidfieldRating);
-        var totalRegular = PaperExpectedRegularSectorChances;
-
-        // Paper: Pressing suppresses normal attacks. The published model gives a
-        // 5%-41% range by tactic level; use only the source-backed range here.
         var pressingSuppression = tactic == AdvancedTactic.Pressing
             ? CalculateRange(PressingMinSuppression, PressingMaxSuppression, tacticStrength)
             : 0.0;
 
-        var ownExpected = totalRegular * possession;
-        var opponentExpected = totalRegular * (1.0 - possession) * (1.0 - pressingSuppression);
-
-        // Re-normalise the ownership volume after a pressing suppression so the
-        // suppressed chances are genuinely removed rather than redistributed.
+        var ownExpected = PaperExpectedRegularSectorChances * possession;
+        var opponentExpected = PaperExpectedRegularSectorChances * (1.0 - possession) * (1.0 - pressingSuppression);
         var sector = CalculateSectorShares(tactic, tacticStrength);
-        var ownOpen = OpenChancePool * possession;
-        var opponentOpen = OpenChancePool * (1.0 - possession) * (1.0 - pressingSuppression);
+        var appliedConversion = CalculateAppliedTacticRate(tactic, tacticStrength);
 
         return new DiscreteChanceAllocation(
             ExclusiveChancesPerTeam,
             ExclusiveChancesPerTeam,
             OpenChancePool,
-            ownOpen,
-            opponentOpen,
+            OpenChancePool * possession,
+            OpenChancePool * (1.0 - possession) * (1.0 - pressingSuppression),
             ownExpected,
             opponentExpected,
-            $"PDF Eq1+Eq2+Eq3: possession/10 normal attacks/LMR-SP distribution; tactic={tactic}; pressing suppression={pressingSuppression:P1}.")
+            $"PDF Eq1+Eq2+Eq3; tactic={tactic}; applied tactic rate={appliedConversion:P1}; pressing suppression={pressingSuppression:P1}.")
         {
             PossessionProbability = possession,
             EffectiveOwnMidfield = effectiveOwnMidfield,
             PressingSuppression = pressingSuppression,
-            TacticConversionRate = CalculateTacticConversionRate(tactic, tacticStrength),
+            TacticConversionRate = appliedConversion,
             LongShotConversionRate = tactic == AdvancedTactic.LongShots
                 ? CalculateRange(LongShotsMinConversion, LongShotsMaxConversion, tacticStrength)
                 : 0.0,
+            CounterAttackConversionRate = tactic == AdvancedTactic.CounterAttack
+                ? CalculateRange(CounterAttackMinConversion, CounterAttackMaxConversion, tacticStrength)
+                : 0.0,
+            CounterAttackEligible = tactic == AdvancedTactic.CounterAttack && ownMidfieldRating < opponentMidfieldRating,
             SectorLeftShare = sector.Left,
             SectorCentreShare = sector.Centre,
             SectorRightShare = sector.Right,
@@ -130,12 +124,21 @@ public static class M8ChanceAllocationEngine
         return total <= 0.0 ? 0.5 : Math.Clamp(ownPower / total, 0.0, 1.0);
     }
 
+    public static double CalculateAppliedTacticRate(AdvancedTactic tactic, double tacticStrength)
+        => tactic switch
+        {
+            AdvancedTactic.CounterAttack => CalculateRange(CounterAttackMinConversion, CounterAttackMaxConversion, tacticStrength),
+            AdvancedTactic.AttackMiddle => CalculateRange(AiMMinWingConversion, AiMMaxWingConversion, tacticStrength),
+            AdvancedTactic.AttackWings => CalculateRange(AoWMinCentreConversion, AoWMaxCentreConversion, tacticStrength),
+            AdvancedTactic.LongShots => CalculateRange(LongShotsMinConversion, LongShotsMaxConversion, tacticStrength),
+            AdvancedTactic.Pressing => CalculateRange(PressingMinSuppression, PressingMaxSuppression, tacticStrength),
+            _ => 0.0
+        };
+
     public static double CalculateTacticConversionRate(AdvancedTactic tactic, double tacticRating)
     {
-        // Appendix C Eq. 2. This is retained as a research coefficient helper;
-        // the main sector model uses the directly stated KB-probabilistic ranges
-        // for AiM/AoW/LS/Pressing because the current V5 tactic level is not the
-        // paper's raw RT scale.
+        // Appendix C Eq. 2, retained as a raw research helper. The V5 tactical
+        // level is intentionally not assumed to be the same scale as RT.
         var rt = Math.Max(0.0, tacticRating);
         var raw = tactic switch
         {
@@ -179,13 +182,6 @@ public static class M8ChanceAllocationEngine
                 right += moved / 2.0;
                 break;
             }
-            case AdvancedTactic.LongShots:
-            {
-                // LS converts LMR attacks into long shots. We expose the rate
-                // separately; LMR shares remain intact here so M9 can account for
-                // the converted volume without silently treating it as a sector goal.
-                break;
-            }
         }
 
         var sum = left + centre + right + setPiece;
@@ -213,6 +209,8 @@ public sealed record DiscreteChanceAllocation(
     public double PressingSuppression { get; init; }
     public double TacticConversionRate { get; init; }
     public double LongShotConversionRate { get; init; }
+    public double CounterAttackConversionRate { get; init; }
+    public bool CounterAttackEligible { get; init; }
     public double SectorLeftShare { get; init; }
     public double SectorCentreShare { get; init; }
     public double SectorRightShare { get; init; }
