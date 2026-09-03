@@ -46,6 +46,6 @@
   };
 
   const style = document.createElement('style');
-  style.textContent = '.slot-order{font-size:clamp(6px,1.7vw,9px);font-weight:900;line-height:1;margin-top:2px;white-space:nowrap;opacity:.95}.slot-order.off{color:#ffe08a}.slot-order.def{color:#bce9ff}.slot.filled{padding:3px}.slot-name{font-size:clamp(7px,2.15vw,11px)}';
+  style.textContent = '.slot-order{font-size:clamp(6px,1.7vw,9px);font-weight:900;line-height:1;margin-top:2px;white-space:nowrap;opacity:.95}.slot-order.off{color:#ffe08a}.slot-order.def{color:#bce9ff}.slot.filled{padding:3px}.slot-name{font-size:clamp(7px,2.15vw,11px)}#ownTitle + .lineup-sub{display:none!important}.lineup-card .copy-btn{display:none!important}';
   document.head.appendChild(style);
 })();
