@@ -14,6 +14,7 @@ public sealed class M9EventGoalEngine
     private const int PlayerEventTrials = 4;
     private const double TeamEventProbability = 0.3720;
     private const int TeamEventTrials = 5;
+    private const double PlayerTeamOwnershipFallback = 0.5;
 
     private const double WingerAnyRate = 0.2163;
     private const double WingerAnyGoalRate = 0.4951;
@@ -90,8 +91,11 @@ public sealed class M9EventGoalEngine
         var activeWeight = eligiblePlayerEvents.Sum(x => x.Weight);
         var playerMultiplier = SpecialEventMultiplier(tactic, creativeMultiplier);
         // Paper §4.4: Player_SEs ~ Binomial(n=4, p=0.841).
-        // The table rates then distribute the generated event count among feasible event types.
-        var playerEventBudget = activeWeight > 0 ? PlayerEventTrials * PlayerEventProbability * playerMultiplier : 0.0;
+        // The table rates distribute generated events among feasible event types.
+        // Team ownership is 50/50 until opponent specialty counts are wired in.
+        var playerEventBudget = activeWeight > 0
+            ? PlayerEventTrials * PlayerEventProbability * playerMultiplier * PlayerTeamOwnershipFallback
+            : 0.0;
         var playerSpecialGoals = 0.0;
         var ownGoalExpected = 0.0;
         var playerEventRate = 0.0;
@@ -108,7 +112,7 @@ public sealed class M9EventGoalEngine
         }
 
         // §4.4 Eq.5: team-based SE allocation uses linear possession.
-        // Team_SEs ~ Binomial(n=5, p=0.372), so the expected event count is 1.86.
+        // Team_SEs ~ Binomial(n=5, p=0.372), expected total event count = 1.86.
         var linearPossession = LinearPossession(ownMidfieldRating, opponentMidfieldRating);
         var teamMultiplier = SpecialEventMultiplier(tactic, creativeMultiplier);
         var cornerHeadProbability = CornerHeadShare(headOffensive);
@@ -145,8 +149,8 @@ public sealed class M9EventGoalEngine
         var notes = new List<string>
         {
             "Player-based SEs follow the paper Binomial(n=4,p=0.841) expectation; event types are redistributed over feasible residual types.",
+            "Player-event team ownership is currently neutral 50/50 because opponent specialty counts are not wired into M9.",
             "Team-based SEs follow the paper Binomial(n=5,p=0.372) expectation and Eq.5 linear possession.",
-            "Opponent specialty counts are unavailable, so player-event team ownership uses a neutral 50/50 fallback.",
             $"Technical CA opportunity rate={technicalCaRate:P2}; goal conversion remains pending.",
             "Long Shot scoring probability is not invented because the paper provides a plotted relationship rather than a published explicit equation.",
             "Set-piece taker skill is hidden from CHPP and therefore remains outside exact event resolution.",
