@@ -1,5 +1,8 @@
 (function(){
   'use strict';
+  const style=document.createElement('style');
+  style.textContent='.lineup-head{min-height:92px;padding:13px 18px;gap:14px}.team-logo{width:52px;height:52px;object-fit:contain;flex:0 0 52px}.lineup-info{display:flex;flex-direction:column;justify-content:center}.lineup-title{font-size:20px;line-height:1.08}.team-role{font-size:12px;font-weight:800;color:#2f7d4f;margin-top:5px}.lineup-head .shield{display:none}';
+  document.head.appendChild(style);
   function setCard(prefix,name,venue,logo){
     const card=document.getElementById(prefix+'Title')?.closest('.lineup-card');
     if(!card)return;
