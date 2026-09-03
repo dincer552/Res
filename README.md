@@ -51,16 +51,14 @@ WEB
 | M5 | ✅ | Formasyon başına geniş XI adayı üretiliyor |
 | M6-A | ✅ | Formation-aware search + DB1 diversity |
 | M7 | ✅ | L/C/R defence + midfield + L/C/R attack |
-| M7.2 | ✅* | PDF taktik mekanikleri kodlandı; CI regression geçti |
-| M8 | ✅* | PDF Eq1–Eq4 + tactic context handoff mevcut; CI regression geçti |
+| M7.2 | ✅ | PDF taktik mekanikleri kodlandı; CI regression geçti |
+| M8 | ✅ | PDF Eq1–Eq4 + tactic context + opportunity volumes; CI regression geçti |
 | M9 | 🔧 | Event → goal katmanı başladı; hidden inputlar tamamlanacak |
 | Monte Carlo | 🔧 | Şu an geçiş katmanı; gerçek event sampling sıradaki hedef |
 | M10 | ✅/🔧 | Formation leaderboard hazır; final MC girdisi bekliyor |
 | M6-B | ✅/🔧 | DB1 seed + refinement hazır; rank-driven depth geliştirilecek |
 | DB2 | ✅ | Formation depth korunuyor |
 | M11 | ✅/🔧 | Final selector hazır; gerçek event/MC çıktısıyla son kalibrasyon yapılacak |
-
-`*` Kod ve CI açısından tamam; taktiklerin historical davranış kalibrasyonu sonraki fazlardadır.
 
 ## PDF MATCH ENGINE FAZLARI
 
@@ -74,8 +72,8 @@ FAZ E  PDF sector baseline + 60-match validation       ✅
 FAZ F  AiM / AoW migration + M7.2 handoff             ✅
 FAZ G  Pressing suppression                            ✅
 FAZ H  Counter Attack opportunity engine               ✅
-FAZ I  Long Shots opportunity engine                   🔜
-FAZ J  Play Creatively event-volume layer              🔧
+FAZ I  Long Shots opportunity engine                   🔧 NEXT
+FAZ J  Play Creatively event-volume layer              ✅
 FAZ K  Specialty event engine                          🔧 started
 FAZ L  Specialty ↔ tactic / weather                    🔜
 FAZ M  M9 event-based goal resolution                  🔧 started
@@ -91,8 +89,8 @@ FAZ P  Offline regression + real-match validation       🔜
 Son temiz CI:
 
 ```text
-Run #415
-Commit: d47d7c5e854e7e28029468b428d6c36f992e7d5f
+M8 opportunity-volume stabilization
+Commit: e9234d1eed41a135195129a90f998beaac5c1a6d
 M7 → M7.1 → M7.2 → M8 offline regression: PASS
 Build Docker image: PASS
 Deploy on Azure VM: PASS
@@ -198,7 +196,17 @@ LMR toplamı `%87.45`; expected normal attack volume `10`; dolayısıyla expecte
 
 60 CHPP maçlık validation datasetinde gözlenen LMR ortalaması `8.80` bulunmuştur. Bu veri production coefficient'lerini otomatik değiştirmemiştir.
 
-Pressing için yayınlanan mekanizma normal attack hacmini düşürür; tek takım Pressing durumunda normal saldırılar üzerinde `%5–41` suppression aralığı production baseline'dır. İki taraflı Pressing ve Pressing-vs-LS özel ilişkileri ayrı calibration fazındadır.
+M8 artık tactic-specific opportunity hacimlerini de açıkça üretir:
+
+```text
+Pressing   → suppressed Normal volume
+CA         → opponent missed Normal → CA opportunity
+LS         → LMR → Long Shot opportunity
+AiM / AoW  → sector migration
+PC         → special-event volume multiplier context
+```
+
+Long Shot scoring probability M9'a bırakılmıştır; makale burada açık kapalı formül yerine grafiksel ilişki verdiği için sahte denklem üretilmemiştir.
 
 ## M9 — EVENT → GOAL ENGINE
 
@@ -228,12 +236,6 @@ Opponent Specialty detail
 PNF / PDIM exact conversion relationships
 Specialty ↔ weather / tactic cross-effects
 ```
-
-## SET-PIECE / CORNER NOTU
-
-Makale set-piece scoring için DFK/IFK/PK ilişkilerinin gizli player-specific girdilerden etkilendiğini açıkça belirtiyor. Bu nedenle taker skill görünür değilse sahte bir kesin katsayı kullanılmayacak.
-
-Corner-to-head için paper Equation 6 kullanılabilir; offensive/defensive Head sayıları doğrudan inputtur.
 
 ## NEDEN EVENT-BASED MONTE CARLO?
 
@@ -282,8 +284,8 @@ Amaç `tek maça göre motoru eğmek` değil, large-sample calibration yapmaktı
 ```text
 1. CI/build temizliği                                  ✅
 2. M7.2 → M8 tactic handoff stabilizasyonu            ✅
-3. M8 chance-volume + tactic effects stabilization     🔧 NEXT
-4. M9 event → goal genişletme                          🔜
+3. M8 chance-volume + tactic effects stabilization     ✅
+4. M9 event → goal genişletme                          🔧 NEXT
 5. LS + PNF/PDIM                                     🔜
 6. Specialty ↔ weather/tactic                         🔜
 7. Historical event dataset                            🔜
