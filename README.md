@@ -59,6 +59,7 @@ WEB
 | M6-B | 🔧 | DB1 seed + refinement hazır; rank-driven depth geliştirilecek |
 | DB2 | ✅ | Formation depth korunuyor |
 | M11 | 🔧 | Final selector hazır; gerçek event/MC çıktısıyla son kalibrasyon yapılacak |
+| UI / Motor Panel | ✅ | M9 event→goal breakdown, PNF/PDIM, 18-tick MC çıktıları ve event katkıları arayüzde gösteriliyor |
 
 ## 03.09.2026 — TAMAMLANAN SON GELİŞTİRMELER
 
@@ -76,6 +77,9 @@ Bu iterasyonda aşağıdaki işler **kod seviyesinde tamamlandı**. CI regressio
 [✓] 1000-match deterministic simulation yapısı korundu
 [✓] PNF'nin event-goal katkısının MC'de double-count edilmesi engellendi
 [✓] M9 offline regression fixture stabil baseline'a geri çekildi
+[✓] UI M9 paneli yeni Event → Goal / MC çıktılarıyla güncellendi
+[✓] UI simulation kaynağı nested full prediction sonucunu tercih edecek şekilde düzeltildi
+[✓] UI event contribution tablosu + PNF/PDIM/CA/LS/Own Goal diagnostics gösteriyor
 [ ] Opponent Specialty event wiring
 [ ] Long Shot scoring graph historical calibration
 [ ] Set-piece taker hidden-skill integration
@@ -261,7 +265,7 @@ ATTACKSP = -0.0000380429·d³
            + 0.0366246·d
            + 0.45515
 
-where d = ISP attack − opponent ISP defence
+where d = ISP attack − ISP defence
 
 C.2 Long Shot tactic conversion
 TCR_LS(RT) = 0.00761935·RT + 0.07520052
@@ -315,7 +319,41 @@ W / D / L
 
 Simulation deterministic seed kullanır; offline regression aynı seed ile aynı most-likely score ve W/D/L üretimini kontrol eder.
 
+UI artık MC çıktısını event-aware M9 sonucu içinden okur ve 1000 maç / 18 tick yapısını, W/D/L oranlarını, en sık skoru ve senaryo dağılımını gösterir.
+
 Şu an eksik olan bölüm: opponent tarafının tüm specialty eventleri ve Long Shot scoring graph'ının tarihsel calibration ile production'a bağlanması. Bunlar tamamlanmadan Monte Carlo `tam Hattrick motoru` olarak ilan edilmeyecek.
+
+## UI / MOTOR PANELİ
+
+Web arayüzündeki M9 paneli yeni motor hesaplarına göre güncellendi:
+
+```text
+Tahmini sonuç + analitik skor
+Galibiyet / beraberlik / rakip olasılığı
+Beklenen gol + possession
+7 rating / pozisyon eşleşmesi
+
+Event → Goal Motoru
+  Player event E
+  Team event E
+  Player event xG
+  Team event xG
+  PNF xG
+  CA xG
+  Long Shot xG
+  Own Goal xG
+  Pressing suppression
+  Calibration durumu
+  Event contribution tablosu
+
+1000 maç × 18 tick (5 dk)
+  Sim. W / D / L
+  En sık skor
+  En sık sonuç
+  Senaryo dağılımları
+```
+
+UI, M10'un MC'yi henüz formation ranking kararına katmadığını açıkça gösterir. Bu nedenle arayüzde MC tanısal/kanıt çıktısıdır; M10 MC entegrasyonu bir sonraki motor fazıdır.
 
 ## CALIBRATION KURALI
 
