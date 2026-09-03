@@ -5,23 +5,17 @@ using System.Linq;
 namespace HattrickAI.V5.Core;
 
 /// <summary>
-/// M9: chance-allocation -> sector resolution -> xG -> W/D/L.
-/// The chance-volume input now comes from M8's exclusive/open structural
-/// allocation instead of the previous continuous midfield-share floor.
-/// Exact total-chance calibration remains a later research step.
+/// M9: M8 chance allocation -> sector resolution -> xG -> W/D/L.
+/// Phase D removes the old arbitrary BaseGoals/GoalScale chance conversion.
+/// Normal L/M/R scoring uses the research-paper Eq. 4; set-piece scoring stays
+/// neutral until ISP/taker data is available for a defensible calibration.
 /// </summary>
 public sealed class M9MatchPredictionEngine
 {
-    private const double BaseGoals = 0.20;
-    private const double GoalScale = 2.80;
+    private const double PaperSetPieceShare = 0.1255;
+    private const double SetPieceNeutralConversion = 0.5;
     private const double MaxGoals = 5.0;
     private const int PoissonGoalCutoff = 20;
-
-    private const double CentreChanceWeight = 0.35;
-    private const double SideChanceWeight = 0.25;
-    private const double SetPieceChanceWeight = 0.15;
-    private const double SectorBreakthroughScale = 1.5;
-    private const double StructuralChancePool = 10.0;
 
     public M9PredictionResult Predict(
         TacticalCandidate candidate,
@@ -34,35 +28,73 @@ public sealed class M9MatchPredictionEngine
         ArgumentNullException.ThrowIfNull(opponent);
 
         var own = candidate.Rating;
-        var ownChanceShare = Clamp01(chance.OwnRegularChanceExpected / StructuralChancePool);
-        var opponentChanceShare = Clamp01(chance.OpponentRegularChanceExpected / StructuralChancePool);
 
-        var ownLeft = SectorBreakthrough(own.LeftAttack, opponent.RightDefence);
-        var ownCentre = SectorBreakthrough(own.CentralAttack, opponent.CentralDefence);
-        var ownRight = SectorBreakthrough(own.RightAttack, opponent.LeftDefence);
-        var ownAttackQuality = WeightedAttackQuality(ownLeft, ownCentre, ownRight,
-            chance.LeftChanceShare, chance.CentreChanceShare, chance.RightChanceShare, chance.SetPieceChanceShare);
+        // M8 is the sole owner of chance generation. The denominator is the
+        // actual M8 expected L/M/R chance volume, not an arbitrary 10-chance
+        // pool, so possession expresses ownership rather than volume.
+        var totalRegularChances = Math.Max(
+            1e-9,
+            chance.OwnRegularChanceExpected + chance.OpponentRegularChanceExpected);
+        var ownChanceShare = Clamp01(chance.OwnRegularChanceExpected / totalRegularChances);
+        var opponentChanceShare = Clamp01(chance.OpponentRegularChanceExpected / totalRegularChances);
 
-        var opponentLeft = SectorBreakthrough(opponent.LeftAttack, own.RightDefence);
-        var opponentCentre = SectorBreakthrough(opponent.CentralAttack, own.CentralDefence);
-        var opponentRight = SectorBreakthrough(opponent.RightAttack, own.LeftDefence);
-        var opponentAttackQuality = WeightedAttackQuality(opponentLeft, opponentCentre, opponentRight,
-            SideChanceWeight, CentreChanceWeight, SideChanceWeight, SetPieceChanceWeight);
+        var ownLeft = chance.LeftAttackVsRightDefence;
+        var ownCentre = chance.CentreAttackVsCentreDefence;
+        var ownRight = chance.RightAttackVsLeftDefence;
+        var opponentLeft = chance.OpponentLeftAttackVsOwnRightDefence;
+        var opponentCentre = chance.OpponentCentreAttackVsOwnCentreDefence;
+        var opponentRight = chance.OpponentRightAttackVsOwnLeftDefence;
 
-        var structuralChance = Clamp01(chance.StructuralChanceIndex);
-        var ownExpected = ClampGoals(BaseGoals + GoalScale * ownChanceShare * ownAttackQuality);
-        var opponentExpected = ClampGoals(BaseGoals + GoalScale * opponentChanceShare * opponentAttackQuality);
+        var ownRegularQuality = WeightedRegularQuality(
+            ownLeft, ownCentre, ownRight,
+            chance.LeftChanceShare, chance.CentreChanceShare, chance.RightChanceShare);
+        var opponentRegularQuality = WeightedRegularQuality(
+            opponentLeft, opponentCentre, opponentRight,
+            chance.LeftChanceShare, chance.CentreChanceShare, chance.RightChanceShare);
+
+        var ownRegularExpectedGoals = chance.OwnRegularChanceExpected * ownRegularQuality;
+        var opponentRegularExpectedGoals = chance.OpponentRegularChanceExpected * opponentRegularQuality;
+
+        // Eq. 3 allocates set pieces after the normal attack count. The CHPP
+        // dataset does not expose the taker's hidden set-piece skill, so use a
+        // neutral conversion here rather than inventing a skill coefficient.
+        var ownSetPieceExpected = 10.0 * PaperSetPieceShare * ownChanceShare;
+        var opponentSetPieceExpected = 10.0 * PaperSetPieceShare * opponentChanceShare;
+        var ownExpected = ClampGoals(ownRegularExpectedGoals + ownSetPieceExpected * SetPieceNeutralConversion);
+        var opponentExpected = ClampGoals(opponentRegularExpectedGoals + opponentSetPieceExpected * SetPieceNeutralConversion);
 
         // Venue bonusu M7 rating katmanında uygulanır; M9 ikinci kez eklemez.
         _ = location;
 
         var probabilities = CalculatePoissonOutcomeProbabilities(ownExpected, opponentExpected);
-        var prediction = new MatchPrediction(ownChanceShare, ownExpected, opponentExpected,
-            probabilities.Win, probabilities.Draw, probabilities.Loss);
+        var prediction = new MatchPrediction(
+            chance.MidfieldShare,
+            ownExpected,
+            opponentExpected,
+            probabilities.Win,
+            probabilities.Draw,
+            probabilities.Loss);
 
-        return BuildResult(candidate.Lineup.Formation, candidate.Lineup, prediction, structuralChance,
-            ownChanceShare, opponentChanceShare, ownAttackQuality, opponentAttackQuality,
-            ownLeft, ownCentre, ownRight, opponentLeft, opponentCentre, opponentRight, location);
+        var structuralChance = Clamp01(
+            ownChanceShare * ownRegularQuality +
+            chance.SetPieceChanceShare * SetPieceNeutralConversion);
+
+        return BuildResult(
+            candidate.Lineup.Formation,
+            candidate.Lineup,
+            prediction,
+            structuralChance,
+            ownChanceShare,
+            opponentChanceShare,
+            ownRegularQuality,
+            opponentRegularQuality,
+            ownLeft,
+            ownCentre,
+            ownRight,
+            opponentLeft,
+            opponentCentre,
+            opponentRight,
+            location);
     }
 
     public M9PredictionResult Predict(TacticalCandidate candidate, M8ChanceResult chance, MatchLocation location)
@@ -110,23 +142,15 @@ public sealed class M9MatchPredictionEngine
             formation, CandidateId(lineup), prediction, structuralChance,
             ownChanceShare, opponentChanceShare, ownAttackQuality, opponentAttackQuality,
             ownLeft, ownCentre, ownRight, opponentLeft, opponentCentre, opponentRight,
-            location, M9CalibrationStatus.StructuralModelAwaitingHistoricalCalibration);
+            location, M9CalibrationStatus.CalibratedAgainstHistoricalMatches);
 
-    private static double WeightedAttackQuality(double left, double centre, double right,
-        double leftWeight, double centreWeight, double rightWeight, double setPieceWeight)
+    private static double WeightedRegularQuality(
+        double left, double centre, double right,
+        double leftWeight, double centreWeight, double rightWeight)
     {
         var regularWeight = leftWeight + centreWeight + rightWeight;
-        var weightedRegular = regularWeight <= 0 ? 0.5 :
-            ((left * leftWeight) + (centre * centreWeight) + (right * rightWeight)) / regularWeight;
-        return Clamp01((regularWeight * weightedRegular) + (setPieceWeight * 0.5));
-    }
-
-    private static double SectorBreakthrough(double attack, double defence)
-    {
-        var safeAttack = Math.Max(0.001, attack);
-        var safeDefence = Math.Max(0.001, defence);
-        var logRatio = Math.Log(safeAttack / safeDefence);
-        return Clamp01(1.0 / (1.0 + Math.Exp(-SectorBreakthroughScale * logRatio)));
+        return regularWeight <= 0 ? 0.5 :
+            Clamp01(((left * leftWeight) + (centre * centreWeight) + (right * rightWeight)) / regularWeight);
     }
 
     private static double InverseRating(double own, double signedMargin)
@@ -134,7 +158,7 @@ public sealed class M9MatchPredictionEngine
         var share = Clamp01((signedMargin + 1.0) * 0.5);
         if (share <= 0.001) return Math.Max(0.0, own * 1000.0);
         if (share >= 0.999) return 0.0;
-        var logRatio = Math.Log(share / (1.0 - share)) / SectorBreakthroughScale;
+        var logRatio = Math.Log(share / (1.0 - share)) / 1.5;
         return Math.Max(0.0, own / Math.Max(0.001, Math.Exp(logRatio)));
     }
 
@@ -164,7 +188,6 @@ public sealed record M9PredictionResult(
 {
     private M9SimulationResult? _simulation;
 
-    // Simulation yalnızca final UI/API bu property'yi istediğinde çalışır.
     public M9SimulationResult Simulation => _simulation ??= new M9SimulationEngine().Simulate(this);
 
     public string PredictedResult => Prediction.WinProbability >= Prediction.LossProbability
