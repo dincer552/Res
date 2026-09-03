@@ -86,11 +86,16 @@ public sealed class AnalysisService
             throw new InvalidOperationException($"Rakibin son resmi maçında final saha 11'i belirlenemedi: {lineupNodes.Count}.");
 
         var opponentHistoricalRating = await ReadDirectHistoricalOpponentRating(lastMatch.MatchId, opponentId, ct);
+        var opponentPlayers = await ReadPlayers(opponentId, ct);
         var experienceLevel = Math.Clamp(XmlV5.Int(lineupRoot?.Descendants("Team").FirstOrDefault(), "ExperienceLevel"), 1, 20);
         var opponentSlots = lineupNodes.Select(p => HistoricalSlot(p, opponentHistoricalRating, experienceLevel)).ToList();
         var opponentLineup = Formation(opponentName, opponentSlots);
         var opponentThreat = _threatEngine.Analyze(opponentHistoricalRating);
-        var opponentProfile = new OpponentMatchProfile(opponentName, opponentLineup.Formation, opponentHistoricalRating, opponentThreat);
+        var opponentProfile = new OpponentMatchProfile(opponentName, opponentLineup.Formation, opponentHistoricalRating, opponentThreat)
+        {
+            Players = opponentPlayers,
+            LastMatchLineup = opponentLineup
+        };
 
         var locationEnum = next.HomeId == teamId ? MatchLocation.Home : MatchLocation.Away;
         var ratingContext = new RatingContext(locationEnum, questionnaire.MatchImportance, TeamTactic.Normal);
