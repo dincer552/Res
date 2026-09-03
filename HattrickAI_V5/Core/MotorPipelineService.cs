@@ -105,9 +105,20 @@ public sealed class MotorPipelineService
             if (missingM10Formations.Count > 0) throw new InvalidOperationException($"Anti-lock ihlali: M10 karşılaştırmasında formasyon yok: {string.Join(", ", missingM10Formations)}");
             LogComplete(runId, "M10", $"DB1 review tamamlandı • lider {m10.BestPlan.Formation} • {m10FormationCompetition.Count} formasyon karşılaştırıldı", sw.ElapsedMilliseconds, firstPassCandidates.Count);
 
-            var searchSeeds = db1.Select(record => ToPositionCandidate(record.Lineup, record.Formation, record.RankingScore)).ToList();
+            var m10RankByFormation = m10FormationCompetition
+                .ToDictionary(x => x.Formation, x => x.Rank, StringComparer.Ordinal);
+            var m6bBudgets = BuildM6BFormationBudgets(m10FormationCompetition, 6, 3);
+            var missingM6BBudgets = legalFormations.Where(f => !m6bBudgets.ContainsKey(f)).ToList();
+            if (missingM6BBudgets.Count > 0) throw new InvalidOperationException($"M6-B budget üretilemedi: {string.Join(", ", missingM6BBudgets)}");
+            var rankSummary = string.Join(" | ", m10FormationCompetition.OrderBy(x => x.Rank).Select(x => $"#{x.Rank} {x.Formation}:B{m6bBudgets[x.Formation].BeamWidth}/I{m6bBudgets[x.Formation].MaxIterations}"));
+
+            var searchSeeds = db1
+                .OrderBy(record => m10RankByFormation.TryGetValue(record.Formation, out var rank) ? rank : int.MaxValue)
+                .ThenByDescending(record => record.RankingScore)
+                .Select(record => ToPositionCandidate(record.Lineup, record.Formation, record.RankingScore))
+                .ToList();
             sw.Restart();
-            LogStart(runId, "M6-B", $"İkinci search/refinement • {searchSeeds.Count} seed • mevcut davranışlar korunuyor • {legalFormations.Count} formasyon");
+            LogStart(runId, "M6-B", $"M10 rank-driven refinement • {searchSeeds.Count} seed • {legalFormations.Count} formasyon • {rankSummary}");
             var m6b = await _m6.OptimizeAsync(
                 searchSeeds,
                 players,
@@ -129,14 +140,15 @@ public sealed class MotorPipelineService
                 {
                     if (!string.IsNullOrWhiteSpace(runId)) MotorRunLogStore.Progress(runId, "M6-B", $"B {iteration}/{maximum} • {evaluated} değerlendirildi • DB2 {databases.SecondPass.Count}", iteration, maximum);
                 },
-                preserveInputOrders: true);
+                preserveInputOrders: true,
+                formationBudgets: m6bBudgets);
 
             var db2 = databases.SecondPass.TopWithFormationDiversity(100, CandidateEvaluationDatabase.MaxPerFormation);
             if (db2.Count == 0 || m6b.TopCandidates.Count == 0) throw new InvalidOperationException("M6-B Candidate DB #2 oluşturamadı.");
             var missingDb2Formations = legalFormations.Where(f => !db2.Any(x => x.Formation.Equals(f, StringComparison.Ordinal))).ToList();
             if (missingDb2Formations.Count > 0) throw new InvalidOperationException($"Anti-lock ihlali: DB2 içinde formasyon yok: {string.Join(", ", missingDb2Formations)}");
             var formationDb2Summary = FormatFormationCounts(db2);
-            LogComplete(runId, "M6-B", $"İkinci search tamamlandı • DB2 {databases.SecondPass.Count} aday • {formationDb2Summary}", sw.ElapsedMilliseconds, m6b.EvaluatedCandidates);
+            LogComplete(runId, "M6-B", $"İkinci search tamamlandı • DB2 {databases.SecondPass.Count} aday • {formationDb2Summary} • M10 rank-driven", sw.ElapsedMilliseconds, m6b.EvaluatedCandidates);
 
             var finalists = db2.Select(record =>
             {
@@ -218,6 +230,26 @@ public sealed class MotorPipelineService
                 throw;
             }
         }
+    }
+
+    private static IReadOnlyDictionary<string, M6FormationSearchBudget> BuildM6BFormationBudgets(
+        IReadOnlyList<M10FormationCompetition> competition,
+        int baseBeamWidth,
+        int baseIterations)
+    {
+        ArgumentNullException.ThrowIfNull(competition);
+        if (competition.Count == 0) return new Dictionary<string, M6FormationSearchBudget>(StringComparer.Ordinal);
+
+        var firstTierEnd = Math.Max(1, (int)Math.Ceiling(competition.Count / 3.0));
+        var secondTierEnd = Math.Max(firstTierEnd + 1, (int)Math.Ceiling(2.0 * competition.Count / 3.0));
+        return competition.ToDictionary(
+            row => row.Formation,
+            row => row.Rank <= firstTierEnd
+                ? new M6FormationSearchBudget(Math.Max(8, baseBeamWidth + 2), Math.Max(4, baseIterations + 2))
+                : row.Rank <= secondTierEnd
+                    ? new M6FormationSearchBudget(Math.Max(6, baseBeamWidth), Math.Max(3, baseIterations + 1))
+                    : new M6FormationSearchBudget(Math.Max(4, baseBeamWidth - 1), Math.Max(2, baseIterations)),
+            StringComparer.Ordinal);
     }
 
     private static PositionAssignmentCandidate ToPositionCandidate(Lineup lineup, string formation, double rankingScore)
