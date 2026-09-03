@@ -2,7 +2,7 @@ namespace HattrickAI.V5.Core;
 
 /// <summary>
 /// Ortak veri sözleşmeleri. Motorlar birbirinin iç implementasyonuna
-/// doğrudan bağımlı olmak yerine bu kanonik çıktılar üzerinden haberleşir.
+doğrudan bağımlı olmak yerine bu kanonik çıktılar üzerinden haberleşir.
 /// </summary>
 public sealed record MatchDataContext(
     IReadOnlyList<Player> OwnPlayers,
@@ -73,7 +73,13 @@ public sealed record MatchPrediction(
     double ExpectedAwayGoals,
     double WinProbability,
     double DrawProbability,
-    double LossProbability);
+    double LossProbability)
+{
+    public MatchLocation Location { get; init; } = MatchLocation.Home;
+    public M9EventGoalBreakdown EventGoals { get; init; } = M9EventGoalBreakdown.Empty;
+    private M9SimulationResult? _simulation;
+    public M9SimulationResult Simulation => _simulation ??= M9SimulationEngine.Simulate(this);
+}
 
 public interface IPlayerAnalysisEngine
 {
