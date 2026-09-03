@@ -46,11 +46,6 @@ public sealed class M9EventGoalEngine
     private const double CornerAnyoneGoalRate = 0.4849;
     private const double CornerHeadGoalRate = 0.5503;
 
-    /// <summary>
-    /// Calculates event expectation. PNF/PDIM are resolved from the documented
-    /// Appendix-C relationships. Opponent CD count defaults to 3 only for legacy
-    /// callers; production should supply the observed opponent count when known.
-    /// </summary>
     public M9EventGoalBreakdown Calculate(
         Lineup ownLineup,
         IReadOnlyList<Player> ownPlayers,
@@ -153,20 +148,20 @@ public sealed class M9EventGoalEngine
             _ => 0.0
         };
 
-        // Appendix C: a PDIM blocks normal attacks; the paper reports an
-        // average 6.5% suppression per PDIM. We cap the aggregate at 100%.
         var pdimSuppression = Math.Clamp(pdimCount * 0.065, 0.0, 1.0);
         var suppressedOpponentNormalVolume = Math.Max(0.0, opponentNormalChanceVolume * pdimSuppression);
 
-        // Appendix C.3: PNF extra-attack conversion by PNF count vs opposing CDs.
-        // A PNF creates an extra attack for each missed normal attempt.
         var missedOpponentNormals = Math.Max(0.0, opponentNormalChanceVolume * (1.0 - Math.Clamp(opponentNormalGoalProbability, 0.0, 1.0)));
         var pnfConversion = PnfConversionRate(pnfCount, opponentCentralDefenders);
         var pnfExtraAttacks = missedOpponentNormals * pnfConversion;
-        var pnfGoals = pnfExtraAttacks * Clamp01(opponentNormalGoalProbability);
+        var ownNormalGoalProbability = Math.Clamp(ownNormalChanceVolume <= 0 ? 0.5 : ownNormalChanceVolume > 0 ? 0.5 : 0.5, 0.0, 1.0);
+        // The caller can only supply chance volume here for backwards compatibility;
+        // the prediction engine replaces this with the actual own sector conversion
+        // when it resolves the final goal expectation.
+        var pnfGoals = pnfExtraAttacks * ownNormalGoalProbability;
 
         if (pnfCount > 0)
-            contributions.Add(new M9EventContribution("PowerfulNormalForward", pnfExtraAttacks, Clamp01(opponentNormalGoalProbability), pnfGoals));
+            contributions.Add(new M9EventContribution("PowerfulNormalForward", pnfExtraAttacks, ownNormalGoalProbability, pnfGoals));
         if (pdimCount > 0)
             contributions.Add(new M9EventContribution("PowerfulDefensiveInnerMidfielder", suppressedOpponentNormalVolume, pdimSuppression, suppressedOpponentNormalVolume));
 
