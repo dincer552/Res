@@ -110,10 +110,9 @@ Uygulama notları:
 
 - `Player` modeline `PlayerSpecialty Specialty` alanı eklendi.
 - CHPP `players` endpoint'indeki `Specialty` alanı okunuyor.
-- Geçersiz/ bilinmeyen değerler güvenli şekilde `None` kabul ediliyor.
+- Geçersiz/bilinmeyen değerler güvenli şekilde `None` kabul ediliyor.
 - Bu aşamada specialty'ye **herhangi bir yapay rating bonusu uygulanmıyor**.
 - Specialty henüz M7/M7.2/M8/M9 event çözümlemesine etki etmiyor; yalnızca doğru verinin motor zincirine girmesi sağlandı.
-- Böylece sonraki aşamalarda specialty etkileri gerçek mekanizmaya göre ayrı ayrı modellenebilecek.
 
 İlgili uygulama commitleri:
 
@@ -122,19 +121,40 @@ Uygulama notları:
 7a0b2b6a  CHPP Specialty verisi Player modeline bağlandı
 ```
 
-### PHASE B — M3 Specialty-aware Player Profile 🔜
+### PHASE B — M3 Specialty-aware Player Profile ✅
 
-Sonraki hedef:
+M3 artık specialty bilgisini yalnızca ham alan olarak taşımıyor; sonraki motorların kullanabileceği **yapısal bir specialty context** üretiyor.
 
 ```text
 Player + Specialty
        ↓
 M3 Player Profile
-       ↓
-pozisyon + individual order + skill + specialty ilişkisi
+       ├─ position candidates
+       ├─ primary / secondary position
+       └─ specialty context
 ```
 
-Burada amaç specialty'yi yalnızca saklamak değil, oyuncunun hangi bağlamlarda avantaj/dezavantaj oluşturabileceğini M3 seviyesinde tanımlamaktır.
+M3 specialty context içerisinde şu etkileşim alanları ayrı tutuluyor:
+
+- Special Event context
+- Weather interaction
+- Counter Attack interaction
+- Pressing interaction
+- Quick Event interaction
+- Header interaction
+- Play Creatively interaction
+
+Önemli sınır: Bu alanlar **henüz rating skoruna bonus/ceza uygulamıyor**. M3 sadece `hangi specialty hangi mekanizma ile ilişkilendirilebilir` bilgisini kanonik profile bağlıyor. Böylece M5/M6/M7.2/M8/M9 daha sonra aynı veriyi tekrar çıkarmak zorunda kalmayacak.
+
+İlgili uygulama commit:
+
+```text
+f2e6ef61  M3 specialty-aware Player Profile
+```
+
+### PHASE C — M5/M6 specialty-aware candidate 🔜
+
+Bir sonraki kod aşamasında specialty context, XI ve individual order adaylarının değerlendirilmesine bağlanacak. Burada da doğrudan keyfi rating bonusu verilmek yerine specialty'nin adayın oynadığı rol ve rakip/maç koşullarıyla ilişkisi taşınacak.
 
 ### Araştırma hedefleri
 
@@ -164,7 +184,7 @@ CHPP Player
     ↓
 Specialty
     ↓
-M3 Player Profile
+M3 Player Profile ✅
     ↓
 M5/M6 lineup + behaviour evaluation
     ↓
@@ -394,8 +414,8 @@ R15 Offline regression / real-match validation
 
 ```text
 PHASE A  CHPP Specialty → Player/M3 data      ✅ TAMAMLANDI
-PHASE B  M3 Specialty-aware profile           🔜 SONRAKİ
-PHASE C  M5/M6 specialty-aware candidate      🔜
+PHASE B  M3 Specialty-aware profile           ✅ TAMAMLANDI
+PHASE C  M5/M6 specialty-aware candidate      🔜 SONRAKİ
 PHASE D  M7.2 specialty ↔ tactic interaction  🔜
 PHASE E  M8 Special Event engine              🔜
 PHASE F  M9 event-based resolution            🔜
