@@ -59,7 +59,7 @@ Temel kurallar:
 
 ## YENİ ARAŞTIRMA PROGRAMI — HATTRICK MATCH ENGINE
 
-Bu bölüm **hemen kodlanacak özellik listesi değil**, araştırma ve doğrulama yol haritasıdır. Önce Hattrick mekanikleri kaynaklardan ve gerçek maçlardan çıkarılacak, sonra mevcut V5 ile karşılaştırılacak, ancak yeterli kanıt oluştuğunda motorlara uygulanacaktır.
+Bu bölüm araştırma ve doğrulama yol haritasıdır. Önce Hattrick mekanikleri kaynaklardan ve gerçek maçlardan çıkarılacak, sonra mevcut V5 ile karşılaştırılacak; yeterli kanıt oluştuğunda production katsayısı uygulanacaktır.
 
 Üç ana konu özellikle takip edilecek:
 
@@ -75,24 +75,18 @@ Bu üç konu birbirinden ayrı incelenecek fakat sonunda tek bir maç-event çek
 
 # 1 — ÖZEL YETENEKLER / SPECIALTIES
 
-### Amaç
-
-CHPP'den gelen oyuncu specialty bilgisini M3 → M11 zincirine taşıyıp specialty'lerin gerçek etkisini **düz rating bonusu vermeden**, bağlama göre modellemek.
-
 ### PHASE A — CHPP Specialty veri bağlantısı ✅
-
-İlk uygulama aşaması tamamlandı.
 
 ```text
 CHPP players XML
       ↓
-Specialty alanı okunuyor
+Specialty alanı
       ↓
 PlayerSpecialty enum
       ↓
 Player model
       ↓
-M3 oyuncu veri zinciri
+M3 veri zinciri
 ```
 
 Desteklenen değerler:
@@ -111,10 +105,9 @@ Uygulama notları:
 - `Player` modeline `PlayerSpecialty Specialty` alanı eklendi.
 - CHPP `players` endpoint'indeki `Specialty` alanı okunuyor.
 - Geçersiz/bilinmeyen değerler güvenli şekilde `None` kabul ediliyor.
-- Bu aşamada specialty'ye **herhangi bir yapay rating bonusu uygulanmıyor**.
-- Specialty henüz M7/M7.2/M8/M9 event çözümlemesine etki etmiyor; yalnızca doğru verinin motor zincirine girmesi sağlandı.
+- Specialty'ye yapay rating bonusu uygulanmıyor.
 
-İlgili uygulama commitleri:
+İlgili commitler:
 
 ```text
 33ab339a  Player modeline CHPP Specialty alanı eklendi
@@ -123,7 +116,7 @@ Uygulama notları:
 
 ### PHASE B — M3 Specialty-aware Player Profile ✅
 
-M3 artık specialty bilgisini yalnızca ham alan olarak taşımıyor; sonraki motorların kullanabileceği **yapısal bir specialty context** üretiyor.
+M3 artık specialty bilgisini sonraki motorların kullanabileceği yapısal context olarak taşıyor.
 
 ```text
 Player + Specialty
@@ -134,7 +127,7 @@ M3 Player Profile
        └─ specialty context
 ```
 
-M3 specialty context içerisinde şu etkileşim alanları ayrı tutuluyor:
+Specialty context alanları:
 
 - Special Event context
 - Weather interaction
@@ -144,9 +137,9 @@ M3 specialty context içerisinde şu etkileşim alanları ayrı tutuluyor:
 - Header interaction
 - Play Creatively interaction
 
-Önemli sınır: Bu alanlar **henüz rating skoruna bonus/ceza uygulamıyor**. M3 sadece `hangi specialty hangi mekanizma ile ilişkilendirilebilir` bilgisini kanonik profile bağlıyor. Böylece M5/M6/M7.2/M8/M9 daha sonra aynı veriyi tekrar çıkarmak zorunda kalmayacak.
+Bu aşamada rating bonusu/cezası yoktur; M3 mekanizma context'i üretir.
 
-İlgili uygulama commit:
+İlgili commit:
 
 ```text
 f2e6ef61  M3 specialty-aware Player Profile
@@ -154,107 +147,62 @@ f2e6ef61  M3 specialty-aware Player Profile
 
 ### PHASE C — M5/M6 specialty-aware candidate 🔜
 
-Bir sonraki kod aşamasında specialty context, XI ve individual order adaylarının değerlendirilmesine bağlanacak. Burada da doğrudan keyfi rating bonusu verilmek yerine specialty'nin adayın oynadığı rol ve rakip/maç koşullarıyla ilişkisi taşınacak.
-
-### Araştırma hedefleri
-
-- Technical
-- Quick
-- Powerful
-- Head
-- Unpredictable
-- Support
-- pozisyona göre specialty etkileri
-- specialty vs specialty karşılaşmaları
-- specialty + individual order etkileşimi
-- specialty + weather etkileşimi
-- specialty + tactic etkileşimi
-- pozitif ve negatif Special Event'ler
-- specialty event'lerinin gol olasılığına etkisi
-- specialty'nin normal 7 ratingden bağımsız etkileri
-
-### Şimdiden doğrulanan önemli prensip
-
-Specialty çoğu durumda doğrudan `+rating` değildir. Örneğin Head, Quick veya Unpredictable oyuncuya keyfi `+0.x rating` eklemek yerine Special Event, taktik katkısı, hava durumu veya rakip specialty etkileşimi üzerinden modellenmelidir.
-
-### Hedef mimari
-
-```text
-CHPP Player
-    ↓
-Specialty
-    ↓
-M3 Player Profile ✅
-    ↓
-M5/M6 lineup + behaviour evaluation
-    ↓
-M7 rating context
-    ↓
-M7.2 tactic interaction
-    ↓
-M8 event inputs
-    ↓
-M9 Special Event resolution
-```
-
-### Uygulama kuralı
-
-Kesin katsayı bulunamayan specialty etkileri uydurma sabit bonus olarak kodlanmayacak. Kaynakta belirtilen mekanizma ayrı tutulacak; katsayı gerekiyorsa historical calibration ile belirlenecek.
+Specialty context'in XI ve Individual Order seçimlerine bağlanması planlanıyor. Burada specialty doğrudan `+rating` olarak uygulanmayacak; rol, rakip ve maç koşullarına göre aday uygunluğuna bağlanacak.
 
 ---
 
-# 2 — TAKTİKLER / TACTICS
+# 2 — MAÇ MOTORU ESKİLİK ANALİZİ / REVİZYON ÖNCELİĞİ
 
-Hattrick'te Normal dışında altı temel taktik takip edilecek:
+Kod incelemesinden sonra V5'in en önemli teknik borcu M7 → M8 → M9 maç çekirdeğinde toplandı.
 
-```text
-Pressing
-Counter Attack
-Attack in the Middle (AIM)
-Attack on Wings (AOW)
-Long Shots (LS)
-Play Creatively (PC)
-```
-
-### Araştırma hedefi
-
-Her taktik için dört ayrı şeyi ayırmak:
+### Durum değerlendirmesi
 
 ```text
-A) Tactical Level nasıl oluşuyor?
-B) Hangi oyuncu skill'leri kullanılıyor?
-C) Normal ratinglere hangi yan etkiler uygulanıyor?
-D) Maçta hangi chance/event üretim mekanizması değişiyor?
+M3-M6 / formation search       🟢 güçlü
+M10-M11 / final competition    🟢 güçlü
+M7 / regional rating           🟡 korunacak + calibration
+M7.2 / tactics                 🟡 yapı doğru, event bağlantısı eksik
+M8 / chance model              🔴 revizyon gerekli
+M9 / xG-WDL core               🔴 M8 sonrası yeniden bağlanacak
+Monte Carlo                    🟡 çekirdek düzeldikten sonra yeniden kalibre
 ```
 
-### V5'te hedeflenen taktik katmanı
+### Kritik mimari kararı
+
+Takım seçme/search motoru artık ana risk alanı değildir. M6-A → DB1 → M10 → M6-B → DB2 → M11 formation competition yapısı korunacaktır.
+
+Asıl geliştirme odağı:
 
 ```text
-M7 Regional Ratings
-       ↓
-M7.2 Tactical Level + Tactical Side Effects
-       ↓
-Tactical Chance/Event Engine
-       ↓
-M8 Chance Resolution
-       ↓
-M9 Match Prediction
+M7 ratings
+ ↓
+Possession / chance allocation
+ ↓
+Discrete chances
+ ↓
+Tactic conversion / suppression
+ ↓
+Attack vs defence
+ ↓
+Special Events
+ ↓
+M9 W/D/L
 ```
 
-Mevcut M7.2 yapısal olarak bu taktikleri içeriyor; ancak bazı dönüşüm katsayılarının gerçek maç verisiyle calibration ihtiyacı var. Bu nedenle mevcut yapı **research-backed structure**, nihai gerçek motor değildir.
+M7 tamamen yeniden yazılmayacak. Mevcut pozisyon katkı yapısı korunacak, araştırma ile doğrulanmayan katsayılar daha sonra historical calibration ile değerlendirilecek.
 
 ---
 
-# 3 — ŞANS DAĞILIMI / CHANCE ALLOCATION
+# 3 — ŞANS DAĞILIMI / CHANCE ALLOCATION — YENİ ÖNCELİKLİ FAZ
 
-Bu alan şu anda V5 için en kritik araştırma başlıklarından biridir.
+V5'in önceki M8 modeli midfield share ile sektör kalitesini çarpıp tek bir continuous `StructuralChanceIndex` üretiyordu. Bu yapı gerçek match-engine mantığını fazla basitleştiriyordu.
 
-### Gerçek Hattrick mantığını hedefleyen akış
+Yeni hedef:
 
 ```text
 MIDFIELD
    ↓
-POSSESSION / OPEN-CHANCE ALLOCATION
+POSSESSION
    ↓
 EXCLUSIVE + OPEN CHANCES
    ↓
@@ -269,20 +217,9 @@ ATTACK vs DEFENCE
 GOAL RESOLUTION
 ```
 
-### Araştırmada kullanılan baseline
+Hattrick match-engine dokümantasyonunda normal şansların midfield/possession ile dağıtıldığı ve regular chances'ın takım sektörlerine dağıtıldığı belirtiliyor. citeturn124845search0turn124845search3
 
-```text
-Centre    35%
-Left      25%
-Right     25%
-Set Piece 15%
-```
-
-2026 akademik çalışmanın 1 milyon gerçek maçlık veri setinde normal saldırı dağılımı daha ayrıntılı olarak incelenmiş ve set-piece türleri ayrıca ayrıştırılmıştır. Bu veri V5 için önemli bir calibration referansıdır; kesin Hattrick server formülü olarak kabul edilmeyecektir.
-
-### Exclusive / open chance hedefi
-
-Araştırılan match-engine yapısında normal şanslar:
+### Araştırılan structural baseline
 
 ```text
 5 exclusive Home
@@ -290,138 +227,237 @@ Araştırılan match-engine yapısında normal şanslar:
 5 open/shared
 ```
 
-mantığıyla ele alınır. Bu nedenle V5'te yapay continuous chance tabanı yerine gerçek chance allocation'a daha yakın discrete/probabilistic bir model hedeflenecektir.
+Bu yapı production server formülü olarak kabul edilmiyor. Şimdilik V5'e chance allocation katmanı eklemek için **structural baseline** olarak kullanılıyor.
 
-### Sektör dağılımı
+### PHASE C1 — M8 discrete chance allocation ✅ temel katman
 
-Normal baseline:
+Yeni `M8ChanceAllocationEngine` eklendi.
 
-```text
-Left     ≈ 25%
-Centre   ≈ 35%
-Right    ≈ 25%
-SP       ≈ 15%
-```
-
-Maçta gerçekleşen sayılar bu oranların birebir kopyası değildir; küçük örneklem nedeniyle gerçek dağılım doğal olarak değişebilir.
-
-### AIM / AOW
+Mevcut model artık:
 
 ```text
-Normal
-  ↓
-AIM → wing attacks'ın bir kısmı middle'a
-AOW → middle attacks'ın bir kısmı wing'e
+M8
+ ↓
+midfield share
+ ↓
+5 exclusive + 5 open structural pool
+ ↓
+open chances ownership = midfield share
+ ↓
+own / opponent expected regular chance count
 ```
 
-Taktik seviyesi arttıkça dönüşüm oranı değişir. Kaynaklardaki aralıklar ile akademik ampirik model arasındaki farklar calibration konusu olarak tutulacaktır.
+şeklinde veri üretiyor.
 
-### Counter Attack
-
-CA normal chance distribution'ın basit bir yeniden ağırlıklandırması değildir.
+Yeni kayıt:
 
 ```text
-Opponent normal chance
-        ↓
-failed/missed
-        ↓
-CA check
-        ↓
-successful
-        ↓
-additional attack
+DiscreteChanceAllocation
 ```
 
-### Pressing
-
-Pressing normal chance dağılımını başka sektöre taşıyan bir mekanizma olarak değil, potansiyel normal şansları kıran/söndüren bir mekanizma olarak incelenecektir.
-
-### Long Shots
+ve M8 sonucu üzerinden:
 
 ```text
-normal middle/wing attack
-        ↓
-LS conversion
-        ↓
-shooter vs goalkeeper
+OwnExclusive
+OpponentExclusive
+OpenChancePool
+OwnOpenExpected
+OpponentOpenExpected
+OwnRegularChanceExpected
+OpponentRegularChanceExpected
 ```
 
-ayrı event tipi olarak modellenmelidir.
+alanları taşınıyor.
+
+Uygulama commitleri:
+
+```text
+dfb2a778  M8 discrete chance allocation katmanı
+...        M8 chance model entegrasyonu
+```
+
+### PHASE C2 — M9 chance-volume migration ✅ ilk bağlantı
+
+M9 artık önceki:
+
+```text
+0.35 + 0.65 × midfieldShare
+```
+
+continuous chance-floor yaklaşımını kullanmıyor.
+
+M9 chance volume artık M8'in allocation çıktısından geliyor:
+
+```text
+M8 OwnRegularChanceExpected
+          ↓
+M9 OwnChanceShare
+          ↓
+sector attack quality
+          ↓
+xG
+          ↓
+Poisson W/D/L
+```
+
+Bu hâlâ calibration-neutral structural geçiştir; kesin toplam chance formülü daha sonra tarihsel maç verisiyle belirlenecek.
+
+Uygulama commit:
+
+```text
+2f5b8a62  M9 şans hacmini M8 discrete allocation katmanına bağla
+```
 
 ---
 
-# 4 — ÜÇ KONUNUN BİRLEŞTİRİLMESİ
+# 4 — TAKTİKLER / TACTICS
 
-Nihai hedef:
+Hattrick'te Normal dışında altı temel taktik takip edilecek:
 
 ```text
-                 PLAYER SKILLS
-                      │
-                      ▼
-              POSITION CONTRIBUTION
-                      │
-                      ▼
-                7 TEAM RATINGS
-                      │
-          ┌───────────┴───────────┐
-          ▼                       ▼
-   TACTICAL ENGINE         SPECIALTY ENGINE
-          │                       │
-          └───────────┬───────────┘
-                      ▼
-             CHANCE ALLOCATION
-                      │
-                      ▼
-             CHANCE / EVENT TYPE
-                      │
-          ┌───────────┼────────────┐
-          ▼           ▼            ▼
-       NORMAL        TACTICAL     SPECIAL
-       CHANCE        EVENTS       EVENTS
-          │           │            │
-          └───────────┴────────────┘
-                      ▼
-              ATTACK RESOLUTION
-                      ▼
-                     M9
+Pressing
+Counter Attack
+Attack in the Middle (AIM)
+Attack on Wings (AOW)
+Long Shots (LS)
+Play Creatively (PC)
 ```
 
-Kritik prensip: **önce veri → sonra mekanizma → sonra calibration → en son production katsayısı.**
+Pressing toplam potansiyel normal şansları azaltabilen bir mekanizma; special events'i doğrudan azaltan bir mekanizma olarak ele alınmamalıdır. citeturn124845search1
+
+Counter Attack, midfield dezavantajı koşulunda başarısız rakip normal atağından ek atak üretme mekanizmasıdır ve taktik seviyesinde savunma + passing etkisi kullanılır; passing savunmadan iki kat daha önemlidir. Ayrıca CA %7 midfield penalty taşır. citeturn124845search2turn124845search4
+
+AIM normal chance dağılımında wing → centre dönüşümü oluşturur; kaynaklarda dönüşümün yaklaşık %15–30 aralığında olabildiği ve seviyenin outfield Passing toplamıyla ilişkili olduğu belirtiliyor. citeturn124845search5
+
+Long Shots normal middle/wing attack'ların bir kısmını shooter vs goalkeeper eventine dönüştürür; shooter kalitesi Scoring + Set Pieces, goalkeeper tarafında da Goalkeeping + Set Pieces üzerinden değerlendirilir. citeturn124845search2turn124845search8
+
+### V5 hedefi
+
+```text
+M7 Regional Ratings
+       ↓
+M7.2 Tactical Level + Side Effects
+       ↓
+Tactical Chance/Event Engine
+       ↓
+M8 Chance Resolution
+       ↓
+M9 Match Prediction
+```
+
+Mevcut M7.2 bu yapının önemli parçalarını taşıyor. Ancak Pressing / CA / LS / PC gibi taktikler gerçek event ve chance üretimine tam bağlanmış değil. Bu yüzden M7.2 korunacak, M8 bağlantısı yeniden kurulacak.
 
 ---
 
-# ARAŞTIRMA / UYGULAMA SIRASI
+# 5 — SPECIAL EVENT MOTORU
+
+Hattrick match-engine dokümantasyonuna göre önce special event olup olmayacağı, sonra event kategorisi ve event tipi seçilir; aynı special event türünün tekrarlarında olasılık azalabilir. Bu mekanizma V5'te ayrı event katmanı olarak modellenmelidir. citeturn124845search0
+
+Hedef:
 
 ```text
-R1  Chance allocation araştırması
-R2  Exclusive/open chance modeli
-R3  Sector distribution + AIM/AOW calibration
-R4  Pressing chance suppression
-R5  Counter Attack extra-chance model
-R6  Long Shots event model
-R7  Play Creatively + SE model
-R8  CHPP Specialty pipeline              → PHASE A ✅
-R9  Specialty event engine
-R10 Specialty ↔ tactic interaction
-R11 Weather ↔ specialty effects
-R12 Historical calibration dataset
-R13 Event-by-event M8/M9 engine
-R14 Full Monte Carlo match simulation
-R15 Offline regression / real-match validation
+Player Specialty
+       ↓
+Event Eligibility
+       ↓
+Event Type
+       ↓
+Weather / Tactic / Opponent interaction
+       ↓
+Event Resolution
+       ↓
+Goal / No Goal
 ```
 
-### Şu anki durum
+Bu nedenle Specialty doğrudan takım ratingine yapıştırılmayacaktır.
+
+---
+
+# 6 — M8 → M9 YENİ HEDEF MİMARİSİ
 
 ```text
-PHASE A  CHPP Specialty → Player/M3 data      ✅ TAMAMLANDI
-PHASE B  M3 Specialty-aware profile           ✅ TAMAMLANDI
-PHASE C  M5/M6 specialty-aware candidate      🔜 SONRAKİ
-PHASE D  M7.2 specialty ↔ tactic interaction  🔜
-PHASE E  M8 Special Event engine              🔜
-PHASE F  M9 event-based resolution            🔜
-PHASE G  historical calibration               🔜
-PHASE H  full Monte Carlo                    🔜
-PHASE I  offline regression                  🔜
+M7 Regional Ratings
+        ↓
+Possession / Midfield
+        ↓
+M8 Chance Allocation
+        │
+        ├── Exclusive chances
+        ├── Open chances
+        └── Sector distribution
+        ↓
+M7.2 Tactical conversion
+        │
+        ├── AIM / AOW
+        ├── Pressing
+        ├── CA
+        └── LS
+        ↓
+Chance / Event Type
+        │
+        ├── Normal chance
+        ├── Tactical event
+        └── Special event
+        ↓
+Attack vs Defence / Shooter vs GK
+        ↓
+M9 xG + W/D/L
+        ↓
+Monte Carlo
 ```
 
-Production'a geçmeden önce her aşama offline regression ile korunacaktır.
+Kritik kural: **M9 artık kendi başına chance üretmemeli. Chance üretiminin sahibi M8 olmalıdır.**
+
+---
+
+# 7 — ARAŞTIRMA / UYGULAMA YOL HARİTASI
+
+```text
+PHASE A   CHPP Specialty → Player             ✅
+PHASE B   M3 Specialty-aware Profile          ✅
+
+PHASE C   M8 discrete chance allocation       ✅ temel
+PHASE C2  M9 chance-volume migration          ✅ ilk bağlantı
+
+PHASE D   Chance total historical calibration 🔜
+PHASE E   Sector distribution calibration     🔜
+PHASE F   AIM / AOW chance conversion         🔜
+PHASE G   Pressing suppression                🔜
+PHASE H   Counter Attack extra chances        🔜
+PHASE I   Long Shots event conversion         🔜
+PHASE J   Play Creatively + SE                🔜
+PHASE K   Specialty event engine              🔜
+PHASE L   Specialty ↔ tactic / weather        🔜
+PHASE M   M9 event-based resolution           🔜
+PHASE N   Historical calibration              🔜
+PHASE O   Full Monte Carlo                     🔜
+PHASE P   Offline regression / real matches   🔜
+```
+
+### M5/M6 specialty sırası
+
+M5/M6 specialty-aware candidate hâlâ yapılacak, ancak maç çekirdeğinin foundation'ını daha fazla eski chance matematiği üzerine büyütmemek için specialty'nin **scoring effect** tarafı M8/M9 event çekirdeği tamamlandıktan sonra production'a bağlanacaktır.
+
+---
+
+# 8 — UYGULAMA PRENSİPLERİ
+
+1. **Önce veri → sonra mekanizma → sonra calibration → en son production katsayısı.**
+2. Kaynakta doğrulanmayan specialty/tactic etkileri keyfi `+rating` bonusu olarak yazılmayacak.
+3. M8 chance üretiminin sahibi olacak; M9 sadece çözümleyecek.
+4. Taktiklerin chance conversion, chance suppression ve event üretimi ayrı tutulacak.
+5. Special Event normal rating ile aynı şey olarak modellenmeyecek.
+6. Monte Carlo en son genişletilecek; yanlış çekirdeği 1000 kere çalıştırmak kabul edilmeyecek.
+7. M3-M6-M10-M11 formation/search mimarisi korunacak ve maç motorundan bağımsız olarak regresyonla güvence altında tutulacak.
+8. Her önemli maç motoru değişikliği offline regression + gerçek maç guardrail ile kontrol edilecek.
+
+### Kaynaklar
+
+- Hattrick Wiki — Match engine
+- Hattrick Wiki — Midfield
+- Hattrick Wiki — Rules / Tactics
+- Hattrick Wiki — Pressing
+- Hattrick Wiki — Attack in the middle
+- Hattrick Wiki — Long shots
+- Hattrick CHPP XML documentation — Specialty
+- 2026 academic Hattrick match-engine study — chance allocation / historical calibration reference
