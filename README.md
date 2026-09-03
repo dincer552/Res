@@ -10,23 +10,46 @@ Ana araştırma referansı: Anthony C. Constantinou, Nicholas C. Higgins, Nevill
 
 ---
 
-## ANA MOTOR ZİNCİRİ
+## GERÇEK ÇALIŞMA SIRASI
+
+Motorlar artık birbirinden bağımsız paralel hesaplar olarak değil, aşağıdaki bağımlılık zinciriyle çalışıyor:
 
 ```text
-M3 → M4 → M5 → M6-A / DB1 → M7 → M7.2 → M8 → M9
-                                              ↓
-                                     18 × 5 min Monte Carlo
-                                              ↓
-                                             W/D/L
-                                              ↓
-                                            M10
-                                              ↓
-                                  M10 rank-driven M6-B
-                                              ↓
-                                           DB2 → M11
-                                              ↓
-                                            WEB
+M3 Player Analysis
+      ↓
+M4 Legal Formations
+      ↓
+M5 XI Candidates
+      ↓
+M6-A Global Search
+      │
+      ├─→ M7 Regional Rating
+      │       ↓
+      │     M7.2 Tactical Scenario
+      │       ↓
+      │     M8 Chance Allocation
+      │       ↓
+      │     M9 Event → Goal + W/D/L
+      │
+      ↓
+DB1
+  ↓
+M10 Formation Competition / Rank
+  ↓
+M6-B Rank-Driven Refinement
+  │
+  └─→ her seed için tekrar M7 → M7.2 → M8 → M9
+  ↓
+DB2
+  ↓
+M11 Final Selector
+  ↓
+WEB
 ```
+
+**Önemli:** M7/M7.2/M8/M9, M6-A'nın aday evaluator zincirinin downstream parçalarıdır. Yani `M6-A → M7 → M7.2 → M8 → M9` şeklinde bağımlıdır; M6 tamamlanmadan M10 başlamaz. M6-B ise M10 rank'ını kullanır ve kendi adaylarını yine aynı M7→M7.2→M8→M9 zincirinden geçirir.
+
+---
 
 ## MOTOR DURUMU
 
@@ -39,13 +62,13 @@ M3 → M4 → M5 → M6-A / DB1 → M7 → M7.2 → M8 → M9
 | M7 | ✅ | Bölgesel gerçek ratingler |
 | M7.2 | ✅ | PDF tactical mechanisms + canonical handoff |
 | M8 | ✅ | Chance allocation + tactic opportunity + C.2 tactic conversion handoff |
-| M9 | 🔧 | Event→Goal + PNF/PDIM + symmetric opponent Specialty + C.1/C.2 utilities; historical calibration eksik |
-| Monte Carlo | 🔧 | 18×5 dk + 5 senaryo + 1000 maç + deterministic seed; event-aware |
-| M10 | ✅ | Formation competition + MC W/D/L composite ranking; offline acceptance geçti |
-| M6-B | ✅ | M10 formation rank → tiered beam/iteration budget doğrudan pipeline'a bağlandı |
+| M9 | ✅ REGRESSION | Event→Goal + PNF/PDIM + symmetric opponent Specialty + C.1/C.2 utilities |
+| Monte Carlo | ✅ REGRESSION | 18×5 dk + 5 senaryo + 1000 maç + deterministic seed + iki taraf event sampling |
+| M10 | ✅ | Formation competition + MC W/D/L composite ranking |
+| M6-B | ✅ | M10 formation rank → tiered beam/iteration budget |
 | DB2 | ✅ | Formation diversity/depth korunuyor |
-| M11 | ✅ | Offline full-pipeline final comparison geçti |
-| UI / Motor Panel | ✅ | M9 own/opponent event + set-piece + MC diagnostics gösteriliyor |
+| M11 | ✅ | Offline full-pipeline final comparison |
+| UI / Motor Panel | ✅ | M9 own/opponent event + set-piece + MC diagnostics |
 
 ---
 
@@ -58,6 +81,7 @@ M3 → M4 → M5 → M6-A / DB1 → M7 → M7.2 → M8 → M9
 - [x] Appendix C.2 Long Shot / tactic conversion curve engine'e taşındı.
 - [x] Event contribution / expected-goal breakdown eklendi.
 - [x] 18 × 5 dakikalık event-based Monte Carlo sampling eklendi.
+- [x] MC'de own + opponent special-event contribution simetrik örnekleniyor.
 - [x] 5 MC senaryosu ve 1000-match deterministic yapı korundu.
 - [x] PNF double-count engellendi.
 - [x] M9 opponent CHPP roster + historical final XI entegrasyonu eklendi.
@@ -69,32 +93,71 @@ M3 → M4 → M5 → M6-A / DB1 → M7 → M7.2 → M8 → M9
 - [x] M11 full offline final comparison acceptance geçti.
 - [x] UI own/opponent event diagnostics ve MC görünümü güncellendi.
 - [x] M9 wrapper compatibility compile blocker düzeltildi.
+- [x] Canonical full CHPP JSON (`TestJSON/HattrickAI_V5_CHPP_FullOffline_2026-09-01.json`) CI offline regression girdisi yapıldı.
+- [x] Full CHPP JSON ile M3→M11 offline regression geçti.
+- [x] Full CHPP JSON ile Docker build geçti.
+- [x] Aynı HEAD Azure deployment + health check geçti.
 
-### SIRADAKİ İŞLER — SIRA BOZULMADAN
+### SIRADAKİ İŞLER — VERİYE BAĞLI OLANLAR
 
-- [ ] Current HEAD CI green + Azure deployment checkpoint
 - [ ] Historical event + Long Shot calibration
 - [ ] Set-piece taker skill → exact goal conversion calibration
 - [ ] Specialty ↔ weather / tactic cross-effects
 - [ ] Exact V5 tactic-level → paper RT mapping
-- [ ] Historical event + real-match validation
-- [ ] Final WEB release
+- [ ] Historical event + çoklu gerçek-maç validation
+- [ ] Final WEB release / production acceptance
 
 ---
 
 ## CI CHECKPOINT
 
-Son doğrulanmış workflow sonucu: önceki run'da M7–M8 offline regression build hatası nedeniyle durdu; sonraki commit'ler bu compile zincirini düzeltti ve yeni HEAD için doğrulama yeniden çalıştırılıyor.
+**Son doğrulanmış HEAD:** `620fea9e41e2fafb1143f79d8fb89a12262a0bd3`
 
-Önceki kritik hatalar:
+**Workflow:** HattrickAI V5 Deploy #500 — **SUCCESS**.
+
+Run #500 içinde:
 
 ```text
-CS0246: M9CalibrationStatus could not be found
-CS1503: MatchPrediction → M9PredictionResult conversion
-CS7036: M9PredictionResult constructor argument mismatch
+M7-M8 Offline Regression       PASS
+Full CHPP JSON                  PASS
+Docker build                    PASS
+Docker image upload             PASS
+Azure deployment                PASS
+Container health check          PASS
 ```
 
-Bu nedenle README yalnızca gerçekten doğrulanmış testleri `✅` kabul eder. **Current HEAD CI + Azure deploy henüz green ilan edilmedi.**
+Böylece önceki `CS0246 / CS1503 / CS7036` compile zinciri artık current HEAD için regression'ı bloklamıyor.
+
+---
+
+## FULL CHPP JSON — GİRDİ KONTROLÜ
+
+CI artık eski küçük `s4msunfc-m7-m8.json` fixture'ına değil, gerçek CHPP export'una benzeyen canonical dosyaya karşı çalışıyor:
+
+```text
+TestJSON/
+└── HattrickAI_V5_CHPP_FullOffline_2026-09-01.json
+```
+
+Dosyanın mevcut V5 offline pipeline için gerekli çekirdeği sağladığı **gerçek çalıştırmayla doğrulandı**:
+
+```text
+normalized.ownPlayers
+        ↓
+v5Analysis.ownLineup
+        ↓
+v5Analysis.opponentRating
+        ↓
+M3 → M4 → M5 → M6-A
+        ↓
+M7 → M7.2 → M8 → M9
+        ↓
+M10 → M6-B → DB2 → M11
+```
+
+Ayrıca raw CHPP export içinde oyuncu skill/specialty ve `SetPiecesSkill` gibi M9 için kullanılan veriler mevcut. JSON'da credential/OAuth/session bilgileri dahil edilmemiştir.
+
+**Sonuç:** JSON, mevcut offline V5 zincirini çalıştırmak için yeterli. Ancak production calibration için hâlâ çoklu tarihsel maç/event sonuçları, gözlemlenemeyen set-piece taker conversion ilişkisi, weather cross-effect ve V5 tactic-level→paper RT eşlemesi gerekiyor. Veri yokken katsayı uydurulmayacak.
 
 ---
 
@@ -159,7 +222,7 @@ ATTACKSP(d)
 
 ### Appendix C.2
 
-Beş tactic için paper'daki regression curves M7.2 → M8 handoff'unda kullanılacak şekilde bağlandı:
+Beş tactic için paper'daki regression curves M7.2 → M8 handoff'unda aktif kullanılıyor:
 
 ```text
 Counter
@@ -178,19 +241,7 @@ Pressing
 -0.00780421·RT² + 0.471402·RT - 1.10735
 ```
 
-C.2 artık yalnızca dead utility değil; aktif tactic conversion diagnostic/handoff değeridir. Buna rağmen `RT` değerinin V5 tactic-level ile birebir eşlemesi hâlâ ayrı bir calibration problemidir.
-
-### Hâlâ veri isteyen production alanları
-
-```text
-Historical event calibration
-Long Shot scoring graph calibration
-Set-piece taker skill → exact conversion
-Specialty ↔ weather/tactic cross-effects
-V5 tactic level → paper RT exact mapping
-```
-
-Veri yokken katsayı uydurulmayacak.
+C.2 artık dead utility değil; aktif tactic conversion diagnostic/handoff değeridir. `RT` değerinin V5 tactic-level ile birebir eşlemesi ise hâlâ calibration problemidir.
 
 ---
 
@@ -212,16 +263,17 @@ Final score
 1000-match W/D/L distribution
 ```
 
-Acceptance hedefleri:
+Acceptance:
 
 ```text
-1000 simulations
-W/D/L sum = 1
-score distribution mevcut
-most likely score mevcut
-5 scenarios mevcut
-scenario total = 1000
-deterministic repeat mevcut
+1000 simulations             PASS
+W/D/L sum = 1                PASS
+score distribution           PASS
+most likely score            PASS
+5 scenarios                  PASS
+scenario total = 1000       PASS
+deterministic repeat         PASS
+opponent events symmetric    PASS
 ```
 
 ---
@@ -308,16 +360,18 @@ Scenario distribution
 
 ---
 
-## BURADAN İTİBAREN UYGULAMA SIRASI
+## UYGULAMA SIRASI
 
 ```text
-1. Current HEAD CI + Azure deployment green checkpoint  ← ŞİMDİ
-2. Historical event + Long Shot calibration
-3. Set-piece taker exact calibration
-4. Specialty ↔ weather/tactic cross-effects
-5. Exact V5 tactic-level → paper RT mapping
-6. CHPP / real-match validation
-7. Final WEB release
+1. Current HEAD CI + Azure deployment          ✅
+2. Full CHPP JSON offline regression            ✅
+3. Motor dependency/order validation            ✅ CODED + regression
+4. Historical event + Long Shot calibration     ⏳ DATA
+5. Set-piece taker exact calibration            ⏳ DATA
+6. Specialty ↔ weather/tactic cross-effects     ⏳ DATA / weather input
+7. Exact V5 tactic-level → paper RT mapping      ⏳ CALIBRATION
+8. CHPP / real-match multi-match validation      ⏳ DATA
+9. Final WEB production acceptance               ⏳
 ```
 
 ### Kabul kriteri
