@@ -2,7 +2,7 @@ namespace HattrickAI.V5.Core;
 
 /// <summary>
 /// Ortak veri sözleşmeleri. Motorlar birbirinin iç implementasyonuna
-doğrudan bağımlı olmak yerine bu kanonik çıktılar üzerinden haberleşir.
+/// doğrudan bağımlı olmak yerine bu kanonik çıktılar üzerinden haberleşir.
 /// </summary>
 public sealed record MatchDataContext(
     IReadOnlyList<Player> OwnPlayers,
