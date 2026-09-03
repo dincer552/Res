@@ -170,8 +170,16 @@ public sealed class AnalysisService
     {
         var xml = await _chpp.GetXmlAsync("players", new Dictionary<string, string?> { ["version"] = "1.3", ["teamId"] = teamId.ToString(CultureInfo.InvariantCulture) }, ct);
         return XmlV5.Root(xml)?.Descendants("Player").Select(p => new Player(
-            XmlV5.Int(p, "PlayerID"), XmlV5.Text(p, "PlayerName"), XmlV5.Int(p, "KeeperSkill"), XmlV5.Int(p, "DefenderSkill"), XmlV5.Int(p, "PlaymakerSkill"), XmlV5.Int(p, "PassingSkill"), XmlV5.Int(p, "WingerSkill"), XmlV5.Int(p, "ScorerSkill"), XmlV5.Int(p, "StaminaSkill"), XmlV5.Int(p, "PlayerForm"), XmlV5.Int(p, "Experience"), XmlV5.Int(p, "Loyalty"), XmlV5.Int(p, "InjuryLevel")))
+            XmlV5.Int(p, "PlayerID"), XmlV5.Text(p, "PlayerName"), XmlV5.Int(p, "KeeperSkill"), XmlV5.Int(p, "DefenderSkill"), XmlV5.Int(p, "PlaymakerSkill"), XmlV5.Int(p, "PassingSkill"), XmlV5.Int(p, "WingerSkill"), XmlV5.Int(p, "ScorerSkill"), XmlV5.Int(p, "StaminaSkill"), XmlV5.Int(p, "PlayerForm"), XmlV5.Int(p, "Experience"), XmlV5.Int(p, "Loyalty"), XmlV5.Int(p, "InjuryLevel"), ParseSpecialty(p)))
             .Where(p => p.Id > 0).ToList() ?? new();
+    }
+
+    private static PlayerSpecialty ParseSpecialty(XElement player)
+    {
+        var value = XmlV5.Int(player, "Specialty");
+        return Enum.IsDefined(typeof(PlayerSpecialty), value)
+            ? (PlayerSpecialty)value
+            : PlayerSpecialty.None;
     }
 
     private static List<(int MatchId, DateTimeOffset Date, int HomeId, int AwayId, string HomeName, string AwayName, int MatchType)> ReadMatches(string xml, int teamId)
