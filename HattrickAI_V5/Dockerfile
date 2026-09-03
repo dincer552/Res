@@ -30,5 +30,5 @@ COPY HattrickAI_V5/wwwroot/motor-render.js /app/wwwroot/motor-render.js
 COPY HattrickAI_V5/wwwroot/match-select.js /app/wwwroot/match-select.js
 COPY HattrickAI_V5/wwwroot/formation-competition.js /app/wwwroot/formation-competition.js
 COPY HattrickAI_V5/wwwroot/m9-prediction.js /app/wwwroot/m9-prediction.js
-RUN sed -i 's#</body>#<script src="/copy-teams.js"></script><script src="/motor-logs.js"></script><script src="/motor-render.js"></script><script src="/match-select.js"></script><script src="/formation-competition.js"></script><script src="/m9-prediction.js"></script></body>#' /app/wwwroot/index.html
+RUN sed -i 's#</body>#<script src="/copy-teams.js?v=2"></script><script src="/motor-logs.js?v=2"></script><script src="/motor-render.js?v=2"></script><script src="/match-select.js?v=2"></script><script src="/formation-competition.js?v=2"></script><script src="/m9-prediction.js?v=2"></script></body>#' /app/wwwroot/index.html
 ENTRYPOINT ["dotnet","HattrickAI.V5.dll","--hostBuilder:reloadConfigOnChange=false"]
