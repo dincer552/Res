@@ -200,7 +200,7 @@ Current branch HEAD: `v5`
 Son doğrulanmış workflow:
 
 ```text
-HattrickAI V5 Deploy #501  → SUCCESS
+HattrickAI V5 Deploy #505  → SUCCESS
 
 Offline regression   PASS
 Docker build         PASS
