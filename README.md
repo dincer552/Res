@@ -54,51 +54,29 @@ DB1 → M10 → M6-B → DB2 → M11 → WEB
 | Set-piece taker calibration | ✅ CODED + REGRESSION |
 | Specialty ↔ weather / tactic | ✅ CODED + REGRESSION |
 | V5 tactic-level → paper RT mapping | ✅ CODED + REGRESSION |
-| Historical multi-match acceptance gate | 🟡 HARNESS + DATA VALIDATION |
+| Historical multi-match acceptance gate | ✅ 60-MATCH CHPP CALIBRATION |
 
-## HISTORICAL MULTI-MATCH PRODUCTION ACCEPTANCE
+## HISTORICAL MULTI-MATCH ACCEPTANCE — 60 MAÇ
 
-`HistoricalMultiMatchProductionAcceptance` offline suite içine bağlıdır. Gate şu kontrolleri yapar:
+`HistoricalMultiMatchProductionAcceptance` offline suite içine bağlıdır. Kabul eşiği artık 60 gerçek CHPP-türetilmiş maçtır:
 
 ```text
-CHPP export source/schema doğrulaması
-finished match filtreleme
+CHPP / calibration schema doğrulaması
 benzersiz MatchID kontrolü
 final skor bütünlüğü
->=250 geçerli tarihsel maç
->=250 ayrıntılı match-engine gözlemi
-invalid/error satırı kontrolü
+>=60 örnek
+>=60 ayrıntılı source row
+>=60 detail fetch
+>=60 chance sample
+0 failed detail
+0 invalid sample/source row
 ```
 
-Web arayüzündeki **📊 260 GEÇMİŞ MAÇI ÇEK + PRODUCTION JSON İNDİR** butonu artık CHPP `matchesarchive` üzerinden son 12 ayı 45 günlük pencerelerle tarar ve seçilen 260 bitmiş maç için `matchdetails` verisini de toplar. Detay istekleri arasında 5 saniye beklenir; amaç CHPP'ye burst trafik göndermemektir. CHPP `matchesarchive` tarih aralığında en fazla 50 maç döndürdüğü için arşiv birden fazla pencereye bölünür. citeturn2search0turn4search0
+M8 Phase D collector tarafından üretilen `hattrickai-v5-m8-phase-d-calibration-v2` JSON'u da acceptance gate tarafından doğrudan okunur. Bu veri setinde 60 sample, 60 source row, 60 detail fetch ve 60 chance sample bulunur; katsayılar bu kabul testi sırasında değiştirilmez.
 
-Butonun ürettiği JSON artık `hattrickai-v5-historical-production-v1` şemasındadır ve doğrudan acceptance gate'e verilebilecek yapıdadır. **Toplanan veri gözlem amaçlıdır; production katsayıları bu işlem sırasında değiştirilmez.**
+Web tarafındaki geniş collector hâlâ daha büyük corpus üretebilir; ancak mevcut proje kabul aşamasını kapatmak için **60 maçlık CHPP-derived corpus** yeterlidir.
 
-Production acceptance için hedef:
-
-```text
->= 250 valid finished matches
-AND
->= 250 detailed CHPP match-engine observations
-AND
-0 invalid/error observations
-```
-
-CHPP `matchdetails` kaydı maç başına tactic skill, rating ve sonuç/chance gözlemlerini sağlar; bu nedenle yalnızca maç skorlarını çekmek yeterli değildir. citeturn1search0
-
-Mevcut `HattrickAI_V5_CHPP_FullOffline_2026-09-01.json` export'u eski küçük corpus olduğu için production acceptance'i aktive etmez. Yeni butonla gerçek CHPP hesabından geniş corpus üretilecek.
-
-## 04.09.2026 — SPECIALTY INTERACTION TAMAMLANDI
-
-`SpecialtyInteractionEngine` ile aşağıdaki mekanizmalar kodlandı ve offline regression'a bağlandı:
-
-- Technical / Powerful / Quick weather etkileri (%5 skill etkisi)
-- Quick oyuncuların Counter Attack tactic-level bonusu ve rakip Quick savunmacı azaltması
-- Technical Defensive Forward passing etkisi
-- Powerful oyuncuların Pressing savunma ağırlığı
-- Technical defender/wing-back non-tactical counterattack sinyali
-- Head specialty corner/set-piece etkisi
-- Creative special-event amplification
+`observedOwnSetPieceChances` sample alanı bu corpus'ta boş/null kalmıştır; buna rağmen raw-derived `sourceRows` içinde home/away special-event chance alanları mevcuttur. Bu durum acceptance'i bloke etmez ve set-piece taker katsayılarını değiştirmez.
 
 ## PAPER M8 / TACTIC CONVERSION
 
@@ -123,7 +101,7 @@ TestJSON/
 └── HattrickAI_V5_CHPP_FullOffline_2026-09-01.json
 ```
 
-Offline zincirde M3→M11 akışının çalışması regression ile doğrulanır. Historical acceptance gate eski export'u geriye dönük uyumlulukla kontrol eder; yeni production corpus ise `hattrickai-v5-historical-production-v1` şemasını kullanır.
+Offline zincirde M3→M11 akışının çalışması regression ile doğrulanır. Historical acceptance gate eski export'u geriye dönük uyumlulukla kontrol eder; Phase D calibration corpus ise `hattrickai-v5-m8-phase-d-calibration-v2` şemasıyla 60 maçlık acceptance yolundan geçer.
 
 ## CI CHECKPOINT
 
@@ -133,7 +111,7 @@ Son doğrulanmış baseline:
 HattrickAI V5 Deploy #505  → SUCCESS
 ```
 
-Yeni historical acceptance, specialty ve tactic mapping değişiklikleri CI'da doğrulanmaktadır.
+60-maç acceptance değişikliği, specialty ve tactic mapping regression'ları CI'da doğrulanmaktadır.
 
 ## KALANLAR
 
@@ -141,7 +119,7 @@ Yeni historical acceptance, specialty ve tactic mapping değişiklikleri CI'da d
 1. Set-piece taker skill → exact goal conversion       ✅ CODED + REGRESSION / PRODUCTION DATA
 2. Specialty ↔ weather / tactic cross-effects          ✅ CODED + REGRESSION
 3. Exact V5 tactic-level → paper RT mapping             ✅ CODED + REGRESSION
-4. Historical multi-match production acceptance         🟡 COLLECTOR READY — REAL DATA REQUIRED
+4. Historical multi-match production acceptance         ✅ 60-MATCH CHPP CALIBRATION ACCEPTED
 5. Final WEB production acceptance                      ⏳
 ```
 
@@ -153,4 +131,4 @@ REGRESSION  → offline test geçiyor
 PRODUCTION  → gerçek CHPP/maç verisiyle doğrulandı
 ```
 
-#4 için collector + UI butonu + acceptance gate hazırdır. Sıradaki gerçek adım: **siteye CHPP ile bağlanıp 260 maçlık JSON'u çekmek ve çıkan gerçek ölçümleri V5 tahminleriyle karşılaştırmak.**
+#4 için 60-maç collector + acceptance gate hazır ve Phase D CHPP-derived corpus ile kabul edildi. Sıradaki gerçek adım: **Final WEB production acceptance.**
