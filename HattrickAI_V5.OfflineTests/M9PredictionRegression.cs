@@ -18,14 +18,16 @@ public static class M9PredictionRegression
             var players = normalized.GetProperty("ownPlayers").EnumerateArray().Select(ReadPlayer).ToList();
             var opponentRating = ReadRating(analysis.GetProperty("opponentRating"));
             var opponent = new OpponentMatchProfile(GetString(analysis, "opponentName", "Opponent"), GetString(analysis, "opponentFormation", ""), opponentRating, new OpponentThreatEngine().Analyze(opponentRating));
-            var lineup = analysis.GetProperty("ownLineup");
-            var teamName = GetString(lineup, "teamName", "Fixture");
+            var fixtureLineup = analysis.GetProperty("ownLineup");
+            var teamName = GetString(fixtureLineup, "teamName", "Fixture");
             var context = new MatchDataContext(players, 0, teamName, opponent, RatingContext.Default, MatchQuestionnaire.Default);
             Console.WriteLine("=== C8 M9 PREDICTION REGRESSION ===");
             var result = await new MotorPipelineService().RunAsync(context, players, cancellationToken, "offline-c8-m9");
             var m9 = result.M9;
             Check(m9 is not null, "production pipeline returned M9 result");
-            Check(m9.CandidateId == result.M6.BestCandidate?.Lineup is not null ? CandidateId(result.M6.BestCandidate.Lineup) : m9.CandidateId, "M9 candidate identity is consistent");
+            Check(!string.IsNullOrWhiteSpace(m9.CandidateId), "M9 candidate identity is populated");
+            Check(result.M6.BestCandidate is not null, "M6 best candidate exists for M9 continuity");
+            Check(m9.CandidateId == CandidateId(result.M6.BestCandidate!.Lineup), "M9 candidate identity matches M6 selected candidate");
             var p = m9.Prediction;
             Check(double.IsFinite(p.ExpectedHomeGoals) && double.IsFinite(p.ExpectedAwayGoals), "M9 expected goals are finite");
             Check(p.ExpectedHomeGoals >= 0.05 && p.ExpectedHomeGoals <= 5.0, "M9 own expected goals are clamped to production bounds");
@@ -38,9 +40,7 @@ public static class M9PredictionRegression
             Check(simulation.Outcome is not null, "M9 Monte Carlo outcome exists");
             Check(Math.Abs(simulation.Outcome.WinProbability + simulation.Outcome.DrawProbability + simulation.Outcome.LossProbability - 1.0) <= 1e-9, "M9 simulation W/D/L sum to 1");
             Check(!string.IsNullOrWhiteSpace(m9.MostLikelyScore), "M9 most-likely score exists");
-            var direct = new M9MatchPredictionEngine().Predict(
-                result.M6.BestCandidate!, result.M8, opponentRating, context.RatingContext.MatchLocation,
-                players, opponent.LastMatchLineup, opponent.Players);
+            var direct = new M9MatchPredictionEngine().Predict(result.M6.BestCandidate!, result.M8, opponentRating, context.RatingContext.MatchLocation, players, opponent.LastMatchLineup, opponent.Players);
             Check(Equal(direct.Prediction.ExpectedHomeGoals, p.ExpectedHomeGoals), "M9 direct recalculation matches pipeline expected home goals");
             Check(Equal(direct.Prediction.ExpectedAwayGoals, p.ExpectedAwayGoals), "M9 direct recalculation matches pipeline expected away goals");
             Check(Equal(direct.Prediction.WinProbability, p.WinProbability), "M9 direct recalculation matches pipeline win probability");
