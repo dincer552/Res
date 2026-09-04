@@ -21,17 +21,17 @@ C9  DB1 formation coverage           🟢 ACCEPTED
 C10 M10 formation competition        🟢 ACCEPTED
 C11 M10 → M6-B rank-driven handoff   🟢 ACCEPTED
 C12 M6-B refinement                  🟢 ACCEPTED
-C13 DB2 formation coverage           🟢 ACCEPTED
-C14 M11 finalist pool                 ⏳
+C13 DB2 formation coverage            🟢 ACCEPTED
+C14 M11 finalist pool                 🟢 ACCEPTED
 C15 M11 final selection               ⏳
 C16 FinalPlan continuity              ⏳
 C17 FinalPrediction continuity        ⏳
 C18 deterministic rerun               ⏳
 ```
 
-### Audit status — C1 → C13
+### Audit status — C1 → C14
 
-- **C13 DB2 formation coverage:** gerçek `MotorPipelineService` çalıştırılıyor ve production'da oluşan DB2 doğrudan acceptance result üzerinden görünür hale getiriliyor. Regression; DB2'nin kapasite sınırını, yalnızca gerçek `M6-B` kayıtlarından oluşmasını, duplicate candidate içermemesini, geçerli XI/score/chance değerlerini ve M4'ün tüm legal formasyonlarının DB2'de korunmasını doğruluyor. Fixture-specific sonuç hard-code edilmiyor.
+- **C14 M11 finalist pool:** gerçek `MotorPipelineService` çalıştırılıyor ve M11'e giren havuz doğrudan production DB2 kayıtlarından doğrulanıyor. Regression; DB2 adaylarının M6-B kaynaklı olmasını, duplicate/invalid XI bulunmamasını, prediction ve skorların mevcut/finite olmasını, tüm legal formasyonların M11 finalist havuzunda korunmasını, M11 liderinin DB2'den gelmesini ve M6-B → M11 telemetry sırasını doğruluyor. Fixture-specific sonuç hard-code edilmiyor.
 
 ### Güncel production zinciri
 
@@ -56,10 +56,9 @@ M6-B Refinement  ← C12 acceptance
       ↓
 Candidate DB #2  ← C13 formation coverage
       ↓
-M11 Final Selection
+M11 Final Selection  ← C14 finalist pool
       ↓
 FinalPlan / FinalPrediction
-```
 
 ### Kabul kriteri
 
@@ -69,4 +68,4 @@ REGRESSION  → güncel production pipeline'a bağlı offline test geçiyor
 PRODUCTION  → gerçek CHPP/maç verisiyle doğrulandı
 ```
 
-**C1–C13 audit/regression çalışmaları tamamlandı.** Sıradaki iş **C14 M11 finalist pool**.
+**C1–C14 audit/regression çalışmaları tamamlandı.** Sıradaki iş **C15 M11 final selection**.
