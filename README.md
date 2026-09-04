@@ -78,6 +78,31 @@ Web tarafındaki geniş collector hâlâ daha büyük corpus üretebilir; ancak 
 
 `observedOwnSetPieceChances` sample alanı bu corpus'ta boş/null kalmıştır; buna rağmen raw-derived `sourceRows` içinde home/away special-event chance alanları mevcuttur. Bu durum acceptance'i bloke etmez ve set-piece taker katsayılarını değiştirmez.
 
+## FINAL WEB PRODUCTION ACCEPTANCE
+
+Bu aşamada yeni mekanizma geliştirmek yerine V5'in gerçek WEB sınırından Core motora ve tekrar WEB çıktısına kadar tek sözleşme olarak çalıştığı doğrulanır. Testler aşağıdaki sırayla ve birbirini geçtikten sonra ilerletilir:
+
+```text
+A) WEB input integrity             🟡 TEST EKLENDİ — CI BEKLENİYOR
+B) Core ↔ WEB parity               ⏳
+C) M3→M11 end-to-end               ⏳
+D) Gerçek Hattrick match input     ⏳
+E) prediction output               ⏳
+F) regression suite                ⏳
+G) production smoke test           ⏳
+
+                ↓
+
+          V5 WEB PRODUCTION
+                ⏳
+```
+
+### A) WEB input integrity
+
+`HattrickAI_V5.OfflineTests/WebInputIntegrityRegression.cs` oluşturuldu ve offline suite'in ilk kontrolü olarak bağlandı. A testi WEB questionnaire alanlarını, 14 saha slotunu, WEB → API endpoint bağlantılarını, session taşımasını, seçili maç ID'sini ve AnalysisService'in CHPP `teamdetails / training / players / matches / matchlineup / matchdetails` veri akışını statik sözleşme seviyesinde kontrol eder. Oyuncu tarafında 15 temel CHPP alanının map edildiği ve own/opponent 11 oyuncu bütünlüğünün korunduğu doğrulanır.
+
+Canlı OAuth/CHPP erişimi A testinin parçası değildir; bu gerçek ortam doğrulaması son aşama olan G production smoke testinde yapılacaktır.
+
 ## PAPER M8 / TACTIC CONVERSION
 
 Paper Appendix C.2'de tactic conversion rate, tactic rating `RT` üzerinden Equation B.2 ile tanımlanır. V5 bu eğrileri M8 içinde kullanır ve tactic scale bridge regression ile korunur.
@@ -111,7 +136,7 @@ Son doğrulanmış baseline:
 HattrickAI V5 Deploy #505  → SUCCESS
 ```
 
-60-maç acceptance değişikliği, specialty ve tactic mapping regression'ları CI'da doğrulanmaktadır.
+A test commitleri push ile GitHub Actions'a gönderildi. Güncel CI run'ı A regression'ı ile başlatıldı; tamamlanması bekleniyor.
 
 ## KALANLAR
 
@@ -120,7 +145,7 @@ HattrickAI V5 Deploy #505  → SUCCESS
 2. Specialty ↔ weather / tactic cross-effects          ✅ CODED + REGRESSION
 3. Exact V5 tactic-level → paper RT mapping             ✅ CODED + REGRESSION
 4. Historical multi-match production acceptance         ✅ 60-MATCH CHPP CALIBRATION ACCEPTED
-5. Final WEB production acceptance                      ⏳
+5. Final WEB production acceptance                      🟡 A TESTİ EKLENDİ / CI DOĞRULAMASI BEKLENİYOR
 ```
 
 ## KABUL KRİTERİ
@@ -131,4 +156,4 @@ REGRESSION  → offline test geçiyor
 PRODUCTION  → gerçek CHPP/maç verisiyle doğrulandı
 ```
 
-#4 için 60-maç collector + acceptance gate hazır ve Phase D CHPP-derived corpus ile kabul edildi. Sıradaki gerçek adım: **Final WEB production acceptance.**
+#4 için 60-maç collector + acceptance gate hazır ve Phase D CHPP-derived corpus ile kabul edildi. Final WEB acceptance ise **A → B → C → D → E → F → G** sırasıyla kapatılacaktır.
