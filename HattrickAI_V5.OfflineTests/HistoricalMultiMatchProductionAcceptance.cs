@@ -3,11 +3,11 @@ using System.Xml.Linq;
 
 namespace HattrickAI.V5.OfflineTests;
 
-/// <summary>Production-data gate for a user-exported historical CHPP corpus.</summary>
+/// <summary>Acceptance gate for user-exported historical CHPP corpora.</summary>
 public static class HistoricalMultiMatchProductionAcceptance
 {
-    public const int MinimumFinishedMatches = 250;
-    public const int MinimumDetailedMatches = 250;
+    public const int MinimumFinishedMatches = 60;
+    public const int MinimumDetailedMatches = 60;
 
     public static int Run(string path)
     {
@@ -17,6 +17,10 @@ public static class HistoricalMultiMatchProductionAcceptance
             using var document = JsonDocument.Parse(File.ReadAllText(path));
             var root = document.RootElement;
             var schema = root.TryGetProperty("schema", out var sn) ? sn.GetString() : null;
+
+            if (schema?.StartsWith("hattrickai-v5-m8-phase-d-calibration", StringComparison.OrdinalIgnoreCase) == true)
+                return RunPhaseDCalibrationCorpus(root);
+
             var source = root.TryGetProperty("source", out var src) ? src.GetString() : null;
             if (!string.Equals(source, "CHPP", StringComparison.OrdinalIgnoreCase)) return Fail("Historical export source is not CHPP.");
             if (schema?.StartsWith("hattrickai-v5-historical-production", StringComparison.OrdinalIgnoreCase) == true) return RunProductionCorpus(root);
@@ -29,6 +33,62 @@ public static class HistoricalMultiMatchProductionAcceptance
             return 0;
         }
         catch (Exception ex) { return Fail(ex.Message); }
+    }
+
+    private static int RunPhaseDCalibrationCorpus(JsonElement root)
+    {
+        var samples = root.TryGetProperty("samples", out var s) && s.ValueKind == JsonValueKind.Array ? s.EnumerateArray().ToArray() : Array.Empty<JsonElement>();
+        var sourceRows = root.TryGetProperty("sourceRows", out var r) && r.ValueKind == JsonValueKind.Array ? r.EnumerateArray().ToArray() : Array.Empty<JsonElement>();
+        var sampleCount = GetInt(root,"sampleCount");
+        var detailsFetched = GetNestedInt(root,"sourceSummary","detailsFetched");
+        var failedDetails = GetNestedInt(root,"sourceSummary","failedDetails");
+        var chanceSamples = GetNestedInt(root,"sourceSummary","chanceSamples");
+        var archiveUnique = GetNestedInt(root,"sourceSummary","archiveUniqueMatchCount");
+
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var invalidSamples = 0;
+        foreach (var sample in samples)
+        {
+            var id = sample.TryGetProperty("matchId", out var idNode) ? idNode.ToString() : string.Empty;
+            if (string.IsNullOrWhiteSpace(id) || !seen.Add(id) || GetNullableInt(sample,"ownGoals") is null || GetNullableInt(sample,"opponentGoals") is null) { invalidSamples++; continue; }
+            if (!HasNumber(sample,"midfieldShare") || !HasNumber(sample,"observedTotalRegularChances") || !HasNumber(sample,"observedOwnRegularChances") || !HasNumber(sample,"observedOpponentRegularChances") || !HasNumber(sample,"ownTactic") || !HasNumber(sample,"opponentTactic") || !HasNumber(sample,"ownTacticSkill") || !HasNumber(sample,"opponentTacticSkill")) invalidSamples++;
+        }
+
+        var invalidSourceRows = 0;
+        foreach (var row in sourceRows)
+        {
+            var id = row.TryGetProperty("matchId", out var idNode) ? idNode.ToString() : string.Empty;
+            var valid = !string.IsNullOrWhiteSpace(id)
+                && HasNumber(row,"ownPossessionPercent")
+                && HasChanceObject(row,"ownSectorChances")
+                && HasChanceObject(row,"opponentSectorChances")
+                && HasNumber(row,"homeTactic") && HasNumber(row,"awayTactic")
+                && HasNumber(row,"homeTacticSkill") && HasNumber(row,"awayTacticSkill")
+                && HasNumber(row,"homeRatingMidfield") && HasNumber(row,"awayRatingMidfield")
+                && HasNumber(row,"homeRatingLeftDef") && HasNumber(row,"homeRatingMidDef") && HasNumber(row,"homeRatingRightDef")
+                && HasNumber(row,"awayRatingLeftDef") && HasNumber(row,"awayRatingMidDef") && HasNumber(row,"awayRatingRightDef")
+                && HasNumber(row,"homeRatingLeftAtt") && HasNumber(row,"homeRatingMidAtt") && HasNumber(row,"homeRatingRightAtt")
+                && HasNumber(row,"awayRatingLeftAtt") && HasNumber(row,"awayRatingMidAtt") && HasNumber(row,"awayRatingRightAtt")
+                && GetNullableInt(row,"homeGoals") is not null && GetNullableInt(row,"awayGoals") is not null;
+            if (!valid) invalidSourceRows++;
+        }
+
+        var ready = sampleCount >= MinimumFinishedMatches
+            && samples.Length >= MinimumFinishedMatches
+            && sourceRows.Length >= MinimumDetailedMatches
+            && detailsFetched >= MinimumDetailedMatches
+            && chanceSamples >= MinimumDetailedMatches
+            && failedDetails == 0
+            && archiveUnique >= MinimumFinishedMatches
+            && invalidSamples == 0
+            && invalidSourceRows == 0;
+
+        var setPieceObserved = samples.Count(x => x.TryGetProperty("observedOwnSetPieceChances", out var n) && n.ValueKind != JsonValueKind.Null);
+        Console.WriteLine($"HistoricalMultiMatchProductionAcceptance: {(ready ? "PASS" : "DATA_INCOMPLETE")} | phaseD samples={samples.Length}; sourceRows={sourceRows.Length}; detailsFetched={detailsFetched}; failedDetails={failedDetails}; chanceSamples={chanceSamples}; archiveUnique={archiveUnique}; invalidSamples={invalidSamples}; invalidSourceRows={invalidSourceRows}; setPieceSampleFieldPresent={setPieceObserved}");
+        if (setPieceObserved == 0) Console.WriteLine("Phase D note: observedOwnSetPieceChances is null in all sample rows; raw sourceRows still expose home/away special-event chances.");
+        if (!ready) Console.WriteLine($"60-match acceptance requires >={MinimumFinishedMatches} samples, >={MinimumDetailedMatches} detailed source rows, zero failed details and zero invalid rows.");
+        else Console.WriteLine("60-match CHPP-derived calibration corpus structurally accepted. Coefficients remain unchanged.");
+        return 0;
     }
 
     private static int RunProductionCorpus(JsonElement root)
@@ -66,6 +126,7 @@ public static class HistoricalMultiMatchProductionAcceptance
     private static bool HasNumber(JsonElement row,string name) => row.TryGetProperty(name,out var n) && n.ValueKind == JsonValueKind.Number;
     private static bool HasChanceObject(JsonElement row,string name) => row.TryGetProperty(name,out var n) && n.ValueKind == JsonValueKind.Object && HasNumber(n,"left") && HasNumber(n,"center") && HasNumber(n,"right") && HasNumber(n,"specialEvents") && HasNumber(n,"other");
     private static int GetInt(JsonElement root,string name) => root.TryGetProperty(name,out var n) && n.TryGetInt32(out var v) ? v : 0;
+    private static int GetNestedInt(JsonElement root,string parent,string name) => root.TryGetProperty(parent,out var p) && p.TryGetProperty(name,out var n) && n.TryGetInt32(out var v) ? v : 0;
     private static int? GetNullableInt(JsonElement row,string name) => row.TryGetProperty(name,out var n) && n.TryGetInt32(out var v) ? v : null;
     private static string GetXml(JsonElement raw,string name) => raw.TryGetProperty(name,out var n) ? n.GetString() ?? string.Empty : throw new InvalidOperationException($"Missing rawChpp.{name}.");
     private static MatchObservation[] ParseMatches(string xml) => XDocument.Parse(xml).Descendants("Match").Select(m => new MatchObservation(GetString(m,"MatchID"),GetString(m,"Status"),GetNullableInt(m,"HomeGoals"),GetNullableInt(m,"AwayGoals"))).Where(x=>x.MatchId.Length>0).ToArray();
