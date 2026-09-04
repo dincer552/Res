@@ -67,7 +67,8 @@ jobs:
           REMOTE_ARCHIVE="/tmp/${ARCHIVE}"
           echo "📤 Docker image Azure VM'ye gönderiliyor: ${REMOTE_ARCHIVE}"
           scp -i ~/.ssh/deploy_key "${ARCHIVE}" "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:${REMOTE_ARCHIVE}.upload"
-          ssh -i ~/.ssh/deploy_key "${{ secrets.DEPLOY_SSH_KEY }}" "mv '${REMOTE_ARCHIVE}.upload' '${REMOTE_ARCHIVE}'"
+          ssh -i ~/.ssh/deploy_key "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
+            "mv '${REMOTE_ARCHIVE}.upload' '${REMOTE_ARCHIVE}'"
           echo "✅ Image Azure VM'ye gönderildi"
 
       - name: Deploy on Azure VM
