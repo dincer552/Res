@@ -25,5 +25,6 @@ var c7M8ChanceModelRegression = await M8ChanceModelRegression.RunAsync(path); if
 var c8M9PredictionRegression = await M9PredictionRegression.RunAsync(path); if (c8M9PredictionRegression != 0) return c8M9PredictionRegression;
 var c9Db1FormationCoverageRegression = await DB1FormationCoverageRegression.RunAsync(path); if (c9Db1FormationCoverageRegression != 0) return c9Db1FormationCoverageRegression;
 var c10M10FormationCompetitionRegression = await M10FormationCompetitionRegression.RunAsync(path); if (c10M10FormationCompetitionRegression != 0) return c10M10FormationCompetitionRegression;
+var c11M10ToM6BHandoffRegression = await M10ToM6BRankDrivenHandoffRegression.RunAsync(path); if (c11M10ToM6BHandoffRegression != 0) return c11M10ToM6BHandoffRegression;
 var historicalMultiMatchAcceptance = HistoricalMultiMatchProductionAcceptance.Run(path); if (historicalMultiMatchAcceptance != 0) return historicalMultiMatchAcceptance;
 return await FullPipelineRegressionRunner.RunAsync(path);
