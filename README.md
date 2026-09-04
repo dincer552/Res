@@ -37,6 +37,16 @@ C1–C17 tamamlandı ve production pipeline'a bağlı regression kontrolleriyle 
 - C17: FinalPrediction'ın M11 prediction, seçilen M9 prediction ve DB2 winner prediction ile birebir continuity'si; candidate/formasyon identity, W/D/L, xG, simulation ve most-likely score bütünlüğü.
 - C18: aynı fixture ve aynı pipeline context'i iki kez çalıştırıp M4→M11 sonuç fingerprint'i, DB1/DB2, M11 ranking, FinalPlan/XI, FinalPrediction ve M9 simulation çıktılarının birebir deterministik kaldığını doğrular.
 
+### Geçici acceptance çalışma modu
+
+C13–C18 üzerinde iterasyon hızlandırmak için `HattrickAI_V5.OfflineTests` geçici olarak belirli bir acceptance maddesinden başlatılabilir. Şu an GitHub Actions regression komutu **C12'den başlıyor**:
+
+```text
+c12 → C12 → C13 → C14 → C15 → C16 → C17 → C18
+```
+
+Bu yalnızca geçici debug/release-gate çalışma düzenidir; **C18 tamamlandıktan sonra Program.cs ve `.github/workflows/v5-build.yml` normal C1 başlangıcına geri alınacaktır.**
+
 ### Güncel production zinciri
 
 ```text
