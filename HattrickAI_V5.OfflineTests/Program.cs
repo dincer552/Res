@@ -10,6 +10,9 @@ if (setPieceTakerCalibrationRegression != 0) return setPieceTakerCalibrationRegr
 var specialtyInteractionRegression = SpecialtyInteractionRegression.Run();
 if (specialtyInteractionRegression != 0) return specialtyInteractionRegression;
 
+var tacticPaperMappingRegression = TacticPaperMappingRegression.Run();
+if (tacticPaperMappingRegression != 0) return tacticPaperMappingRegression;
+
 var longShotRegression = LongShotOpportunityRegression.Run();
 if (longShotRegression != 0) return longShotRegression;
 
