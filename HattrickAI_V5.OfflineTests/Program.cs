@@ -28,5 +28,6 @@ var c14M11FinalistPoolRegression = await M11FinalistPoolRegression.RunAsync(path
 var c15M11FinalSelectionRegression = await M11FinalSelectionRegression.RunAsync(path); if (c15M11FinalSelectionRegression != 0) return c15M11FinalSelectionRegression;
 var c16FinalPlanContinuityRegression = await FinalPlanContinuityRegression.RunAsync(path); if (c16FinalPlanContinuityRegression != 0) return c16FinalPlanContinuityRegression;
 var c17FinalPredictionContinuityRegression = await FinalPredictionContinuityRegression.RunAsync(path); if (c17FinalPredictionContinuityRegression != 0) return c17FinalPredictionContinuityRegression;
+var c18DeterministicRerunRegression = await DeterministicRerunRegression.RunAsync(path); if (c18DeterministicRerunRegression != 0) return c18DeterministicRerunRegression;
 var historicalMultiMatchAcceptance = HistoricalMultiMatchProductionAcceptance.Run(path); if (historicalMultiMatchAcceptance != 0) return historicalMultiMatchAcceptance;
 return await FullPipelineRegressionRunner.RunAsync(path);
