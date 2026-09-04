@@ -65,7 +65,7 @@ public static class SpecialtyInteractionEngine
         var technicalCa = specialty == PlayerSpecialty.Technical && isDefender;
         var technicalTdf = specialty == PlayerSpecialty.Technical && isForward && order == PlayerOrder.Defensive;
         var pressingPowerful = specialty == PlayerSpecialty.Powerful && isDefender;
-        var caBoost = tactic == AdvancedTactic.Counter && specialty == PlayerSpecialty.Quick && !isDefender
+        var caBoost = tactic == AdvancedTactic.CounterAttack && specialty == PlayerSpecialty.Quick && !isDefender
             ? CounterAttackSpecialtyBoostPercent(ownQuickRelevantPlayers, opponentQuickDefensivePlayers)
             : 0.0;
 
