@@ -8,139 +8,17 @@ public static class M11FinalSelectionRegression
     public static async Task<int> RunAsync(string path, CancellationToken cancellationToken = default)
     {
         if (!File.Exists(path)) return Fail($"fixture bulunamadı: {path}");
-
         try
         {
-            await using var stream = File.OpenRead(path);
-            using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
-            var root = doc.RootElement;
-            var normalized = root.GetProperty("normalized");
-            var analysis = root.GetProperty("v5Analysis");
-            var players = normalized.GetProperty("ownPlayers").EnumerateArray().Select(ReadPlayer).ToList();
-            var opponentRating = ReadRating(analysis.GetProperty("opponentRating"));
-            var opponent = new OpponentMatchProfile(
-                GetString(analysis, "opponentName", "Opponent"),
-                GetString(analysis, "opponentFormation", ""),
-                opponentRating,
-                new OpponentThreatEngine().Analyze(opponentRating));
-            var context = new MatchDataContext(
-                players,
-                0,
-                GetString(analysis.GetProperty("ownLineup"), "teamName", "Fixture"),
-                opponent,
-                RatingContext.Default,
-                MatchQuestionnaire.Default);
-
-            Console.WriteLine("=== C15 M11 FINAL SELECTION REGRESSION ===");
-            var result = await new MotorPipelineService().RunAsync(
-                context,
-                players,
-                cancellationToken,
-                "offline-c15-m11-selection");
-
-            var legal = result.M4.Candidates
-                .Select(x => x.Formation)
-                .Where(x => !string.IsNullOrWhiteSpace(x))
-                .Distinct(StringComparer.Ordinal)
-                .ToList();
-            var db2 = result.CandidateDatabase2;
-            var m11 = result.M11;
-
-            Check(m11 is not null, "M11 result missing");
-            Check(db2.Count > 0, "DB2 is empty");
-            Check(m11!.CandidateCount > 0, "M11 selected from an empty finalist pool");
-            Check(m11.Ranking.Count == m11.CandidateCount, "M11 ranking count does not match finalist count");
-            Check(m11.FormationCount == legal.Count, "M11 final selection lost a legal formation");
-            Check(m11.Ranking.All(x => double.IsFinite(x.FinalScore)), "M11 ranking contains non-finite final score");
-            Check(m11.Ranking.All(x => double.IsFinite(x.TacticalScore)), "M11 ranking contains non-finite tactical score");
-            Check(m11.Ranking.All(x => x.WinProbability is >= 0 and <= 1), "M11 ranking contains invalid win probability");
-            Check(m11.Ranking.Select(x => x.CandidateId).Distinct(StringComparer.Ordinal).Count() == m11.Ranking.Count, "M11 ranking contains duplicate candidate IDs");
-            Check(m11.Ranking.Select(x => x.Formation).Distinct(StringComparer.Ordinal).Count() == m11.FormationCount, "M11 ranking formation diversity is inconsistent");
-
-            var ranked = m11.Ranking.ToList();
-            for (var i = 0; i < ranked.Count - 1; i++)
-            {
-                Check(ranked[i].FinalScore >= ranked[i + 1].FinalScore - 1e-12, "M11 ranking is not descending by FinalScore");
-            }
-
-            var winnerSignature = Signature(m11.BestPlan.Lineup);
-            Check(ranked[0].CandidateId == winnerSignature, "M11 BestPlan is not ranking #1");
-            Check(ranked[0].Formation == m11.BestPlan.Formation, "M11 BestPlan formation differs from ranking #1");
-            Check(db2.Any(x => x.CandidateId == winnerSignature), "M11 winner is not sourced from DB2");
-
-            var winnerDb2 = db2.First(x => x.CandidateId == winnerSignature);
-            Check(winnerDb2.Stage == "M6-B", "M11 winner is not an M6-B DB2 candidate");
-            Check(winnerDb2.Prediction is not null, "M11 winner lost M9 prediction continuity");
-            Check(double.IsFinite(winnerDb2.RankingScore), "M11 winner DB2 ranking score is not finite");
-            Check(m11.Prediction is not null, "M11 final prediction is missing");
-            Check(m11.Prediction.Simulation.Outcome.WinProbability is >= 0 and <= 1, "M11 final prediction win probability is invalid");
-
-            var log = MotorRunLogStore.Get("offline-c15-m11-selection");
-            Check(log is not null, "M11 telemetry missing");
-            var m6bIndex = log!.Stages.FindIndex(x => x.Motor == "M6-B" && x.Status == "completed");
-            var m11Index = log.Stages.FindIndex(x => x.Motor == "M11" && x.Status == "completed");
-            Check(m6bIndex >= 0 && m11Index >= 0 && m6bIndex < m11Index, "M11 final selection did not execute after M6-B");
-            var m11Stage = log.Stages[m11Index];
-            Check(m11Stage.CandidateCount.GetValueOrDefault() == m11.CandidateCount, "M11 telemetry candidate count mismatch");
-
-            Console.WriteLine($"M11 finalists={m11.CandidateCount} | formations={m11.FormationCount} | winner={m11.BestPlan.Formation} | finalScore={ranked[0].FinalScore:0.####}");
-            Console.WriteLine("PASS: C15 M11 final selection");
-            return 0;
-        }
-        catch (Exception ex)
-        {
-            return Fail("C15 exception: " + ex.Message);
-        }
+            await using var stream=File.OpenRead(path);using var doc=await JsonDocument.ParseAsync(stream,cancellationToken:cancellationToken);var root=doc.RootElement;var normalized=root.GetProperty("normalized");var analysis=root.GetProperty("v5Analysis");
+            var players=normalized.GetProperty("ownPlayers").EnumerateArray().Select(ReadPlayer).ToList();var opponentRating=ReadRating(analysis.GetProperty("opponentRating"));var opponent=new OpponentMatchProfile(GetString(analysis,"opponentName","Opponent"),GetString(analysis,"opponentFormation",""),opponentRating,new OpponentThreatEngine().Analyze(opponentRating));var context=new MatchDataContext(players,0,GetString(analysis.GetProperty("ownLineup"),"teamName","Fixture"),opponent,RatingContext.Default,MatchQuestionnaire.Default);
+            Console.WriteLine("=== C15 M11 FINAL SELECTION REGRESSION ===");var result=await new MotorPipelineService().RunAsync(context,players,cancellationToken,"offline-c15-m11-selection");var legal=result.M4.Candidates.Select(x=>x.Formation).Where(x=>!string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.Ordinal).ToList();var db2=result.CandidateDatabase2;var m11=result.M11;
+            Check(m11 is not null,"M11 result missing");Check(db2.Count>0,"DB2 is empty");Check(m11!.CandidateCount>0,"M11 selected from an empty finalist pool");Check(m11.Ranking.Count==m11.CandidateCount,"M11 ranking count does not match finalist count");Check(m11.FormationCount==legal.Count,"M11 final selection lost a legal formation");Check(m11.Ranking.All(x=>double.IsFinite(x.FinalScore)),"M11 ranking contains non-finite final score");Check(m11.Ranking.All(x=>double.IsFinite(x.TacticalScore)),"M11 ranking contains non-finite tactical score");Check(m11.Ranking.All(x=>x.WinProbability is >=0 and <=1),"M11 ranking contains invalid win probability");Check(m11.Ranking.Select(x=>x.CandidateId).Distinct(StringComparer.Ordinal).Count()==m11.Ranking.Count,"M11 ranking contains duplicate candidate IDs");Check(m11.Ranking.Select(x=>x.Formation).Distinct(StringComparer.Ordinal).Count()==m11.FormationCount,"M11 ranking formation diversity is inconsistent");
+            var ranked=m11.Ranking.ToList();for(var i=0;i<ranked.Count-1;i++)Check(ranked[i].FinalScore>=ranked[i+1].FinalScore-1e-12,"M11 ranking is not descending by FinalScore");var winnerSignature=Signature(m11.BestPlan.Lineup);Check(ranked[0].CandidateId==winnerSignature,"M11 BestPlan is not ranking #1");Check(ranked[0].Formation==m11.BestPlan.Formation,"M11 BestPlan formation differs from ranking #1");Check(db2.Any(x=>x.CandidateId==winnerSignature),"M11 winner is not sourced from DB2");var winnerDb2=db2.First(x=>x.CandidateId==winnerSignature);Check(winnerDb2.Stage=="M6-B","M11 winner is not an M6-B DB2 candidate");Check(winnerDb2.Prediction is not null,"M11 winner lost M9 prediction continuity");Check(double.IsFinite(winnerDb2.RankingScore),"M11 winner DB2 ranking score is not finite");Check(m11.Prediction is not null,"M11 final prediction is missing");Check(m11.Prediction.WinProbability is >=0 and <=1,"M11 final prediction win probability is invalid");
+            var log=MotorRunLogStore.Get("offline-c15-m11-selection");Check(log is not null,"M11 telemetry missing");var m6bIndex=IndexOf(log!.Stages,x=>x.Motor=="M6-B"&&x.Status=="completed");var m11Index=IndexOf(log.Stages,x=>x.Motor=="M11"&&x.Status=="completed");Check(m6bIndex>=0&&m11Index>=0&&m6bIndex<m11Index,"M11 final selection did not execute after M6-B");var m11Stage=log.Stages[m11Index];Check(m11Stage.CandidateCount.GetValueOrDefault()==m11.CandidateCount,"M11 telemetry candidate count mismatch");
+            Console.WriteLine($"M11 finalists={m11.CandidateCount} | formations={m11.FormationCount} | winner={m11.BestPlan.Formation} | finalScore={ranked[0].FinalScore:0.####}");Console.WriteLine("PASS: C15 M11 final selection");return 0;
+        }catch(Exception ex){return Fail("C15 exception: "+ex.Message);}
     }
-
-    private static Player ReadPlayer(JsonElement e) => new(
-        e.GetProperty("id").GetInt32(),
-        e.GetProperty("name").GetString() ?? "Player",
-        e.GetProperty("keeper").GetInt32(),
-        e.GetProperty("defending").GetInt32(),
-        e.GetProperty("playmaking").GetInt32(),
-        e.GetProperty("passing").GetInt32(),
-        e.GetProperty("winger").GetInt32(),
-        e.GetProperty("scoring").GetInt32(),
-        e.GetProperty("stamina").GetInt32(),
-        e.GetProperty("form").GetInt32(),
-        e.GetProperty("experience").GetInt32(),
-        GetInt(e, "loyalty", 0),
-        GetInt(e, "injuryLevel", -1));
-
-    private static RegionalRatingSnapshot ReadRating(JsonElement e)
-    {
-        var ld = GetDouble(e, "leftDefence");
-        var cd = GetDouble(e, "centralDefence");
-        var rd = GetDouble(e, "rightDefence");
-        var mid = GetDouble(e, "midfield");
-        var la = GetDouble(e, "leftAttack");
-        var ca = GetDouble(e, "centralAttack");
-        var ra = GetDouble(e, "rightAttack");
-        return new RegionalRatingSnapshot(ld, cd, rd, mid, la, ca, ra, ld, cd, rd, mid, la, ca, ra);
-    }
-
-    private static string Signature(Lineup lineup) => string.Join(";", lineup.Slots
-        .OrderBy(s => s.Code, StringComparer.Ordinal)
-        .ThenBy(s => s.PlayerId)
-        .Select(s => $"{s.Code}:{s.PlayerId}:{(int)s.Order}"));
-
-    private static string GetString(JsonElement e, string n, string f) =>
-        e.TryGetProperty(n, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() ?? f : f;
-
-    private static int GetInt(JsonElement e, string n, int f) =>
-        e.TryGetProperty(n, out var v) && v.TryGetInt32(out var x) ? x : f;
-
-    private static double GetDouble(JsonElement e, string n) => e.GetProperty(n).GetDouble();
-
-    private static int Fail(string message)
-    {
-        Console.WriteLine("FAIL: " + message);
-        return 1;
-    }
-
-    private static void Check(bool ok, string message)
-    {
-        if (!ok) throw new InvalidOperationException(message);
-    }
+    private static int IndexOf<T>(IReadOnlyList<T> source,Func<T,bool> predicate){for(var i=0;i<source.Count;i++)if(predicate(source[i]))return i;return -1;}
+    private static Player ReadPlayer(JsonElement e)=>new(e.GetProperty("id").GetInt32(),e.GetProperty("name").GetString()??"Player",e.GetProperty("keeper").GetInt32(),e.GetProperty("defending").GetInt32(),e.GetProperty("playmaking").GetInt32(),e.GetProperty("passing").GetInt32(),e.GetProperty("winger").GetInt32(),e.GetProperty("scoring").GetInt32(),e.GetProperty("stamina").GetInt32(),e.GetProperty("form").GetInt32(),e.GetProperty("experience").GetInt32(),GetInt(e,"loyalty",0),GetInt(e,"injuryLevel",-1));private static RegionalRatingSnapshot ReadRating(JsonElement e){var ld=GetDouble(e,"leftDefence");var cd=GetDouble(e,"centralDefence");var rd=GetDouble(e,"rightDefence");var mid=GetDouble(e,"midfield");var la=GetDouble(e,"leftAttack");var ca=GetDouble(e,"centralAttack");var ra=GetDouble(e,"rightAttack");return new RegionalRatingSnapshot(ld,cd,rd,mid,la,ca,ra,ld,cd,rd,mid,la,ca,ra);}private static string Signature(Lineup lineup)=>string.Join(";",lineup.Slots.OrderBy(s=>s.Code,StringComparer.Ordinal).ThenBy(s=>s.PlayerId).Select(s=>$"{s.Code}:{s.PlayerId}:{(int)s.Order}"));private static string GetString(JsonElement e,string n,string f)=>e.TryGetProperty(n,out var v)&&v.ValueKind==JsonValueKind.String?v.GetString()??f:f;private static int GetInt(JsonElement e,string n,int f)=>e.TryGetProperty(n,out var v)&&v.TryGetInt32(out var x)?x:f;private static double GetDouble(JsonElement e,string n)=>e.GetProperty(n).GetDouble();private static int Fail(string m){Console.WriteLine("FAIL: "+m);return 1;}private static void Check(bool ok,string m){if(!ok)throw new InvalidOperationException(m);}
 }
