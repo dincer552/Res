@@ -6,7 +6,7 @@ Aktif branch: `v5`
 
 V5 hedefi: **oyuncu → formasyon → XI → rating → taktik → chance → event → goal → W/D/L → M10 → M6-B → M11 → WEB** zincirini tek ve tutarlı bir maç motoru olarak çalıştırmak.
 
-Ana araştırma referansı: Anthony C. Constantinou, Nicholas C. Higgins, Neville K. Kitson — *Decoding the mechanisms of the Hattrick football manager game using Bayesian network structure learning*, Entertainment Computing 57 (2026) 101131. DOI: `10.1016/j.entcom.2026.101131`.
+Ana araştırma referansı: Anthony C. Constantinou, Nicholas C. Higgins, Neville K. Kitson — *Decoding the mechanisms of the Hattrick football manager game using Bayesian network structure learning*, Entertainment Computing 57 (2026) 101131, DOI: `10.1016/j.entcom.2026.101131`.
 
 ## GERÇEK ÇALIŞMA SIRASI
 
@@ -58,33 +58,35 @@ DB1 → M10 → M6-B → DB2 → M11 → WEB
 
 ## HISTORICAL MULTI-MATCH PRODUCTION ACCEPTANCE
 
-`HistoricalMultiMatchProductionAcceptance` artık offline suite içine bağlıdır. Gate şu kontrolleri yapar:
+`HistoricalMultiMatchProductionAcceptance` offline suite içine bağlıdır. Gate şu kontrolleri yapar:
 
 ```text
-CHPP export schema/source doğrulaması
+CHPP export source/schema doğrulaması
 finished match filtreleme
 benzersiz MatchID kontrolü
 final skor bütünlüğü
-multi-match kapsamı
-ayrıntılı CHPP match-engine kaydı kontrolü
+>=250 geçerli tarihsel maç
+>=250 ayrıntılı match-engine gözlemi
+invalid/error satırı kontrolü
 ```
 
-Production activation için mevcut eşik:
+Web arayüzündeki **📊 260 GEÇMİŞ MAÇI ÇEK + PRODUCTION JSON İNDİR** butonu artık CHPP `matchesarchive` üzerinden son 12 ayı 45 günlük pencerelerle tarar ve seçilen 260 bitmiş maç için `matchdetails` verisini de toplar. Detay istekleri arasında 5 saniye beklenir; amaç CHPP'ye burst trafik göndermemektir. CHPP `matchesarchive` tarih aralığında en fazla 50 maç döndürdüğü için arşiv birden fazla pencereye bölünür. citeturn2search0turn4search0
+
+Butonun ürettiği JSON artık `hattrickai-v5-historical-production-v1` şemasındadır ve doğrudan acceptance gate'e verilebilecek yapıdadır. **Toplanan veri gözlem amaçlıdır; production katsayıları bu işlem sırasında değiştirilmez.**
+
+Production acceptance için hedef:
 
 ```text
->= 250 finished matches / side
+>= 250 valid finished matches
 AND
->= 250 detailed CHPP match-engine records
+>= 250 detailed CHPP match-engine observations
 AND
-HistoricalCalibrationEngine gate:
-    >= 250 eligible matches
-    >= 250 Long Shot attempts
-    regression comparison
+0 invalid/error observations
 ```
 
-Mevcut `HattrickAI_V5_CHPP_FullOffline_2026-09-01.json` export'unda 8 own + 8 opponent finished match bulunuyor ve ayrıntılı match-engine verisi bulunan tek reference match mevcut. Bu nedenle acceptance harness çalışır durumda olsa da **production calibration henüz aktive edilmez**; veri yetersizliği bilinçli olarak gate tarafından `DATA_INCOMPLETE` olarak bırakılır.
+CHPP `matchdetails` kaydı maç başına tactic skill, rating ve sonuç/chance gözlemlerini sağlar; bu nedenle yalnızca maç skorlarını çekmek yeterli değildir. citeturn1search0
 
-Bu ayrım önemlidir: gerçek CHPP verisiyle sadece sonuç listesini görmek, rating/tactic-skill girişlerini her tarihsel maç için bilmeden gerçek predictive acceptance anlamına gelmez. Veri sızıntısını önlemek için pre-match gözlenen rating/tactic inputs olmadan geçmiş maç üzerinde tahmin başarısı hesaplanmaz.
+Mevcut `HattrickAI_V5_CHPP_FullOffline_2026-09-01.json` export'u eski küçük corpus olduğu için production acceptance'i aktive etmez. Yeni butonla gerçek CHPP hesabından geniş corpus üretilecek.
 
 ## 04.09.2026 — SPECIALTY INTERACTION TAMAMLANDI
 
@@ -112,7 +114,7 @@ C.1   set-piece scoring regression
 C.2   tactic conversion curves
 ```
 
-Paper çalışması 250 değişkenli 1 milyon CHPP maçlık veri kümesi kullandı; tactic/tactic skill, sector ratings, midfield, ISP ratings ve specialty sayıları gözlenen girdiler arasında yer aldı. Tahmin değerlendirmesinde gol farkı hatası ve HDA için RPS kullanıldı. fileciteturn676file0
+Paper çalışması 250 değişkenli 1 milyon CHPP maçlık veri kümesi kullandı; tactic/tactic skill, sector ratings, midfield, ISP ratings ve specialty sayıları gözlenen girdiler arasında yer aldı. Tahmin değerlendirmesinde gol farkı hatası ve HDA için RPS kullanıldı.
 
 ## FULL CHPP JSON — OFFLINE ACCEPTANCE
 
@@ -121,7 +123,7 @@ TestJSON/
 └── HattrickAI_V5_CHPP_FullOffline_2026-09-01.json
 ```
 
-Offline zincirde M3→M11 akışının çalışması regression ile doğrulanır. Historical acceptance gate aynı export'un geçmiş maç listesini ayrıca kontrol eder.
+Offline zincirde M3→M11 akışının çalışması regression ile doğrulanır. Historical acceptance gate eski export'u geriye dönük uyumlulukla kontrol eder; yeni production corpus ise `hattrickai-v5-historical-production-v1` şemasını kullanır.
 
 ## CI CHECKPOINT
 
@@ -139,7 +141,7 @@ Yeni historical acceptance, specialty ve tactic mapping değişiklikleri CI'da d
 1. Set-piece taker skill → exact goal conversion       ✅ CODED + REGRESSION / PRODUCTION DATA
 2. Specialty ↔ weather / tactic cross-effects          ✅ CODED + REGRESSION
 3. Exact V5 tactic-level → paper RT mapping             ✅ CODED + REGRESSION
-4. Historical multi-match production acceptance         🟡 HARNESS + DATA REQUIRED
+4. Historical multi-match production acceptance         🟡 COLLECTOR READY — REAL DATA REQUIRED
 5. Final WEB production acceptance                      ⏳
 ```
 
@@ -151,4 +153,4 @@ REGRESSION  → offline test geçiyor
 PRODUCTION  → gerçek CHPP/maç verisiyle doğrulandı
 ```
 
-#4 için kod ve acceptance gate hazırdır. **Production kabulü için gereken tarihsel multi-match CHPP corpus henüz yeterli değildir.**
+#4 için collector + UI butonu + acceptance gate hazırdır. Sıradaki gerçek adım: **siteye CHPP ile bağlanıp 260 maçlık JSON'u çekmek ve çıkan gerçek ölçümleri V5 tahminleriyle karşılaştırmak.**
