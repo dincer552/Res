@@ -60,8 +60,11 @@ public static class HistoricalMultiMatchProductionAcceptance
             var id = row.TryGetProperty("matchId", out var idNode) ? idNode.ToString() : string.Empty;
             var valid = !string.IsNullOrWhiteSpace(id)
                 && HasNumber(row,"ownPossessionPercent")
-                && HasChanceObject(row,"ownSectorChances")
-                && HasChanceObject(row,"opponentSectorChances")
+                && HasNumber(row,"homeSectorChances") && HasNumber(row,"awaySectorChances")
+                && HasNumber(row,"ownSectorChances") && HasNumber(row,"opponentSectorChances")
+                && HasNumber(row,"homeSpecialEventChances") && HasNumber(row,"awaySpecialEventChances")
+                && HasNumber(row,"ownLeftChances") && HasNumber(row,"ownCentreChances") && HasNumber(row,"ownRightChances")
+                && HasNumber(row,"opponentLeftChances") && HasNumber(row,"opponentCentreChances") && HasNumber(row,"opponentRightChances")
                 && HasNumber(row,"homeTactic") && HasNumber(row,"awayTactic")
                 && HasNumber(row,"homeTacticSkill") && HasNumber(row,"awayTacticSkill")
                 && HasNumber(row,"homeRatingMidfield") && HasNumber(row,"awayRatingMidfield")
