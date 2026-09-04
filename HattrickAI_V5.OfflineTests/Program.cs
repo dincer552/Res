@@ -41,6 +41,9 @@ if (m5XiCandidatesRegression != 0) return m5XiCandidatesRegression;
 var m6aCandidateEvaluationRegression = await M6ACandidateEvaluationRegression.RunAsync(path);
 if (m6aCandidateEvaluationRegression != 0) return m6aCandidateEvaluationRegression;
 
+var c5M7RegionalRatingRegression = await M7RegionalRatingRegression.RunAsync(path);
+if (c5M7RegionalRatingRegression != 0) return c5M7RegionalRatingRegression;
+
 var historicalMultiMatchAcceptance = HistoricalMultiMatchProductionAcceptance.Run(path);
 if (historicalMultiMatchAcceptance != 0) return historicalMultiMatchAcceptance;
 
