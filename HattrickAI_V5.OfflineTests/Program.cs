@@ -4,6 +4,9 @@ using HattrickAI.V5.OfflineTests;
 var historicalCalibrationRegression = HistoricalCalibrationRegression.Run();
 if (historicalCalibrationRegression != 0) return historicalCalibrationRegression;
 
+var setPieceTakerCalibrationRegression = SetPieceTakerCalibrationRegression.Run();
+if (setPieceTakerCalibrationRegression != 0) return setPieceTakerCalibrationRegression;
+
 var longShotRegression = LongShotOpportunityRegression.Run();
 if (longShotRegression != 0) return longShotRegression;
 
