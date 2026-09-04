@@ -83,7 +83,7 @@ Web tarafındaki geniş collector hâlâ daha büyük corpus üretebilir; ancak 
 Bu aşamada yeni mekanizma geliştirmek yerine V5'in gerçek WEB sınırından Core motora ve tekrar WEB çıktısına kadar tek sözleşme olarak çalıştığı doğrulanır. Testler aşağıdaki sırayla ve birbirini geçtikten sonra ilerletilir:
 
 ```text
-A) WEB input integrity             🟡 TEST DÜZELTİLDİ — CI RERUN BEKLENİYOR
+A) WEB input integrity             🟡 CI RERUN — BLOCKER FIX UYGULANDI
 B) Core ↔ WEB parity               ⏳
 C) M3→M11 end-to-end               ⏳
 D) Gerçek Hattrick match input     ⏳
@@ -101,7 +101,9 @@ G) production smoke test           ⏳
 
 `HattrickAI_V5.OfflineTests/WebInputIntegrityRegression.cs` oluşturuldu ve offline suite'in ilk kontrolü olarak bağlandı. A testi WEB questionnaire alanlarını, 14 saha slotunu, WEB → API endpoint bağlantılarını, session taşımasını, seçili maç ID'sini ve AnalysisService'in CHPP `teamdetails / training / players / matches / matchlineup / matchdetails` veri akışını statik sözleşme seviyesinde kontrol eder. Oyuncu tarafında 15 temel CHPP alanının map edildiği ve own/opponent 11 oyuncu bütünlüğünün korunduğu doğrulanır.
 
-İlk CI çalışmasında bir assertion ifadesinin yanlış katmana baktığı görüldü ve düzeltildi; test şu anda düzeltilmiş haliyle yeniden CI'a gönderilmektedir. Canlı OAuth/CHPP erişimi A testinin parçası değildir; bu gerçek ortam doğrulaması son aşama olan G production smoke testinde yapılacaktır.
+İlk CI koşusunda A testinden bağımsız mevcut bir derleme engeli de yakalandı: `SpecialtyInteractionEngine` içindeki `AdvancedTactic.Counter` referansı yanlış enum adı kullanıyordu. Bu `AdvancedTactic.CounterAttack` olarak düzeltildi. A testindeki questionnaire assertion da gerçek `questionnaire.MatchImportance` erişimine göre düzeltildi ve slot/questionnaire kontrolleri daha toleranslı hale getirildi.
+
+Canlı OAuth/CHPP erişimi A testinin parçası değildir; bu gerçek ortam doğrulaması son aşama olan G production smoke testinde yapılacaktır.
 
 ## PAPER M8 / TACTIC CONVERSION
 
@@ -136,7 +138,7 @@ Son doğrulanmış baseline:
 HattrickAI V5 Deploy #505  → SUCCESS
 ```
 
-A test commitleri push ile GitHub Actions'a gönderildi. İlk A koşusunda assertion hatası bulundu; düzeltme sonrası yeni CI koşusu tetiklendi.
+A testinde ilk assertion düzeltmesi ve ardından specialty engine derleme blocker'ı giderildi. Güncel branch'te bu iki düzeltmeden sonra yeni CI koşusu tetiklenmiştir.
 
 ## KALANLAR
 
@@ -145,7 +147,7 @@ A test commitleri push ile GitHub Actions'a gönderildi. İlk A koşusunda asser
 2. Specialty ↔ weather / tactic cross-effects          ✅ CODED + REGRESSION
 3. Exact V5 tactic-level → paper RT mapping             ✅ CODED + REGRESSION
 4. Historical multi-match production acceptance         ✅ 60-MATCH CHPP CALIBRATION ACCEPTED
-5. Final WEB production acceptance                      🟡 A TESTİ DÜZELTİLDİ / CI RERUN
+5. Final WEB production acceptance                      🟡 A TESTİ / CI DOĞRULAMASI
 ```
 
 ## KABUL KRİTERİ
