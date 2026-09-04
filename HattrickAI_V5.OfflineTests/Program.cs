@@ -3,8 +3,7 @@ using HattrickAI.V5.OfflineTests;
 
 var webInputIntegrityRegression = WebInputIntegrityRegression.Run();
 if (webInputIntegrityRegression != 0) return webInputIntegrityRegression;
-var coreWebParityRegression = CoreWebParityRegression.Run();
-if (coreWebParityRegression != 0) return coreWebParityRegression;
+var coreWebParityRegression = CoreWebParityRegression.Run(); if (coreWebParityRegression != 0) return coreWebParityRegression;
 var path = args.Length > 0 ? args[0] : "TestJSON/HattrickAI_V5_CHPP_FullOffline_2026-09-01.json";
 var c1M3ContinuityRegression = await M3M11EndToEndRegression.RunAsync(path); if (c1M3ContinuityRegression != 0) return c1M3ContinuityRegression;
 var c2M4LegalFormationRegression = M4LegalFormationRegression.Run(); if (c2M4LegalFormationRegression != 0) return c2M4LegalFormationRegression;
@@ -28,5 +27,6 @@ var c13Db2FormationCoverageRegression = await DB2FormationCoverageRegression.Run
 var c14M11FinalistPoolRegression = await M11FinalistPoolRegression.RunAsync(path); if (c14M11FinalistPoolRegression != 0) return c14M11FinalistPoolRegression;
 var c15M11FinalSelectionRegression = await M11FinalSelectionRegression.RunAsync(path); if (c15M11FinalSelectionRegression != 0) return c15M11FinalSelectionRegression;
 var c16FinalPlanContinuityRegression = await FinalPlanContinuityRegression.RunAsync(path); if (c16FinalPlanContinuityRegression != 0) return c16FinalPlanContinuityRegression;
+var c17FinalPredictionContinuityRegression = await FinalPredictionContinuityRegression.RunAsync(path); if (c17FinalPredictionContinuityRegression != 0) return c17FinalPredictionContinuityRegression;
 var historicalMultiMatchAcceptance = HistoricalMultiMatchProductionAcceptance.Run(path); if (historicalMultiMatchAcceptance != 0) return historicalMultiMatchAcceptance;
 return await FullPipelineRegressionRunner.RunAsync(path);
