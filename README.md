@@ -40,8 +40,8 @@ Bu maddeler "yeni acceptance zincirinin yapılacak işleri" değil, mevcut V5 pr
 ### Yeni acceptance fazı — başlangıç
 
 ```text
-C1  M3 input/output continuity       🔄 AUDIT + REWRITE   ← BAŞLADI
-C2  M4 legal formations              🔄 AUDIT + REGISTRY
+C1  M3 input/output continuity       🟡 CODED — CI BEKLENİYOR
+C2  M4 legal formations              🟡 CODED — CI BEKLENİYOR
 C3  M5 XI candidates                 🟢 ACCEPTED
 C4  M6-A + evaluator chain           🔄 AUDIT + REWRITE
 C5  M7 regional rating               ⏳
@@ -62,8 +62,8 @@ C18 deterministic rerun               ⏳
 
 ### Audit status — C1 → C4
 
-- **C1 M3:** mevcut test/contract yeniden production koduna karşı denetlenecek. Eski M3/M11 fixture veya varsayımlar kabul edilmeyecek.
-- **C2 M4:** mevcut production legal formation registry'si source of truth olacak. Testte gereksiz duplicate hard-code azaltılacak.
+- **C1 M3:** audit + rewrite tamamlandı. Test artık gerçek `PlayerAnalysisEngine` çıktısını ve gerçek `MotorPipelineService` içindeki M3 continuity'yi doğruluyor; fixture-only JSON shape assertion kaldırıldı.
+- **C2 M4:** audit + registry tamamlandı. Production `FormationCandidateEngine.LegalFormations` tek source of truth; test artık duplicate slot dizilerini tutmuyor ve production registry ile M4 çıktısını karşılaştırıyor.
 - **C3 M5:** mevcut production `GenerateCandidates(..., maxCandidatesPerFormation: 20)` davranışıyla uyumlu; regression kabul edildi.
 - **C4 M6-A:** yalnızca M6 sonuçlarının değil, güncel M6-A callback içindeki gerçek **M7 → M7.2 → M8 → M9 evaluator zincirinin** çalıştığı kanıtlanacak.
 
@@ -77,14 +77,7 @@ M4 Legal / Feasible Formations
 M5 XI Candidates (20 / formation)
       ↓
 M6-A Global Search
-      ↓
-M7 Regional Rating
-      ↓
-M7.2 Advanced Tactical Scenario
-      ↓
-M8 Chance / Matchup
-      ↓
-M9 Match Prediction
+      └─ callback içinde: M7 → M7.2 → M8 → M9
       ↓
 Candidate DB #1
       ↓
@@ -93,6 +86,7 @@ M10 Formation Competition
 M10 rank-driven budgets
       ↓
 M6-B Refinement
+      └─ callback içinde: M7 → M7.2 → M8 → M9
       ↓
 Candidate DB #2
       ↓
