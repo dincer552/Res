@@ -60,17 +60,50 @@ public sealed class MotorPipelineService
 
         CandidateEvaluation Evaluate(Lineup lineup, string? currentRunId, TeamAttitude attitude, bool logStages)
         {
-            var signature = Signature(lineup); var tactic = context.RatingContext.Tactic; var state = new MatchState(signature, lineup.Formation, signature, signature, context.RatingContext.MatchLocation, attitude, tactic, TeamSpiritValue(context.Questionnaire.TeamSpirit), context.Questionnaire.Coach); var stageWatch = Stopwatch.StartNew(); var stage = "M7"; var scenario = _m7.CalculateLineup(state, lineup, players, context.RatingContext.Tactic, context.RatingContext.MatchLocation, context.RatingContext.Attitude, context.Questionnaire.TeamSpirit, context.Questionnaire.Coach); if (logStages) LogComplete(currentRunId, stage, $"{lineup.Formation} • rating {scenario.Rating.Midfield:0.##}/{scenario.Rating.CentralAttack:0.##}", stageWatch.ElapsedMilliseconds, 1); stageWatch.Restart(); stage = "M7.2"; var advanced = _m72.CalculateLineup(state, lineup, players, scenario, context.RatingContext.Tactic, context.RatingContext.MatchLocation, context.RatingContext.Attitude, context.Questionnaire.TeamSpirit, context.Questionnaire.Coach); if (logStages) LogComplete(currentRunId, stage, $"{lineup.Formation} • tactic {advanced.Tactic} lvl {advanced.TacticalLevel}", stageWatch.ElapsedMilliseconds, 1); stageWatch.Restart(); stage = "M8"; var m8Input = _m72.BuildM8Input(scenario, advanced); var chance = _m8.Calculate(m8Input, context.Opponent.Rating); if (logStages) LogComplete(currentRunId, stage, $"{lineup.Formation} • possession {chance.MidfieldShare:P1} • regular {chance.OwnRegularChanceExpected:0.##}", stageWatch.ElapsedMilliseconds, 1); return new CandidateEvaluation(new TacticalCandidate(lineup, scenario.Rating, BuildMatchup(scenario.Rating, context.Opponent.Rating, chance), advanced.TacticalScore) { Matchup = BuildMatchup(scenario.Rating, context.Opponent.Rating, chance) }, scenario, advanced, chance);
+            var signature = Signature(lineup);
+            var tactic = context.RatingContext.Tactic;
+            var state = new MatchState(signature, lineup.Formation, signature, signature, context.RatingContext.MatchLocation, attitude, tactic, TeamSpiritValue(context.Questionnaire.TeamSpirit), context.Questionnaire.Coach);
+            var stageWatch = Stopwatch.StartNew();
+            var stage = "M7";
+            try
+            {
+                if (logStages) LogStart(currentRunId, "M7", "Çalışıyor");
+                var scenario = _m7.CalculateLineup(lineup, players, state);
+                if (logStages) LogComplete(currentRunId, "M7", $"{lineup.Formation} • rating {scenario.Rating.Midfield:0.##}/{scenario.Rating.CentralAttack:0.##}", stageWatch.ElapsedMilliseconds, 1);
+                stage = "M7.2";
+                stageWatch.Restart();
+                if (logStages) LogStart(currentRunId, "M7.2", "Çalışıyor");
+                var advanced = _m72.CalculateLineup(lineup, players, state, Average(context.Opponent.Rating));
+                if (logStages) LogComplete(currentRunId, "M7.2", $"Taktik senaryo: {advanced.Tactic} lvl {advanced.Level.Value:0.##}", stageWatch.ElapsedMilliseconds, 1);
+                stage = "M8";
+                stageWatch.Restart();
+                if (logStages) LogStart(currentRunId, "M8", "Çalışıyor");
+                var m8Input = AdvancedTacticalScenarioEngine.BuildM8Input(scenario, advanced);
+                var chance = _m8.Calculate(m8Input, context.Opponent.Rating);
+                if (logStages) LogComplete(currentRunId, "M8", $"{lineup.Formation} • possession {chance.MidfieldShare:P1} • regular {chance.OwnRegularChanceExpected:0.##}", stageWatch.ElapsedMilliseconds, 1);
+                var matchup = BuildMatchup(scenario.Rating, context.Opponent.Rating, chance);
+                var tacticalScore = (0.70 * chance.StructuralChanceIndex) + (0.30 * matchup.OverallScore);
+                return new CandidateEvaluation(new TacticalCandidate(lineup, scenario.Rating, matchup, tacticalScore), scenario, advanced, chance);
+            }
+            catch (Exception ex)
+            {
+                if (logStages) LogFail(currentRunId, stage, ex.Message, stageWatch.ElapsedMilliseconds);
+                throw;
+            }
         }
     }
 
+    private static M9EventGoalBreakdown selectedM9ResultOpponentEvents(M9PredictionResult result) => result.OpponentEventGoals;
+    private static string FormatFormationCounts(IEnumerable<CandidateEvaluationRecord> records) => string.Join(" | ", records.GroupBy(x => x.Formation, StringComparer.Ordinal).OrderByDescending(x => x.Count()).ThenBy(x => x.Key, StringComparer.Ordinal).Select(x => $"{x.Key}:{x.Count()}"));
+    private static PositionAssignmentCandidate ToPositionCandidate(Lineup lineup, string formation, double rankingScore) => new(formation, lineup, Math.Max(0.001, rankingScore), lineup.Slots.ToDictionary(x => x.PlayerId, x => x.Code), 1.0);
     private static double ComputeM9OwnChanceShare(M8ChanceResult chance) => Math.Clamp(chance.OwnRegularChanceExpected / Math.Max(1e-9, chance.OwnRegularChanceExpected + chance.OpponentRegularChanceExpected), 0, 1);
+    private static double Share(double own, double opponent) { var ownSafe = Math.Max(0, own); var opponentSafe = Math.Max(0, opponent); var total = ownSafe + opponentSafe; return total <= 0 ? 0.5 : Math.Clamp(ownSafe / total, 0, 1); }
     private static double ComputeM9OwnLeft(RegionalRatingSnapshot own, RegionalRatingSnapshot opponent) => Share(own.LeftAttack, opponent.RightDefence);
     private static double ComputeM9OwnCentre(RegionalRatingSnapshot own, RegionalRatingSnapshot opponent) => Share(own.CentralAttack, opponent.CentralDefence);
     private static double ComputeM9OwnRight(RegionalRatingSnapshot own, RegionalRatingSnapshot opponent) => Share(own.RightAttack, opponent.LeftDefence);
     private static double ComputeM9OpponentLeft(RegionalRatingSnapshot own, RegionalRatingSnapshot opponent) => Share(opponent.LeftAttack, own.RightDefence);
     private static double ComputeM9OpponentCentre(RegionalRatingSnapshot own, RegionalRatingSnapshot opponent) => Share(opponent.CentralAttack, own.CentralDefence);
-    private static double ComputeM9OpponentRight(RegionalRatingSnapshot own, RegionalRatingSnapshot opponent) => Share(opponent.RightAttack, own.RightDefence);
+    private static double ComputeM9OpponentRight(RegionalRatingSnapshot own, RegionalRatingSnapshot opponent) => Share(opponent.RightAttack, own.LeftDefence);
     private static double WeightedAttackQuality(double left, double centre, double right, double leftWeight, double centreWeight, double rightWeight, double setPieceWeight) { var regularWeight = leftWeight + centreWeight + rightWeight; var weightedRegular = regularWeight <= 0 ? 0.5 : ((left * leftWeight) + (centre * centreWeight) + (right * rightWeight)) / regularWeight; return Math.Clamp((regularWeight * weightedRegular) + (setPieceWeight * 0.5), 0, 1); }
     private static double ComputeM9OwnAttackQuality(RegionalRatingSnapshot own, RegionalRatingSnapshot opponent, M8ChanceResult chance) => WeightedAttackQuality(ComputeM9OwnLeft(own, opponent), ComputeM9OwnCentre(own, opponent), ComputeM9OwnRight(own, opponent), chance.LeftChanceShare, chance.CentreChanceShare, chance.RightChanceShare, chance.SetPieceChanceShare);
     private static double ComputeM9OpponentAttackQuality(RegionalRatingSnapshot own, RegionalRatingSnapshot opponent, M8ChanceResult chance) => WeightedAttackQuality(ComputeM9OpponentLeft(own, opponent), ComputeM9OpponentCentre(own, opponent), ComputeM9OpponentRight(own, opponent), .25, .35, .25, .15);
