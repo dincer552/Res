@@ -7,7 +7,6 @@ namespace HattrickAI.V5.Core;
 public sealed class HistoricalProductionExportService
 {
     private const int DefaultTarget = 300;
-    private const int MaxTarget = 400;
     private const int ArchivePageSize = 50;
     private static readonly TimeSpan RequestSpacing = TimeSpan.FromSeconds(1);
     private readonly ChppV5 _chpp;
@@ -23,7 +22,7 @@ public sealed class HistoricalProductionExportService
         var teamName = XmlV5.Text(team, "TeamName");
         if (teamId <= 0) throw new InvalidOperationException("CHPP takım ID'si alınamadı.");
 
-        var target = Math.Clamp(_chpp.HistoricalProductionTarget <= 0 ? DefaultTarget : _chpp.HistoricalProductionTarget, 1, MaxTarget);
+        var target = DefaultTarget;
         var now = DateTimeOffset.UtcNow;
         var cursor = now.AddYears(-8);
         var archive = new Dictionary<int, ArchiveMatch>();
