@@ -39,8 +39,6 @@ public static class M4LegalFormationRegression
                 Check(definition.SlotCodes.Count(x => x == "GK") == 1, $"registry {definition.Formation} must contain exactly one GK");
             }
 
-            var engine = new PlayerAnalysisEngine();
-            var formationEngine = new FormationCandidateEngine();
             var players = Enumerable.Range(1, 11)
                 .Select(id => new PlayerAnalysisProfile(
                     id,
@@ -55,6 +53,7 @@ public static class M4LegalFormationRegression
                 .ToList();
 
             var m3 = new PlayerAnalysisResult(players);
+            var formationEngine = new FormationCandidateEngine();
             var result = formationEngine.Generate(m3);
 
             Check(result.Candidates.Count == registry.Count, $"M4 emitted {result.Candidates.Count} formations; registry has {registry.Count}");
