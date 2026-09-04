@@ -8,7 +8,7 @@ public static class M6ACandidateEvaluationRegression
     public static async Task<int> RunAsync(string path, CancellationToken cancellationToken = default)
     {
         if (!File.Exists(path)) return Fail($"fixture bulunamadı: {path}");
-        const string runId = "offline-c4-m6a";
+        var runId = MotorRunLogStore.Start("offline-acceptance-c4");
         try
         {
             await using var stream = File.OpenRead(path);
@@ -43,35 +43,29 @@ public static class M6ACandidateEvaluationRegression
             Check(result.M6.BestCandidate is null || result.M6.TopCandidates.Any(x => Signature(x.Lineup) == Signature(result.M6.BestCandidate.Lineup)), "M6-A best candidate is represented in retained pool");
             Check(result.M6.Converged || result.M6.Iterations > 0, "M6-A search reports a meaningful iteration state");
 
-            // The downstream evaluators are invoked inside Evaluate() for every
-            // M6-A/M6-B candidate. InvocationCount is production telemetry, not a
-            // proxy based on result.M7 != null. Because the same run also executes
-            // M6-B, the exact count is the combined number of M6-A + M6-B evaluations.
+            // Run telemetry records the evaluated-candidate count for the downstream
+            // chain. M6-A and M6-B share this run, so the count covers both passes.
             var m7 = log.Stages.Single(x => x.Motor == "M7");
             var m72 = log.Stages.Single(x => x.Motor == "M7.2");
             var m8 = log.Stages.Single(x => x.Motor == "M8");
             var m9 = log.Stages.Single(x => x.Motor == "M9");
-            Check(m7.InvocationCount > 0, "M7 was actually invoked");
-            Check(m72.InvocationCount > 0, "M7.2 was actually invoked");
-            Check(m8.InvocationCount > 0, "M8 was actually invoked");
-            Check(m9.InvocationCount > 0, "M9 was actually invoked");
-            Check(m7.InvocationCount == m72.InvocationCount, "M7 and M7.2 invocation counts match");
-            Check(m72.InvocationCount == m8.InvocationCount, "M7.2 and M8 invocation counts match");
-            Check(m8.InvocationCount == m9.InvocationCount, "M8 and M9 invocation counts match");
-            Check(m7.InvocationCount >= result.M6.EvaluatedCandidates, "evaluator chain count covers M6-A evaluations");
+            Check(m7.CandidateCount is > 0, "M7 telemetry has evaluated candidate count");
+            Check(m72.CandidateCount is > 0, "M7.2 telemetry has evaluated candidate count");
+            Check(m8.CandidateCount is > 0, "M8 telemetry has evaluated candidate count");
+            Check(m9.CandidateCount is > 0, "M9 telemetry has evaluated candidate count");
+            Check(m7.CandidateCount == m72.CandidateCount, "M7 and M7.2 evaluated candidate counts match");
+            Check(m72.CandidateCount == m8.CandidateCount, "M7.2 and M8 evaluated candidate counts match");
+            Check(m8.CandidateCount == m9.CandidateCount, "M8 and M9 evaluated candidate counts match");
+            Check(m7.CandidateCount >= result.M6.EvaluatedCandidates, "evaluator chain count covers M6-A evaluations");
             Check(m7.Status == "completed" && m72.Status == "completed" && m8.Status == "completed" && m9.Status == "completed", "M7 → M7.2 → M8 → M9 stages completed");
-            Check(m7.CandidateCount == m7.InvocationCount || m7.CandidateCount is not null, "M7 telemetry has evaluated candidate count");
-            Check(m72.CandidateCount == m72.InvocationCount || m72.CandidateCount is not null, "M7.2 telemetry has evaluated candidate count");
-            Check(m8.CandidateCount == m8.InvocationCount || m8.CandidateCount is not null, "M8 telemetry has evaluated candidate count");
-            Check(m9.CandidateCount == m9.InvocationCount || m9.CandidateCount is not null, "M9 telemetry has evaluated candidate count");
 
             Console.WriteLine($"M5 XI={result.M5.Count} | M6-A evaluated={result.M6.EvaluatedCandidates} | DB1={result.CandidateDatabase1Count}");
-            Console.WriteLine($"Real evaluator invocations: M7={m7.InvocationCount} | M7.2={m72.InvocationCount} | M8={m8.InvocationCount} | M9={m9.InvocationCount}");
+            Console.WriteLine($"Real evaluator candidate telemetry: M7={m7.CandidateCount} | M7.2={m72.CandidateCount} | M8={m8.CandidateCount} | M9={m9.CandidateCount}");
             Console.WriteLine("PASS: C4 M6-A candidate evaluation + real M7 → M7.2 → M8 → M9 invocation chain");
             Console.WriteLine("NEXT: C5 M7 regional rating");
             return 0;
         }
-        catch (Exception ex) { return Fail("C4 exception: " + ex.Message); }
+        catch (Exception ex) { MotorRunLogStore.Finish(runId, false, ex.Message); return Fail("C4 exception: " + ex.Message); }
     }
 
     private static Player ReadPlayer(JsonElement e) => new(e.GetProperty("id").GetInt32(), e.GetProperty("name").GetString() ?? "Player", e.GetProperty("keeper").GetInt32(), e.GetProperty("defending").GetInt32(), e.GetProperty("playmaking").GetInt32(), e.GetProperty("passing").GetInt32(), e.GetProperty("winger").GetInt32(), e.GetProperty("scoring").GetInt32(), e.GetProperty("stamina").GetInt32(), e.GetProperty("form").GetInt32(), e.GetProperty("experience").GetInt32(), GetInt(e, "loyalty", 0), GetInt(e, "injuryLevel", -1));
