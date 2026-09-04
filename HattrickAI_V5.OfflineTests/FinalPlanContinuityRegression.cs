@@ -8,6 +8,7 @@ public static class FinalPlanContinuityRegression
     public static async Task<int> RunAsync(string path, CancellationToken cancellationToken = default)
     {
         if (!File.Exists(path)) return Fail($"fixture bulunamadı: {path}");
+        var runId = MotorRunLogStore.Start("offline-acceptance-c16");
         try
         {
             await using var stream = File.OpenRead(path);
@@ -21,7 +22,7 @@ public static class FinalPlanContinuityRegression
             var context = new MatchDataContext(players, 0, GetString(analysis.GetProperty("ownLineup"), "teamName", "Fixture"), opponent, RatingContext.Default, MatchQuestionnaire.Default);
 
             Console.WriteLine("=== C16 FINALPLAN CONTINUITY REGRESSION ===");
-            var result = await new MotorPipelineService().RunAsync(context, players, cancellationToken, "offline-c16-finalplan");
+            var result = await new MotorPipelineService().RunAsync(context, players, cancellationToken, runId);
             var m11 = result.M11;
             Check(m11 is not null, "M11 result missing");
             Check(result.FinalPlan is not null, "FinalPlan missing");
@@ -37,13 +38,22 @@ public static class FinalPlanContinuityRegression
             Check(result.FinalPlan.Lineup.Slots.Select(x => x.Code).Distinct(StringComparer.Ordinal).Count() == 11, "FinalPlan lineup contains duplicate slot codes");
             Check(double.IsFinite(result.FinalPlan.TacticalScore), "FinalPlan tactical score is not finite");
 
+            var log = MotorRunLogStore.Get(runId);
+            Check(log is not null, "C16 telemetry missing");
+            Check(IndexOf(log!.Stages, x => x.Motor == "M11" && x.Status == "completed") >= 0, "M11 completed telemetry missing");
+            MotorRunLogStore.Finish(runId, true, "C16 FinalPlan continuity passed");
             Console.WriteLine($"FinalPlan={result.FinalPlan.Formation} | XI=11 | M11 winner continuity=OK");
             Console.WriteLine("PASS: C16 FinalPlan continuity");
             return 0;
         }
-        catch (Exception ex) { return Fail("C16 exception: " + ex.Message); }
+        catch (Exception ex)
+        {
+            MotorRunLogStore.Finish(runId, false, ex.Message);
+            return Fail("C16 exception: " + ex.Message);
+        }
     }
 
+    private static int IndexOf<T>(IReadOnlyList<T> source, Func<T, bool> predicate) { for (var i = 0; i < source.Count; i++) if (predicate(source[i])) return i; return -1; }
     private static Player ReadPlayer(JsonElement e) => new(e.GetProperty("id").GetInt32(), e.GetProperty("name").GetString() ?? "Player", e.GetProperty("keeper").GetInt32(), e.GetProperty("defending").GetInt32(), e.GetProperty("playmaking").GetInt32(), e.GetProperty("passing").GetInt32(), e.GetProperty("winger").GetInt32(), e.GetProperty("scoring").GetInt32(), e.GetProperty("stamina").GetInt32(), e.GetProperty("form").GetInt32(), e.GetProperty("experience").GetInt32(), GetInt(e, "loyalty", 0), GetInt(e, "injuryLevel", -1));
     private static RegionalRatingSnapshot ReadRating(JsonElement e) { var ld = GetDouble(e, "leftDefence"); var cd = GetDouble(e, "centralDefence"); var rd = GetDouble(e, "rightDefence"); var mid = GetDouble(e, "midfield"); var la = GetDouble(e, "leftAttack"); var ca = GetDouble(e, "centralAttack"); var ra = GetDouble(e, "rightAttack"); return new RegionalRatingSnapshot(ld, cd, rd, mid, la, ca, ra, ld, cd, rd, mid, la, ca, ra); }
     private static string Signature(Lineup lineup) => string.Join(";", lineup.Slots.OrderBy(s => s.Code, StringComparer.Ordinal).ThenBy(s => s.PlayerId).Select(s => $"{s.Code}:{s.PlayerId}:{(int)s.Order}"));
