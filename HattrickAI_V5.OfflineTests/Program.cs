@@ -47,6 +47,9 @@ if (c5M7RegionalRatingRegression != 0) return c5M7RegionalRatingRegression;
 var c6M72TacticalScenarioRegression = await M7_2TacticalScenarioRegression.RunAsync(path);
 if (c6M72TacticalScenarioRegression != 0) return c6M72TacticalScenarioRegression;
 
+var c7M8ChanceModelRegression = await M8ChanceModelRegression.RunAsync(path);
+if (c7M8ChanceModelRegression != 0) return c7M8ChanceModelRegression;
+
 var historicalMultiMatchAcceptance = HistoricalMultiMatchProductionAcceptance.Run(path);
 if (historicalMultiMatchAcceptance != 0) return historicalMultiMatchAcceptance;
 
