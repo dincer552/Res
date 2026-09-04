@@ -19,14 +19,17 @@ public static class DB1FormationCoverageRegression
             var context = new MatchDataContext(players,0,GetString(analysis.GetProperty("ownLineup"),"teamName","Fixture"),opponent,RatingContext.Default,MatchQuestionnaire.Default);
             Console.WriteLine("=== C9 DB1 FORMATION COVERAGE REGRESSION ===");
             var result = await new MotorPipelineService().RunAsync(context,players,cancellationToken,"offline-c9-db1");
-            var legal = result.M4.Candidates.Select(x=>x.Formation).Distinct(StringComparer.Ordinal).OrderBy(x=>x,StringComparer.Ordinal).ToList();
+            var legal = result.M4.Candidates.Select(x=>x.Formation).Where(x=>!string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.Ordinal).OrderBy(x=>x,StringComparer.Ordinal).ToList();
+            Check(legal.Count > 0,"M4 legal formation set is empty");
             Check(result.CandidateDatabase1Count > 0,"DB1 is not empty");
+            Check(result.CandidateDatabase1Count <= 100,"DB1 exceeds production TopWithFormationDiversity cap");
             Check(result.CandidateDatabase1Count >= legal.Count,"DB1 has at least one candidate per legal formation");
             Check(result.M6.EvaluatedCandidates >= legal.Count,"M6-A evaluated enough candidates to support legal formation coverage");
             var log = MotorRunLogStore.Get("offline-c9-db1");
             Check(log is not null,"DB1 run telemetry exists");
             Check(log!.Stages.Any(x=>x.Motor=="M6" && x.Status=="completed"),"M6 completed telemetry exists");
             Check(log.Stages.Any(x=>x.Motor=="M9" && x.Status=="completed"),"downstream M9 completed before DB1");
+            Check(log.Stages.First(x=>x.Motor=="M9").CandidateCount.GetValueOrDefault() > 0,"M9 downstream evaluator produced candidates before DB1");
             Console.WriteLine($"DB1 count={result.CandidateDatabase1Count} | legal formations={legal.Count} | M6-A evaluated={result.M6.EvaluatedCandidates}");
             Console.WriteLine("PASS: C9 DB1 formation coverage continuity"); return 0;
         } catch(Exception ex){return Fail("C9 exception: "+ex.Message);}
