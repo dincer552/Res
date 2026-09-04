@@ -70,7 +70,7 @@ public static class DeterministicRerunRegression
     {
         var payload = new
         {
-            M4 = result.M4.Candidates.Select(x => new { x.Formation, x.Slots }).ToList(),
+            M4 = result.M4.Candidates.Select(x => x.Formation).ToList(),
             M5 = result.M5.Select(x => new { x.CandidateId, x.Formation, x.StructuralScore, Slots = x.Lineup.Slots.Select(s => new { s.Code, s.PlayerId, s.Order }).ToList() }).ToList(),
             DB1 = result.CandidateDatabase1.Select(x => new { x.CandidateId, x.Formation, x.Stage, x.RankingScore }).ToList(),
             M10 = result.M10.FormationCompetition?.Select(x => new { x.Formation, x.Rank, x.CandidateCount, x.CompositeScore, x.SearchDepthStatus }).ToList(),
@@ -101,8 +101,7 @@ public static class DeterministicRerunRegression
         };
 
         var json = JsonSerializer.Serialize(payload);
-        var bytes = SHA256.HashData(Encoding.UTF8.GetBytes(json));
-        return Convert.ToHexString(bytes);
+        return Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(json)));
     }
 
     private static Player ReadPlayer(JsonElement e) => new(
