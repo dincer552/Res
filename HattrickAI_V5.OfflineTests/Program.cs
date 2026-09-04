@@ -1,6 +1,9 @@
 using HattrickAI.V5.Core;
 using HattrickAI.V5.OfflineTests;
 
+var historicalCalibrationRegression = HistoricalCalibrationRegression.Run();
+if (historicalCalibrationRegression != 0) return historicalCalibrationRegression;
+
 var longShotRegression = LongShotOpportunityRegression.Run();
 if (longShotRegression != 0) return longShotRegression;
 
