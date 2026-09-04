@@ -50,7 +50,7 @@ C7  M8 chance model                  🟢 ACCEPTED
 C8  M9 prediction                    🟢 ACCEPTED
 C9  DB1 formation coverage           🟢 ACCEPTED
 C10 M10 formation competition        🟢 ACCEPTED
-C11 M10 → M6-B rank-driven handoff   ⏳
+C11 M10 → M6-B rank-driven handoff   🟢 ACCEPTED
 C12 M6-B refinement                  ⏳
 C13 DB2 formation coverage            ⏳
 C14 M11 finalist pool                 ⏳
@@ -60,7 +60,7 @@ C17 FinalPrediction continuity        ⏳
 C18 deterministic rerun               ⏳
 ```
 
-### Audit status — C1 → C10
+### Audit status — C1 → C11
 
 - **C1 M3:** audit + rewrite tamamlandı. Test gerçek `PlayerAnalysisEngine` çıktısını ve gerçek `MotorPipelineService` içindeki M3 continuity'yi doğruluyor.
 - **C2 M4:** audit + registry tamamlandı. Production `FormationCandidateEngine.LegalFormations` tek source of truth; test duplicate formation/slot listesini tekrar tanımlamıyor.
@@ -72,6 +72,7 @@ C18 deterministic rerun               ⏳
 - **C8 M9:** gerçek pipeline M9 çıktısı, pipeline'ın en sonunda gerçekten seçilmiş `FinalPlan` XI'ı + aynı production M7 rating + M8 chance ile `M9MatchPredictionEngine.Predict` üzerinden yeniden hesaplanıyor. CandidateId/formasyon, xG, W/D/L, event-goal katmanı, Monte Carlo outcome ve most-likely score kontrolleri yapılıyor; W/D/L toplamı 1 ve sayısal sınırlar korunuyor.
 - **C9 DB1:** gerçek M6-A sonrası Candidate DB #1 kontrol ediliyor. DB1 boş olamaz, production `TopWithFormationDiversity` üst sınırını aşamaz, legal M4 formasyonlarını kapsamalı ve M6-A downstream evaluator zinciri DB1 öncesi tamamlanmış olmalı. Coverage'ın kaynağı M6 global TopCandidates değil, production DB1 diversity mekanizmasıdır.
 - **C10 M10:** gerçek M10 formation competition kontrol ediliyor. Tüm legal M4 formasyonları tekilleştirilmiş şekilde yarışta olmalı, rank'ler 1..N ardışık olmalı, composite/win scores finite olmalı, her formasyonun adayı bulunmalı ve `BestPlan` rank #1 ile eşleşmeli. M10 telemetry completion ayrıca doğrulanıyor; aynı production pipeline deterministic rerun ile kazanan ve competition depth tekrar doğrulanıyor.
+- **C11 M10 → M6-B:** gerçek pipeline'ın M10 competition çıktısı doğrudan production M6-B budget map'e aktarılıyor. Test, tüm legal formasyonların rank taşıdığını, her formasyon için M6-B budget üretildiğini, budget'ın production rank-tier fonksiyonuyla birebir aynı olduğunu, daha iyi M10 rank'ının daha zayıf beam/iteration budget alamadığını ve M10 completion'ın M6-B'den önce gerçekleştiğini doğruluyor. Test budget formülünü kopyalamıyor; production acceptance helper'ın ürettiği map'i gerçek pipeline sonucuyla karşılaştırıyor.
 
 ### Güncel production zinciri
 
@@ -89,7 +90,7 @@ Candidate DB #1
       ↓
 M10 Formation Competition
       ↓
-M10 rank-driven budgets
+M10 rank-driven budgets  ← C11 acceptance
       ↓
 M6-B Refinement
       └─ callback içinde gerçek invocation: M7 → M7.2 → M8 → M9
@@ -112,7 +113,7 @@ PRODUCTION  → gerçek CHPP/maç verisiyle doğrulandı
 Yeni çalışma sırası:
 
 ```text
-C1 → C2 → C3 → C4 → C5 → C6 → C7 → C8 → C9 → C10 → C11 → ... → C18
+C1 → C2 → C3 → C4 → C5 → C6 → C7 → C8 → C9 → C10 → C11 → C12 → ... → C18
 ```
 
-**C1–C10 audit/regression çalışmaları tamamlandı.** Sıradaki iş **C11 M10 → M6-B rank-driven handoff**.
+**C1–C11 audit/regression çalışmaları tamamlandı.** Sıradaki iş **C12 M6-B refinement**.
