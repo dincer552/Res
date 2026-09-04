@@ -2,7 +2,7 @@ using System.Collections.Concurrent;
 
 namespace HattrickAI.V5.Core;
 
-public sealed record MotorLogStage(string Motor, string Status, string Message, long DurationMs, int? CurrentIteration = null, int? MaxIterations = null, int? CandidateCount = null, DateTimeOffset? UpdatedAt = null);
+public sealed record MotorLogStage(string Motor, string Status, string Message, long DurationMs, int? CurrentIteration = null, int? MaxIterations = null, int? CandidateCount = null, DateTimeOffset? UpdatedAt = null, int InvocationCount = 0);
 public sealed record MotorRunLog(string RunId, string Status, DateTimeOffset StartedAt, DateTimeOffset UpdatedAt, string FinalMessage, IReadOnlyList<MotorLogStage> Stages);
 
 public static class MotorRunLogStore
@@ -32,6 +32,18 @@ public static class MotorRunLogStore
         => Runs.Values.Where(x => string.Equals(x.OwnerKey, ownerKey, StringComparison.Ordinal)).OrderByDescending(x => x.StartedAt).FirstOrDefault()?.Snapshot();
 
     public static void StartMotor(string runId, string motor, string message = "Çalışıyor") => Update(runId, motor, "running", message, 0);
+    public static void IncrementInvocation(string runId, string motor)
+    {
+        if (!Runs.TryGetValue(runId, out var run)) return;
+        lock (run.Sync)
+        {
+            var index = run.Stages.FindIndex(x => string.Equals(x.Motor, motor, StringComparison.Ordinal));
+            if (index < 0) return;
+            var old = run.Stages[index];
+            run.Stages[index] = old with { InvocationCount = old.InvocationCount + 1, UpdatedAt = DateTimeOffset.UtcNow };
+            run.UpdatedAt = DateTimeOffset.UtcNow;
+        }
+    }
     public static void CompleteMotor(string runId, string motor, string message, long durationMs = 0, int? candidateCount = null) => Update(runId, motor, "completed", message, durationMs, null, null, candidateCount);
     public static void FailMotor(string runId, string motor, string message, long durationMs = 0) => Update(runId, motor, "failed", message, durationMs);
     public static void Progress(string runId, string motor, string message, int current, int maximum) => Update(runId, motor, "running", message, 0, current, maximum);
@@ -63,7 +75,8 @@ public static class MotorRunLogStore
                 CurrentIteration = current ?? old.CurrentIteration,
                 MaxIterations = maximum ?? old.MaxIterations,
                 CandidateCount = candidateCount ?? old.CandidateCount,
-                UpdatedAt = DateTimeOffset.UtcNow
+                UpdatedAt = DateTimeOffset.UtcNow,
+                InvocationCount = old.InvocationCount
             };
             run.UpdatedAt = DateTimeOffset.UtcNow;
         }
