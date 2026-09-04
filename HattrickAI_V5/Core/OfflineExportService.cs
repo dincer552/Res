@@ -22,6 +22,9 @@ public sealed class OfflineExportService
     public async Task<object> ExportAsync(string build, MatchQuestionnaire questionnaire, CancellationToken ct)
     {
         if (!_chpp.Connected) throw new UnauthorizedAccessException("CHPP bağlantısı yok.");
+        if (_chpp.HistoricalProductionExportRequested)
+            return await new HistoricalProductionExportService(_chpp).ExportAsync(build, ct);
+
         var analysis = await _analysis.RunAsync(build, questionnaire, ct);
         var teamXml = await _chpp.GetXmlAsync("teamdetails", new Dictionary<string,string?> { ["version"] = "3.0" }, ct);
         var teamNode = XmlV5.Root(teamXml)?.Descendants("Team").FirstOrDefault();
