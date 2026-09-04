@@ -1,6 +1,9 @@
 using HattrickAI.V5.Core;
 using HattrickAI.V5.OfflineTests;
 
+var webInputIntegrityRegression = WebInputIntegrityRegression.Run();
+if (webInputIntegrityRegression != 0) return webInputIntegrityRegression;
+
 var historicalCalibrationRegression = HistoricalCalibrationRegression.Run();
 if (historicalCalibrationRegression != 0) return historicalCalibrationRegression;
 
