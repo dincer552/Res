@@ -19,6 +19,14 @@ jobs:
       - name: Checkout V5
         uses: actions/checkout@v4
 
+      - name: Offline acceptance regression
+        shell: bash
+        run: |
+          set -Eeuo pipefail
+          echo "🧪 V5 offline acceptance regression başlıyor..."
+          dotnet run --project HattrickAI_V5.OfflineTests/HattrickAI_V5.OfflineTests.csproj -- TestJSON/HattrickAI_V5_CHPP_FullOffline_2026-09-01.json
+          echo "✅ V5 offline acceptance regression tamamlandı"
+
       - name: Build Docker image
         shell: bash
         run: |
