@@ -8,11 +8,7 @@ V5 hedefi: **oyuncu → formasyon → XI → rating → taktik → chance → ev
 
 Ana araştırma referansı: Anthony C. Constantinou, Nicholas C. Higgins, Neville K. Kitson — *Decoding the mechanisms of the Hattrick football manager game using Bayesian network structure learning*, Entertainment Computing 57 (2026) 101131. DOI: `10.1016/j.entcom.2026.101131`.
 
----
-
 ## GERÇEK ÇALIŞMA SIRASI
-
-Motorlar bağımsız paralel hesaplar olarak değil, aşağıdaki bağımlılık zinciriyle çalışıyor:
 
 ```text
 M3 Player Analysis
@@ -30,26 +26,11 @@ M6-A Global Search
       │     M8 Chance Allocation
       │       ↓
       │     event → goal + W/D/L
-      │
       ↓
-DB1
-  ↓
-M10 Formation Competition / Rank
-  ↓
-M6-B Rank-Driven Refinement
-  │
-  └─→ her seed için tekrar M7 → M7.2 → M8 → event/goal
-  ↓
-DB2
-  ↓
-M11 Final Selector
-  ↓
-WEB
+DB1 → M10 → M6-B → DB2 → M11 → WEB
 ```
 
-**Önemli:** M7/M7.2/M8/event-goal zinciri M6-A'nın candidate evaluator'ının downstream parçalarıdır. M10, M6-A/DB1 tamamlandıktan sonra çalışır. M6-B, M10 rank'ını kullanır ve kendi adaylarını tekrar aynı evaluator zincirinden geçirir.
-
----
+**Önemli:** M7/M7.2/M8/event-goal zinciri M6-A ve M6-B candidate evaluator'larının downstream parçalarıdır.
 
 ## MOTOR DURUMU
 
@@ -69,42 +50,30 @@ WEB
 | DB2 | ✅ |
 | M11 | ✅ |
 | UI / Motor Panel | ✅ |
-| **Historical Calibration Engine** | **✅ CODED + REGRESSION** |
+| Historical Calibration Engine | ✅ CODED + REGRESSION |
+| Set-piece taker calibration | ✅ CODED + REGRESSION |
+| Specialty ↔ weather / tactic | ✅ CODED + REGRESSION |
+| V5 tactic-level → paper RT mapping | 🟡 CALIBRATION IN PROGRESS |
 
----
+## 04.09.2026 — SPECIALTY INTERACTION TAMAMLANDI
 
-## 04.09.2026 — HISTORICAL CALIBRATION TAMAMLANDI
+`SpecialtyInteractionEngine` ile aşağıdaki mekanizmalar kodlandı ve offline regression'a bağlandı:
 
-Historical calibration artık ayrı bir kod katmanı olarak tamamlandı:
+- Technical / Powerful / Quick weather etkileri (%5 skill etkisi)
+- Quick oyuncuların Counter Attack tactic-level bonusu ve rakip Quick savunmacı azaltması
+- Technical Defensive Forward passing etkisi
+- Powerful oyuncuların Pressing savunma ağırlığı
+- Technical defender/wing-back non-tactical counterattack sinyali
+- Head specialty corner/set-piece etkisi
+- Creative special-event amplification
 
-```text
-HistoricalCalibrationEngine
-        ↓
-HatStats >= 333 filtresi
-        ↓
-CHPP match observations
-        ↓
-sector / event / Long Shot ölçümü
-        ↓
-paper baseline ile hata karşılaştırması
-        ↓
-activation gate
-```
+Hattrick'in geliştirici dokümantasyonu Technical/Powerful/Quick weather etkilerini %5, Quick CA bonusunu ise 1 ekstra Quick için %5 ve 8 için %14'e kadar tanımlar. V5, kaynakta açıkça bulunmayan ara katsayıları production gerçeği gibi sunmaz; calibration gerektiğinde ayrı tutulur.
 
-### Kalibrasyon motorunun ölçtükleri
+## HISTORICAL CALIBRATION
 
-- Normal L/M/R toplam chance hacmi
-- L/M/R sektör payları
-- Paper baseline'a signed error
-- Published special-event occurrence + goal-rate referansları
-- Historical special-event occurrence / goal-rate
-- Long Shot attempts / goals
-- Tactic rating'e göre gözlenen Long Shot conversion
-- Paper C.2 Long Shot curve'üne MAE
+Historical calibration katmanı gerçek CHPP gözlemlerini paper baseline ile karşılaştırmak üzere ayrı tutulur.
 
-### Production güvenlik kuralı
-
-Historical fit otomatik olarak production katsayısını değiştirmez. Aday tarihsel kalibrasyonun production'a geçebilmesi için:
+Production activation gate:
 
 ```text
 >= 250 eligible matches
@@ -114,90 +83,73 @@ AND
 regression comparison
 ```
 
-Bu gate, tek bir fixture veya küçük sample'ın maç motorunu bozmasını önler.
+Historical fit production katsayılarını otomatik değiştirmez.
 
-### Araştırma makalesi baseline'ı
+## SET-PIECE TAKER
 
-Paper'daki tarihsel 1 milyon maçlık modelden yayımlanan referans oranlar kod içinde immutable baseline olarak tutulur:
+Set-piece taker skill için calibration engine ve regression mevcut. Taker seçimi ve gözlem corpus'u hazırdır; gerçek hidden-game-engine conversion katsayısı yeterli matched historical CHPP/event verisi gelmeden production katsayısı olarak aktive edilmez.
 
-```text
-Winger                  21.63%   goal .4951
-Technical over Head     12.77%   goal .2937
-Quick Rush              12.86%   goal .3670
-Quick Pass              12.19%   goal .4387
-Unpred Long Pass         6.87%   goal .4090
-Unpred Score Own         5.36%   goal .5822
-Unpred Special Action    5.60%   goal .4241
-Unpred Mistake            2.90%  goal .1816
-Unpred Own Goal           3.92%  goal .1725
-Experienced Forward       4.00%  goal .3704
-Inexperienced Defender   3.92%  goal .1050
-Tired Defender             .04%  goal .3432
-Corner                   29.22%  goal .4849
-```
+## PAPER M8 / TACTIC CONVERSION
 
-Paper, bu hyperparameter'ların historical data ile öğrenildiğini ve event modelinin Normal-vs-Normal + ilgili speciality'lerin mümkün olduğu maçlara göre kurulduğunu açıklar. fileciteturn523file0
-
-### Long Shot
-
-Paper Appendix C.2'de Long Shot dönüşümü:
+Paper Appendix C.2'de tactic conversion rate, tactic rating `RT` üzerinden Equation B.2 ile tanımlanır:
 
 ```text
-TCR(RT) = 0.00761935·RT + 0.07520052
+Counter:
+-0.617941717072569 + 0.104274398·RT
+-0.00358354796·RT² + 0.0000434356·RT³
+
+AiM:
+-0.00036765·RT² + 0.02180462·RT + 0.0705084
+
+AoW:
+-0.00046569·RT² + 0.02894608·RT + 0.10514706
+
+Long Shot:
+0.00761935·RT + 0.07520052
+
+Pressing:
+-0.00780421·RT² + 0.471402·RT - 1.10735
 ```
 
-Historical calibration engine gerçek CHPP gözlemlerini bu eğriyle karşılaştırır; yeterli tarihsel veri olmadan eğriyi yeniden yazmaz. fileciteturn523file0
+V5 artık M8 içinde linear `min/max` interpolation yerine bu **paper Equation B.2 curves**'ünü kullanıyor.
 
-### Mevcut 60-maç CHPP doğrulaması
-
-Daha önceki 60 gerçek CHPP maçı, PDF chance mimarisinin ayrıca doğrulandığını gösteriyor:
+`TacticPaperMappingEngine` ayrıca V5'in mevcut 0–10 internal tactical scale'ini paper'ın RT ölçeğine açık bir calibration katmanı olarak map ediyor:
 
 ```text
-Observed L/M/R total = 8.80 / match
-Paper expectation      = 8.745 / match
+V5 0  → RT 0
+V5 5  → RT 20
+V5 10 → RT 40
 ```
 
-Ve possession/chance ownership tarafında paper Eq.1, daha önceki basit/regression yaklaşımlarından daha düşük hata vermişti. Bu nedenle production chance çekirdeği paper mekanizmasına bağlı tutuluyor.
+Bu mapping regression ile doğrulanıyor. Ancak bu ölçek eşlemesi henüz gerçek CHPP `TacticSkill` corpus'u ile production-calibrated değildir; dolayısıyla README'de bilinçli olarak **CALIBRATION IN PROGRESS** tutuluyor.
 
----
+## PAPER CHANCE BASELINE
 
-## PAPER MEKANİZMASI
-
-Paper 1 milyon match / 250 variable dataset kullanıyor; minimum HatStats eşiği 333. Inputlarda sector ratings, midfield, ISP ratings, tactic/tactic skill ve speciality sayıları bulunuyor. fileciteturn523file0
-
-Production'da kullanılan çekirdek:
+Paper-derived production baseline:
 
 ```text
 Eq.1  possession
 Eq.2  5 exclusive + 5 shared
 Eq.3  L/M/R + set-piece distribution
 Eq.4  attack vs defence scoring
-C.1   set-piece regression utility
+C.1   set-piece scoring regression
 C.2   tactic conversion curves
 ```
 
-C.2 curve'leri dead utility değil; tactic opportunity/handoff hesaplarında kullanılıyor. Exact V5 tactic-level → paper RT eşlemesi ise ayrı bir calibration problemi olarak korunuyor.
-
----
+Paper'ın 1 milyon maçlık datasetinde tactic/tactic skill, sector ratings, midfield, ISP ratings ve specialty sayıları input olarak kullanılır.
 
 ## FULL CHPP JSON — OFFLINE ACCEPTANCE
-
-Canonical regression girdisi:
 
 ```text
 TestJSON/
 └── HattrickAI_V5_CHPP_FullOffline_2026-09-01.json
 ```
 
-Gerçek offline zincirde gerekli core data bulunduğu ve M3→M11 akışının geçtiği doğrulandı.
-
----
+Offline zincirde M3→M11 akışının çalışması regression ile doğrulanır.
 
 ## CI CHECKPOINT
 
-Current branch HEAD: `v5`
-
-Son doğrulanmış workflow:
+Son doğrulanmış production workflow:
 
 ```text
 HattrickAI V5 Deploy #505  → SUCCESS
@@ -209,23 +161,19 @@ Azure deployment     PASS
 Health check         PASS
 ```
 
----
+Yeni specialty / tactic mapping değişiklikleri CI'da ayrıca doğrulanmaktadır.
 
 ## KALANLAR
 
-Historical calibration katmanı tamamlandı. Bundan sonra gerçek production doğrulaması için kalan işler:
-
 ```text
-1. Set-piece taker skill → exact goal conversion       ⏳ DATA
-2. Specialty ↔ weather / tactic cross-effects          ⏳ DATA
-3. Exact V5 tactic-level → paper RT mapping             ⏳ CALIBRATION
+1. Set-piece taker skill → exact goal conversion       ✅ CODED + REGRESSION / PRODUCTION DATA
+2. Specialty ↔ weather / tactic cross-effects          ✅ CODED + REGRESSION
+3. Exact V5 tactic-level → paper RT mapping             🟡 CALIBRATION
 4. Historical multi-match production acceptance         ⏳ DATA
 5. Final WEB production acceptance                      ⏳
 ```
 
-Buradaki `⏳ DATA` maddeleri kod eksikliği değildir; gerekli çoklu gerçek CHPP/event corpus veya hidden game-engine değişkenleri olmadan güvenilir katsayı üretilemez.
-
----
+Buradaki `⏳ DATA` maddeleri kod eksikliği değildir; gerekli çoklu gerçek CHPP/event corpus veya hidden game-engine değişkenleri olmadan güvenilir production katsayısı üretilemez.
 
 ## KABUL KRİTERİ
 
@@ -235,4 +183,4 @@ REGRESSION  → offline test geçiyor
 PRODUCTION  → gerçek CHPP/maç verisiyle doğrulandı
 ```
 
-Historical calibration için engine + regression artık `CODED + REGRESSION` seviyesindedir; production activation yalnızca yeterli gerçek historical corpus geldiğinde yapılır.
+Tactic RT mapping şu anda **CODED + REGRESSION**, fakat production kabulü için gerçek CHPP tactic-skill gözlemleriyle calibration karşılaştırması bekleniyor.
