@@ -29,5 +29,6 @@ var c11M10ToM6BHandoffRegression = await M10ToM6BRankDrivenHandoffRegression.Run
 var c12M6BRefinementRegression = await M6BRefinementRegression.RunAsync(path); if (c12M6BRefinementRegression != 0) return c12M6BRefinementRegression;
 var c13Db2FormationCoverageRegression = await DB2FormationCoverageRegression.RunAsync(path); if (c13Db2FormationCoverageRegression != 0) return c13Db2FormationCoverageRegression;
 var c14M11FinalistPoolRegression = await M11FinalistPoolRegression.RunAsync(path); if (c14M11FinalistPoolRegression != 0) return c14M11FinalistPoolRegression;
+var c15M11FinalSelectionRegression = await M11FinalSelectionRegression.RunAsync(path); if (c15M11FinalSelectionRegression != 0) return c15M11FinalSelectionRegression;
 var historicalMultiMatchAcceptance = HistoricalMultiMatchProductionAcceptance.Run(path); if (historicalMultiMatchAcceptance != 0) return historicalMultiMatchAcceptance;
 return await FullPipelineRegressionRunner.RunAsync(path);
