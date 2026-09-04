@@ -30,8 +30,6 @@ public sealed class FormationCandidateEngine : IFormationCandidateEngine
         return Generate(players);
     }
 
-    // M4 is structural only. Its feasibility and structural score use the same
-    // eligible player universe that M5 is allowed to consume.
     public FormationCandidateSet Generate(PlayerAnalysisResult players)
     {
         ArgumentNullException.ThrowIfNull(players);
@@ -56,26 +54,16 @@ public sealed class FormationCandidateEngine : IFormationCandidateEngine
         return new FormationCandidateSet(available);
     }
 
-    private static bool HasFeasibleAssignment(
-        IReadOnlyList<PlayerAnalysisProfile> players,
-        IReadOnlyList<string> slots)
+    private static bool HasFeasibleAssignment(IReadOnlyList<PlayerAnalysisProfile> players, IReadOnlyList<string> slots)
         => TryAssign(slots, players, 0, new HashSet<int>());
 
-    private static bool TryAssign(
-        IReadOnlyList<string> slots,
-        IReadOnlyList<PlayerAnalysisProfile> profiles,
-        int index,
-        HashSet<int> used)
+    private static bool TryAssign(IReadOnlyList<string> slots, IReadOnlyList<PlayerAnalysisProfile> profiles, int index, HashSet<int> used)
     {
         if (index == slots.Count) return true;
 
         var remaining = slots.Skip(index).ToList();
         var next = remaining
-            .Select(code => new
-            {
-                Code = code,
-                Count = profiles.Count(p => !used.Contains(p.PlayerId) && Score(p, code) > 0)
-            })
+            .Select(code => new { Code = code, Count = profiles.Count(p => !used.Contains(p.PlayerId) && Score(p, code) > 0) })
             .OrderBy(x => x.Count)
             .ThenBy(x => PositionOrder(x.Code))
             .First();
@@ -97,9 +85,7 @@ public sealed class FormationCandidateEngine : IFormationCandidateEngine
         return false;
     }
 
-    private static double StructuralFeasibilityScore(
-        IReadOnlyList<PlayerAnalysisProfile> players,
-        IReadOnlyList<string> slots)
+    private static double StructuralFeasibilityScore(IReadOnlyList<PlayerAnalysisProfile> players, IReadOnlyList<string> slots)
     {
         var remaining = slots.ToList();
         var used = new HashSet<int>();
@@ -108,11 +94,7 @@ public sealed class FormationCandidateEngine : IFormationCandidateEngine
         while (remaining.Count > 0)
         {
             var next = remaining
-                .Select(code => new
-                {
-                    Code = code,
-                    Count = players.Count(p => !used.Contains(p.PlayerId) && Score(p, code) > 0)
-                })
+                .Select(code => new { Code = code, Count = players.Count(p => !used.Contains(p.PlayerId) && Score(p, code) > 0) })
                 .OrderBy(x => x.Count)
                 .ThenBy(x => PositionOrder(x.Code))
                 .First();
@@ -151,7 +133,6 @@ public sealed class FormationCandidateEngine : IFormationCandidateEngine
         "IM-R" => 23,
         "W-R" => 24,
         "FW-L" => 30,
-        "FW-C" => 31,
         "FW-C" => 31,
         "FW-R" => 32,
         _ => 99
