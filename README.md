@@ -24,18 +24,18 @@ C12 M6-B refinement                  🟢 ACCEPTED
 C13 DB2 formation coverage            🟢 ACCEPTED
 C14 M11 finalist pool                 🟢 ACCEPTED
 C15 M11 final selection               🟢 ACCEPTED
-C16 FinalPlan continuity              🟡 REGRESSION ADDED
-C17 FinalPrediction continuity        🟡 REGRESSION ADDED
-C18 deterministic rerun               🟡 REGRESSION ADDED
+C16 FinalPlan continuity              🟢 ACCEPTED
+C17 FinalPrediction continuity        🟢 ACCEPTED
+C18 deterministic rerun               🟡 RELEASE GATE
 ```
 
 ### Audit status — C1 → C18
 
-C1–C15 audit/regression çalışmaları tamamlandı.
+C1–C17 tamamlandı ve production pipeline'a bağlı regression kontrolleriyle korunuyor.
 
-- C16: FinalPlan ile M11 BestPlan arasında formasyon, XI, rating, matchup ve tactical score continuity doğrulanıyor.
-- C17: FinalPrediction'ın M11 prediction, seçilen M9 prediction ve DB2 winner prediction ile birebir continuity'si; candidate/formasyon identity, W/D/L, xG, simulation ve most-likely score bütünlüğü doğrulanıyor.
-- C18: aynı fixture ve aynı pipeline context'i iki kez çalıştırıp M4→M11 sonuç fingerprint'i, DB1/DB2, M11 ranking, FinalPlan/XI, FinalPrediction ve M9 simulation çıktılarının birebir deterministik kaldığını doğruluyor.
+- C16: FinalPlan ile M11 BestPlan arasında formasyon, XI, rating, matchup ve tactical score continuity.
+- C17: FinalPrediction'ın M11 prediction, seçilen M9 prediction ve DB2 winner prediction ile birebir continuity'si; candidate/formasyon identity, W/D/L, xG, simulation ve most-likely score bütünlüğü.
+- C18: aynı fixture ve aynı pipeline context'i iki kez çalıştırıp M4→M11 sonuç fingerprint'i, DB1/DB2, M11 ranking, FinalPlan/XI, FinalPrediction ve M9 simulation çıktılarının birebir deterministik kaldığını doğrular.
 
 ### Güncel production zinciri
 
@@ -51,6 +51,8 @@ M3 → M4 → M5 → M6-A → M7 → M7.2 → M8 → M9 → DB1
                                           FinalPlan
                                               ↓
                                       FinalPrediction
+                                              ↓
+                                             WEB
 ```
 
 ### Kabul kriteri
@@ -61,4 +63,8 @@ REGRESSION  → güncel production pipeline'a bağlı offline test geçiyor
 PRODUCTION  → gerçek CHPP/maç verisiyle doğrulandı
 ```
 
-C18 regression artık `Program.cs` üzerinden production `MotorPipelineService` ile doğrudan çalıştırılıyor. CI PASS sonrası C18 kabul edilmiş sayılır.
+C18 regression `Program.cs` üzerinden production `MotorPipelineService` ile doğrudan çalıştırılıyor. C18 PASS sonrası V5 Docker build ve Azure deployment otomatik olarak devam eder.
+
+### WEB release
+
+C18 release gate geçildikten sonra aynı V5 commit'i Docker image olarak build edilir, Azure VM'ye deploy edilir ve `/health` endpoint'i ile doğrulanır. Bundan sonraki aşama gerçek CHPP bağlantısı üzerinden canlı maç analiz testidir.
