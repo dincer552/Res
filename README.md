@@ -46,7 +46,7 @@ C3  M5 XI candidates                 🟢 ACCEPTED
 C4  M6-A + evaluator chain           🟢 ACCEPTED
 C5  M7 regional rating               🟢 ACCEPTED
 C6  M7.2 tactical scenario           🟢 ACCEPTED
-C7  M8 chance model                  ⏳
+C7  M8 chance model                  🟢 ACCEPTED
 C8  M9 prediction                    ⏳
 C9  DB1 formation coverage           ⏳
 C10 M10 formation competition        ⏳
@@ -60,7 +60,7 @@ C17 FinalPrediction continuity        ⏳
 C18 deterministic rerun               ⏳
 ```
 
-### Audit status — C1 → C6
+### Audit status — C1 → C7
 
 - **C1 M3:** audit + rewrite tamamlandı. Test gerçek `PlayerAnalysisEngine` çıktısını ve gerçek `MotorPipelineService` içindeki M3 continuity'yi doğruluyor.
 - **C2 M4:** audit + registry tamamlandı. Production `FormationCandidateEngine.LegalFormations` tek source of truth; test duplicate formation/slot listesini tekrar tanımlamıyor.
@@ -68,6 +68,7 @@ C18 deterministic rerun               ⏳
 - **C4 M6-A:** M6-A'nın gerçek callback'i içinde çalışan **M7 → M7.2 → M8 → M9** zinciri production telemetry ile doğrulanıyor. `InvocationCount` her gerçek evaluator çağrısında artırılıyor; offline regression dört motorun da gerçekten çağrıldığını, eşit zincir uzunluğunu ve tamamlanma durumunu kontrol ediyor. M6-A'nın global TopCandidates havuzundan her formasyonun çıkması acceptance criterion değil; formasyon coverage DB1 sınırında doğrulanıyor.
 - **C5 M7:** gerçek `MotorPipelineService` çalıştırılıyor; seçilen FinalPlan XI'ı üzerinden M7 doğrudan production `RegionalRatingScenarioEngine` ile yeniden hesaplanıyor ve 7 bölgesel rating + raw değerler, MatchState, Team Spirit ve Coach Style modifier'ları karşılaştırılıyor.
 - **C6 M7.2:** gerçek `MotorPipelineService` sonucu üzerinden M7.2 continuity doğrulanıyor. Seçilen XI/state aynı `AdvancedTacticalScenarioEngine.CalculateLineup` ile yeniden hesaplanıyor; CandidateId, tactic, tactical skill, tactical level, 7 input toplamı, opponent average ve M7.2 → M8 context continuity karşılaştırılıyor. Fixture-specific sonuç hard-code edilmiyor.
+- **C7 M8:** gerçek `MotorPipelineService` sonucu üzerinden M8 continuity doğrulanıyor. M7 + M7.2 çıktılarından production `AdvancedTacticalScenarioEngine.BuildM8Input` oluşturuluyor; M8 doğrudan `M8ChanceModel.Calculate` ile yeniden hesaplanıyor. Chance ownership/POS, 3 sector matchup, sector shares, structural chance, regular chance volumes, tactic conversion ve tactic-specific volumes karşılaştırılıyor; tüm sayısal çıktılar finite/bounded ve chance shares toplamı 1 olarak doğrulanıyor. Fixture-specific sonuç hard-code edilmiyor.
 
 ### Güncel production zinciri
 
@@ -111,4 +112,4 @@ Yeni çalışma sırası:
 C1 → C2 → C3 → C4 → C5 → C6 → C7 → C8
 ```
 
-**C1–C6 audit/regression çalışmaları tamamlandı.** Sıradaki iş **C7 M8 chance model**.
+**C1–C7 audit/regression çalışmaları tamamlandı.** Sıradaki iş **C8 M9 prediction**.
