@@ -7,6 +7,13 @@ namespace HattrickAI.V5.Core;
 /// </summary>
 public sealed class FormationCandidateEngine : IFormationCandidateEngine
 {
+    /// <summary>
+    /// Tek yetkili M4 legal formation registry. Offline acceptance testleri de
+    /// aynı slot sözleşmesini buradan okur; üretim ve test arasında ikinci bir
+    /// formation/slot listesi tutulmaz.
+    /// </summary>
+    public static IReadOnlyList<FormationCandidate> LegalFormations => LegalCandidates;
+
     private static readonly IReadOnlyList<FormationCandidate> LegalCandidates =
     [
         new("3-5-2", ["GK", "DEF-CL", "DEF-C", "DEF-CR", "W-L", "IM-L", "IM-C", "IM-R", "W-R", "FW-L", "FW-R"]),
@@ -144,6 +151,7 @@ public sealed class FormationCandidateEngine : IFormationCandidateEngine
         "IM-R" => 23,
         "W-R" => 24,
         "FW-L" => 30,
+        "FW-C" => 31,
         "FW-C" => 31,
         "FW-R" => 32,
         _ => 99
