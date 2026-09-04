@@ -23,15 +23,15 @@ C11 M10 → M6-B rank-driven handoff   🟢 ACCEPTED
 C12 M6-B refinement                  🟢 ACCEPTED
 C13 DB2 formation coverage            🟢 ACCEPTED
 C14 M11 finalist pool                 🟢 ACCEPTED
-C15 M11 final selection               ⏳
+C15 M11 final selection               🟢 ACCEPTED
 C16 FinalPlan continuity              ⏳
 C17 FinalPrediction continuity        ⏳
 C18 deterministic rerun               ⏳
 ```
 
-### Audit status — C1 → C14
+### Audit status — C1 → C15
 
-- **C14 M11 finalist pool:** gerçek `MotorPipelineService` çalıştırılıyor ve M11'e giren havuz doğrudan production DB2 kayıtlarından doğrulanıyor. Regression; DB2 adaylarının M6-B kaynaklı olmasını, duplicate/invalid XI bulunmamasını, prediction ve skorların mevcut/finite olmasını, tüm legal formasyonların M11 finalist havuzunda korunmasını, M11 liderinin DB2'den gelmesini ve M6-B → M11 telemetry sırasını doğruluyor. Fixture-specific sonuç hard-code edilmiyor.
+- **C15 M11 final selection:** gerçek `MotorPipelineService` çalıştırılıyor ve M11 final selector'ın DB2 finalistleri arasından deterministik seçim yaptığı doğrulanıyor. Regression; finalist/ranking sayısının korunmasını, final skorlarının finite ve azalan sırada olmasını, duplicate candidate bulunmamasını, legal formasyon çeşitliliğini, Winner = Ranking #1 ilişkisini, kazananın doğrudan DB2/M6-B kaynağından gelmesini, M9 prediction continuity'yi ve M6-B → M11 telemetry sırasını doğruluyor. Fixture-specific winner hard-code edilmiyor.
 
 ### Güncel production zinciri
 
@@ -56,9 +56,10 @@ M6-B Refinement  ← C12 acceptance
       ↓
 Candidate DB #2  ← C13 formation coverage
       ↓
-M11 Final Selection  ← C14 finalist pool
+M11 Final Selection  ← C15 acceptance
       ↓
 FinalPlan / FinalPrediction
+```
 
 ### Kabul kriteri
 
@@ -68,4 +69,4 @@ REGRESSION  → güncel production pipeline'a bağlı offline test geçiyor
 PRODUCTION  → gerçek CHPP/maç verisiyle doğrulandı
 ```
 
-**C1–C14 audit/regression çalışmaları tamamlandı.** Sıradaki iş **C15 M11 final selection**.
+**C1–C15 audit/regression çalışmaları tamamlandı.** Sıradaki iş **C16 FinalPlan continuity**.
