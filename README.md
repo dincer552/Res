@@ -21,7 +21,7 @@ C9  DB1 formation coverage           🟢 ACCEPTED
 C10 M10 formation competition        🟢 ACCEPTED
 C11 M10 → M6-B rank-driven handoff   🟢 ACCEPTED
 C12 M6-B refinement                  🟢 ACCEPTED
-C13 DB2 formation coverage            ⏳
+C13 DB2 formation coverage           🟢 ACCEPTED
 C14 M11 finalist pool                 ⏳
 C15 M11 final selection               ⏳
 C16 FinalPlan continuity              ⏳
@@ -29,9 +29,9 @@ C17 FinalPrediction continuity        ⏳
 C18 deterministic rerun               ⏳
 ```
 
-### Audit status — C1 → C12
+### Audit status — C1 → C13
 
-- **C12 M6-B:** gerçek `MotorPipelineService` üzerinden gerçek M6-B refinement çalıştırılıyor. Regression; M6-B'nin sıfır olmayan evaluation/retention/iteration ürettiğini, 11-slot ve duplicate-free XI koruduğunu, tüm legal formasyonların refinement sırasında kaybolmadığını, M10 rank-driven winner formasyonunun M6-B'ye ulaştığını ve production telemetry'nin M6-B completion + evaluated count bilgisini doğruluyor. Fixture-specific sonuç hard-code edilmiyor.
+- **C13 DB2 formation coverage:** gerçek `MotorPipelineService` çalıştırılıyor ve production'da oluşan DB2 doğrudan acceptance result üzerinden görünür hale getiriliyor. Regression; DB2'nin kapasite sınırını, yalnızca gerçek `M6-B` kayıtlarından oluşmasını, duplicate candidate içermemesini, geçerli XI/score/chance değerlerini ve M4'ün tüm legal formasyonlarının DB2'de korunmasını doğruluyor. Fixture-specific sonuç hard-code edilmiyor.
 
 ### Güncel production zinciri
 
@@ -54,7 +54,7 @@ M10 rank-driven budgets
 M6-B Refinement  ← C12 acceptance
       └─ gerçek evaluator: M7 → M7.2 → M8 → M9
       ↓
-Candidate DB #2
+Candidate DB #2  ← C13 formation coverage
       ↓
 M11 Final Selection
       ↓
@@ -69,4 +69,4 @@ REGRESSION  → güncel production pipeline'a bağlı offline test geçiyor
 PRODUCTION  → gerçek CHPP/maç verisiyle doğrulandı
 ```
 
-**C1–C12 audit/regression çalışmaları tamamlandı.** Sıradaki iş **C13 DB2 formation coverage**.
+**C1–C13 audit/regression çalışmaları tamamlandı.** Sıradaki iş **C14 M11 finalist pool**.
