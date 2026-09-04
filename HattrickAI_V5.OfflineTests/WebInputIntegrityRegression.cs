@@ -84,7 +84,7 @@ public static class WebInputIntegrityRegression
             Check(analysis.Contains("GetXmlAsync(\"matchlineup\"", StringComparison.Ordinal), "CHPP opponent lineup input source exists", failures);
             Check(analysis.Contains("GetXmlAsync(\"matchdetails\"", StringComparison.Ordinal), "CHPP opponent matchdetails input source exists", failures);
             Check(analysis.Contains("Request.Cookies[\"v5.matchId\"]", StringComparison.Ordinal), "selected match input is read from WEB cookie", failures);
-            Check(analysis.Contains("request.MatchImportance", StringComparison.Ordinal), "questionnaire input reaches rating context", failures);
+            Check(analysis.Contains("questionnaire.MatchImportance", StringComparison.Ordinal), "questionnaire input reaches rating context", failures);
 
             foreach (var field in RequiredPlayerFields)
                 Check(analysis.Contains($"\"{field}\"", StringComparison.Ordinal), $"CHPP player field mapped: {field}", failures);
