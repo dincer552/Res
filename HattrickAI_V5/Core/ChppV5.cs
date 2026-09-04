@@ -41,6 +41,7 @@ public sealed class ChppV5
     private string? AccessToken => Session.GetString("v5.access");
     private string? AccessSecret => Session.GetString("v5.accessSecret");
     public bool Connected => !string.IsNullOrWhiteSpace(AccessToken) && !string.IsNullOrWhiteSpace(AccessSecret);
+    public bool HistoricalProductionExportRequested => string.Equals(_context.HttpContext?.Request.Query["historical"].FirstOrDefault(), "1", StringComparison.OrdinalIgnoreCase);
 
     public async Task<string> StartAsync(string callback, CancellationToken ct)
     {
