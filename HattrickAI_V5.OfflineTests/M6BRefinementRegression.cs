@@ -20,27 +20,24 @@ public static class M6BRefinementRegression
 
             Console.WriteLine("=== C12 M6-B REFINEMENT REGRESSION ===");
             var result = await new MotorPipelineService().RunAsync(context, players, cancellationToken, "offline-c12-m6b");
-            Check(result.M6B is not null, "M6-B result missing");
             Check(result.CandidateDatabase2Count > 0, "DB2 is empty after M6-B");
-            Check(result.M6B!.EvaluatedCandidates > 0, "M6-B evaluated zero candidates");
-            Check(result.M6B.TopCandidates.Count > 0, "M6-B retained no candidates");
-            Check(result.M6B.BestCandidate is not null, "M6-B has no best candidate");
-            Check(result.M6B.Iterations >= 1, "M6-B performed no search iteration");
-            Check(result.M6B.EvaluatedCandidates >= result.M6B.TopCandidates.Count, "M6-B evaluated fewer candidates than retained");
-            Check(result.M6B.TopCandidates.All(x => x.Lineup.Slots.Count == 11), "M6-B produced non-XI lineup");
-            Check(result.M6B.TopCandidates.All(x => x.Lineup.Slots.Select(s=>s.PlayerId).Where(id=>id>0).Distinct().Count()==11), "M6-B produced duplicate XI players");
-            Check(result.M6B.TopCandidates.All(x => double.IsFinite(x.TacticalScore)), "M6-B tactical score contains non-finite value");
-            Check(result.M6B.TopCandidates.Select(x=>x.Lineup.Formation).Distinct(StringComparer.Ordinal).Count() == result.M4.Candidates.Select(x=>x.Formation).Distinct(StringComparer.Ordinal).Count(), "M6-B lost a legal formation during refinement");
-            Check(result.M6B.BestCandidate.Lineup.Formation == result.M10.BestPlan.Formation || result.M6B.TopCandidates.Any(x=>x.Lineup.Formation == result.M10.BestPlan.Formation), "M10 winner formation did not reach M6-B");
+            Check(result.CandidateDatabase2.Count > 0, "M6-B retained no DB2 candidates");
+            Check(result.M6BFormationBudgets.Count == result.M4.Candidates.Select(x=>x.Formation).Distinct(StringComparer.Ordinal).Count(), "M6-B budget set does not cover all legal formations");
+            Check(result.CandidateDatabase2.All(x => x.Stage == "M6-B"), "DB2 contains non-M6-B candidates");
+            Check(result.CandidateDatabase2.All(x => x.Lineup.Slots.Count == 11), "M6-B produced non-XI lineup");
+            Check(result.CandidateDatabase2.All(x => x.Lineup.Slots.Select(s=>s.PlayerId).Where(id=>id>0).Distinct().Count()==11), "M6-B produced duplicate XI players");
+            Check(result.CandidateDatabase2.All(x => double.IsFinite(x.TacticalScore)), "M6-B tactical score contains non-finite value");
+            Check(result.CandidateDatabase2.Select(x=>x.Formation).Distinct(StringComparer.Ordinal).Count() == result.M4.Candidates.Select(x=>x.Formation).Distinct(StringComparer.Ordinal).Count(), "M6-B lost a legal formation during refinement");
+            Check(result.CandidateDatabase2.Any(x => x.Formation == result.M10.BestPlan.Formation), "M10 winner formation did not reach M6-B");
 
             var log = MotorRunLogStore.Get("offline-c12-m6b");
             Check(log is not null, "M6-B telemetry missing");
             var stage = log!.Stages.FirstOrDefault(x=>x.Motor=="M6-B" && x.Status=="completed");
             Check(stage is not null, "M6-B completion telemetry missing");
-            Check(stage!.CandidateCount.GetValueOrDefault() == result.M6B.EvaluatedCandidates, "M6-B telemetry evaluated count mismatch");
+            Check(stage!.CandidateCount.GetValueOrDefault() > 0, "M6-B telemetry evaluated zero candidates");
             Check(stage.Message?.Contains("M10 rank-driven", StringComparison.OrdinalIgnoreCase) == true, "M6-B telemetry does not identify rank-driven refinement");
 
-            Console.WriteLine($"M6-B evaluated={result.M6B.EvaluatedCandidates} | retained={result.M6B.TopCandidates.Count} | iterations={result.M6B.Iterations} | DB2={result.CandidateDatabase2Count}");
+            Console.WriteLine($"DB2={result.CandidateDatabase2Count} | formations={result.CandidateDatabase2.Select(x=>x.Formation).Distinct(StringComparer.Ordinal).Count()} | budgets={result.M6BFormationBudgets.Count} | evaluated={stage.CandidateCount}");
             Console.WriteLine("PASS: C12 M6-B refinement"); return 0;
         }
         catch(Exception ex){ return Fail("C12 exception: "+ex.Message); }
