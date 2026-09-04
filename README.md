@@ -2,17 +2,48 @@
 
 ## FINAL WEB PRODUCTION ACCEPTANCE
 
-Aktif branch: `v5`. V5 hedefi: oyuncu → formasyon → XI → rating → taktik → chance → event → goal → W/D/L → M10 → M6-B → M11 → WEB zincirini tek ve tutarlı maç motoru olarak çalıştırmak.
+Aktif branch: `v5`.
 
-### C) M3 → M11 end-to-end acceptance
+V5 hedefi: oyuncu → formasyon → XI → M6-A → M7 → M7.2 → M8 → M9 → DB1 → M10 → M6-B → DB2 → M11 → FinalPlan / FinalPrediction → WEB zincirini tek ve tutarlı maç motoru olarak çalıştırmak.
 
-İlerleme sırası:
+### Önceden tamamlanan / korunacak çalışmalar
+
+Aşağıdaki çalışmalar bu acceptance fazından önce tamamlandı ve yeni test fazında geriye alınmayacaktır:
+
+- M6 global search / M6-B için production hazırlığı ve offline doğrulama altyapısı.
+- M6 validation: legal matrices, Normal baseline, duplicate/player/formation consistency ve combination-count kontrolleri.
+- M6 offline JSON doğrulaması: gerçek fixture üzerinde 3-5-2 / 11-slot aday ve davranış matrisi kontrolleri.
+- WEB input integrity (A) regression.
+- Core ↔ WEB parity (B) regression.
+- Historical calibration regression ve 60-match production acceptance.
+- Set-piece taker skill → exact goal conversion calibration/regression.
+- Specialty ↔ weather/tactic cross-effects regression.
+- V5 tactic-level → paper RT mapping regression.
+- M8 paper TCR eğrileri ve exact paper TCR regression.
+- Long Shot opportunity regression/fix.
+- M9 event-goal regression.
+- M4 legal formation regression altyapısı.
+- M5 XI candidate regression altyapısı.
+- M6-A candidate evaluation regression altyapısı.
+
+Bu maddeler "yeni acceptance zincirinin yapılacak işleri" değil, mevcut V5 production mekanizmasının daha önce tamamlanmış temelleridir.
+
+## C) M3 → M11 CURRENT PIPELINE ACCEPTANCE
+
+Önemli kural: Offline testler eski mimarinin varsayımlarını değil, **mevcut `MotorPipelineService` production davranışını** kabul kriteri olarak kullanacaktır. Her assertion için:
+
+1. ilgili production kodundaki gerçek davranış kontrol edilir,
+2. assertion'ın eski mimariden kalıp kalmadığı denetlenir,
+3. mevcut mimarinin gerçek acceptance criterion'u belirlenir,
+4. yalnızca bundan sonra regression'a alınır.
+
+### Yeni acceptance fazı — başlangıç
 
 ```text
-C1  M3 input/output continuity       🟡 CONTRACT EXISTS
-C2  M4 legal formations              ✅ REGRESSION
-C3  M5 XI candidates                 ✅ REGRESSION
-C4  M6-A candidate evaluation        🟡 CONTRACT IMPLEMENTED — CI PENDING
+C1  M3 input/output continuity       🔄 AUDIT + REWRITE   ← BAŞLADI
+C2  M4 legal formations              🔄 AUDIT + REGISTRY
+C3  M5 XI candidates                 🟢 ACCEPTED
+C4  M6-A + evaluator chain           🔄 AUDIT + REWRITE
 C5  M7 regional rating               ⏳
 C6  M7.2 tactical scenario           ⏳
 C7  M8 chance model                  ⏳
@@ -29,45 +60,59 @@ C17 FinalPrediction continuity        ⏳
 C18 deterministic rerun               ⏳
 ```
 
-#### C4 — M6-A Candidate Evaluation
+### Audit status — C1 → C4
 
-`HattrickAI_V5.OfflineTests/M6ACandidateEvaluationRegression.cs` eklendi ve offline runner'a bağlandı. Regression gerçek `MotorPipelineService` üzerinden M5 XI havuzunu M6-A global search'e verir.
+- **C1 M3:** mevcut test/contract yeniden production koduna karşı denetlenecek. Eski M3/M11 fixture veya varsayımlar kabul edilmeyecek.
+- **C2 M4:** mevcut production legal formation registry'si source of truth olacak. Testte gereksiz duplicate hard-code azaltılacak.
+- **C3 M5:** mevcut production `GenerateCandidates(..., maxCandidatesPerFormation: 20)` davranışıyla uyumlu; regression kabul edildi.
+- **C4 M6-A:** yalnızca M6 sonuçlarının değil, güncel M6-A callback içindeki gerçek **M7 → M7.2 → M8 → M9 evaluator zincirinin** çalıştığı kanıtlanacak.
 
-Kabul sözleşmesi:
+### Güncel production zinciri
 
 ```text
-M6-A evaluatedCandidates > 0
-her legal formasyon için en az bir değerlendirme
-M6-A BestCandidate mevcut
-M6-A ranked TopCandidates mevcut
-Candidate DB #1 boş değil
-DB1 en az bir aday / legal formasyon
-retained candidate = 11 slot / 11 unique player / 11 unique slot
-TacticalScore finite ve >= 0
-retained pool tüm legal formasyonları kapsıyor
-retained candidate signature'ları unique
-BestCandidate retained pool içinde
-M6-A iteration state anlamlı
+M3 Player Analysis
+      ↓
+M4 Legal / Feasible Formations
+      ↓
+M5 XI Candidates (20 / formation)
+      ↓
+M6-A Global Search
+      ↓
+M7 Regional Rating
+      ↓
+M7.2 Advanced Tactical Scenario
+      ↓
+M8 Chance / Matchup
+      ↓
+M9 Match Prediction
+      ↓
+Candidate DB #1
+      ↓
+M10 Formation Competition
+      ↓
+M10 rank-driven budgets
+      ↓
+M6-B Refinement
+      ↓
+Candidate DB #2
+      ↓
+M11 Final Selection
+      ↓
+FinalPlan / FinalPrediction
 ```
 
-M6-A kodu M5 adaylarını formasyon bazında search eder; her başlangıç XI için candidate evaluator çağrılır, tactical candidate sonuçları M6 database'ine alınır ve en iyi aday deterministik tie-break ile seçilir. Pipeline callback'i aynı değerlendirme sırasında M7 → M7.2 → M8 → M9 downstream zincirini çalıştırıp DB1 kaydını oluşturur.
-
-**CI notu:** C4 kontratı commit edilmiştir; mevcut CI altyapısında bu yeni commit için doğrulanmış PASS sonucu henüz alınmadığından C4 `CI PENDING` durumundadır.
-
-### A) WEB input integrity
-
-`WebInputIntegrityRegression` offline suite'in ilk kontrolüdür. WEB questionnaire alanlarını, saha slotlarını, endpoint/session akışını ve AnalysisService CHPP veri akışını statik sözleşme seviyesinde kontrol eder.
-
-### B) Core ↔ WEB parity
-
-`CoreWebParityRegression` offline suite'te A testinden sonra çalışır ve Core Analysis → camelCase JSON → `/api/v5/analysis` → WEB binding sözleşmesini kontrol eder. Canlı CHPP/OAuth doğrulaması production smoke aşamasında yapılacaktır.
-
-## KABUL KRİTERİ
+### Kabul kriteri
 
 ```text
-CODED       → mekanizma kodda var
-REGRESSION  → offline test geçiyor
+CODED       → mekanizma production kodunda var
+REGRESSION  → güncel production pipeline'a bağlı offline test geçiyor
 PRODUCTION  → gerçek CHPP/maç verisiyle doğrulandı
 ```
 
-Final WEB acceptance **A → B → C → D → E → F → G** sırasıyla kapatılacaktır.
+Yeni çalışma sırası:
+
+```text
+C1 → C2 → C3 → C4 → C5 → C6 → C7 → C8
+```
+
+C1–C4 audit tamamlanmadan C5–C8'e geçilmeyecek.
