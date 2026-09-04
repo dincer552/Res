@@ -93,8 +93,12 @@ public static class M8ChanceAllocationEngine
         return total <= 0.0 ? 0.5 : Math.Clamp(ownPower / total, 0.0, 1.0);
     }
 
-    /// <summary>Equation B.2 from Constantinou et al. (2026). RT is the paper tactic-rating scale.</summary>
-    public static double CalculateTacticConversionRate(AdvancedTactic tactic, double tacticRating)
+    /// <summary>Entry point used by V5. Its tacticStrength is the V5 0-10 internal scale.</summary>
+    public static double CalculateTacticConversionRate(AdvancedTactic tactic, double tacticStrength)
+        => CalculateTacticConversionRateFromPaperRt(tactic, TacticPaperMappingEngine.ToPaperRt(tacticStrength));
+
+    /// <summary>Equation B.2 from Constantinou et al. (2026), accepting paper RT directly.</summary>
+    public static double CalculateTacticConversionRateFromPaperRt(AdvancedTactic tactic, double tacticRating)
     {
         var rt = Math.Max(0.0, tacticRating);
         var raw = tactic switch
@@ -109,7 +113,7 @@ public static class M8ChanceAllocationEngine
         return Math.Clamp(raw, 0.0, 1.0);
     }
 
-    [Obsolete("Use CalculateTacticConversionRate; tactic ranges are non-linear in the paper model.")]
+    [Obsolete("Use CalculateTacticConversionRate for V5 scale or CalculateTacticConversionRateFromPaperRt for paper RT.")]
     public static double CalculateAppliedTacticRate(AdvancedTactic tactic, double tacticStrength)
         => CalculateTacticConversionRate(tactic, tacticStrength);
 
