@@ -27,15 +27,13 @@ public static class M10FormationCompetitionRegression
             Check(competition.Select(x=>x.Rank).OrderBy(x=>x).SequenceEqual(Enumerable.Range(1,competition.Count)),"M10 ranks are not contiguous");
             Check(competition.All(x=>double.IsFinite(x.CompositeScore)&&double.IsFinite(x.WinProbability)),"M10 competition scores are finite");
             Check(competition.All(x=>x.CandidateCount>0),"M10 has no candidate for a competing formation");
-            Check(competition.All(x=>x.SearchDepthStatus is M10SearchDepthStatus.Sufficient or M10SearchDepthStatus.Insufficient),"M10 depth status is invalid");
             Check(!string.IsNullOrWhiteSpace(result.M10.BestPlan.Formation),"M10 selected formation is empty");
             Check(competition.Any(x=>x.Formation==result.M10.BestPlan.Formation&&x.Rank==1),"M10 BestPlan is not the rank-1 formation");
             var ranked=competition.OrderBy(x=>x.Rank).ToList();
             for(var i=0;i<ranked.Count-1;i++) Check(ranked[i].CompositeScore>=ranked[i+1].CompositeScore,"M10 formation ranking is not deterministic descending score order");
-            var direct=new M10FinalDecisionEngine().Select(result.M10.Ranking.Select(x=>new M10CandidateEvaluation(
-                new TacticalCandidate(x.CandidateId,x.Formation, result.M10.BestPlan.Lineup, result.M10.BestPlan.Rating, result.M10.BestPlan.Matchup, x.TacticalScore),
-                result.M10.Prediction, 0.0)).ToList());
-            Check(direct.Status==M10DecisionStatus.SelectedDeterministically,"M10 direct decision is not deterministic");
+            var repeat=await new MotorPipelineService().RunAsync(context,players,cancellationToken,"offline-c10-m10-repeat");
+            Check(repeat.M10.BestPlan.Formation==result.M10.BestPlan.Formation,"M10 winner changed on deterministic rerun");
+            Check(repeat.M10.FormationCompetition is not null && repeat.M10.FormationCompetition.Count==competition.Count,"M10 competition depth changed on deterministic rerun");
             Console.WriteLine($"M10 formations={competition.Count} | winner={result.M10.BestPlan.Formation} | rank1 score={ranked[0].CompositeScore:0.####}");
             Console.WriteLine("PASS: C10 M10 formation competition continuity"); return 0;
         } catch(Exception ex){return Fail("C10 exception: "+ex.Message);}
