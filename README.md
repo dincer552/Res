@@ -25,43 +25,31 @@ C13 DB2 formation coverage            🟢 ACCEPTED
 C14 M11 finalist pool                 🟢 ACCEPTED
 C15 M11 final selection               🟢 ACCEPTED
 C16 FinalPlan continuity              🟡 REGRESSION ADDED
-C17 FinalPrediction continuity        ⏳
+C17 FinalPrediction continuity        🟡 REGRESSION ADDED
 C18 deterministic rerun               ⏳
 ```
 
-### Audit status — C1 → C16
+### Audit status — C1 → C17
 
-- **C15 M11 final selection:** gerçek `MotorPipelineService` çalıştırılıyor ve M11 final selector'ın DB2 finalistleri arasından deterministik seçim yaptığı doğrulanıyor. Regression; finalist/ranking sayısının korunmasını, final skorlarının finite ve azalan sırada olmasını, duplicate candidate bulunmamasını, legal formasyon çeşitliliğini, Winner = Ranking #1 ilişkisini, kazananın doğrudan DB2/M6-B kaynağından gelmesini, M9 prediction continuity'yi ve M6-B → M11 telemetry sırasını doğruluyor. Fixture-specific winner hard-code edilmiyor.
-- **C16 FinalPlan continuity:** gerçek `MotorPipelineService` çıktısındaki `FinalPlan` ile M11 `BestPlan` birebir süreklilik açısından karşılaştırılıyor; formasyon, XI oyuncu/slot imzası, rating, matchup ve tactical score korunuyor. `FinalPrediction` da M11 prediction ile aynı nesne/değer olarak doğrulanıyor. Final XI'nin 11 benzersiz oyuncu ve 11 benzersiz slot içermesi ayrıca kontrol ediliyor.
+C1–C15 audit/regression çalışmaları tamamlandı.
+
+- C16: FinalPlan ile M11 BestPlan arasında formasyon, XI, rating, matchup ve tactical score continuity doğrulanıyor.
+- C17: FinalPrediction'ın M11 prediction, seçilen M9 prediction ve DB2 winner prediction ile birebir continuity'si; candidate/formasyon identity, W/D/L, xG, simulation ve most-likely score bütünlüğü doğrulanıyor.
 
 ### Güncel production zinciri
 
 ```text
-M3 Player Analysis
-      ↓
-M4 Legal / Feasible Formations
-      ↓
-M5 XI Candidates (20 / formation)
-      ↓
-M6-A Global Search
-      └─ gerçek evaluator: M7 → M7.2 → M8 → M9
-      ↓
-Candidate DB #1
-      ↓
-M10 Formation Competition
-      ↓
-M10 rank-driven budgets
-      ↓
-M6-B Refinement  ← C12 acceptance
-      └─ gerçek evaluator: M7 → M7.2 → M8 → M9
-      ↓
-Candidate DB #2  ← C13 formation coverage
-      ↓
-M11 Final Selection  ← C15 acceptance
-      ↓
-FinalPlan  ← C16 continuity
-      ↓
-FinalPrediction  ← C17
+M3 → M4 → M5 → M6-A → M7 → M7.2 → M8 → M9 → DB1
+                                              ↓
+                                            M10
+                                              ↓
+                              M10 rank-driven → M6-B → DB2
+                                              ↓
+                                             M11
+                                              ↓
+                                          FinalPlan
+                                              ↓
+                                      FinalPrediction
 ```
 
 ### Kabul kriteri
@@ -72,4 +60,4 @@ REGRESSION  → güncel production pipeline'a bağlı offline test geçiyor
 PRODUCTION  → gerçek CHPP/maç verisiyle doğrulandı
 ```
 
-**C1–C15 audit/regression çalışmaları tamamlandı. C16 regression eklendi; sıradaki iş C16'nın güncel CI/production regression koşusunda PASS edilmesi, ardından C17 FinalPrediction continuity.**
+**Sıradaki iş: C16/C17 CI PASS sonrası C18 deterministic rerun.**
