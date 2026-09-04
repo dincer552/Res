@@ -45,7 +45,7 @@ C2  M4 legal formations              🟢 ACCEPTED
 C3  M5 XI candidates                 🟢 ACCEPTED
 C4  M6-A + evaluator chain           🟢 ACCEPTED
 C5  M7 regional rating               🟢 ACCEPTED
-C6  M7.2 tactical scenario           ⏳
+C6  M7.2 tactical scenario           🟢 ACCEPTED
 C7  M8 chance model                  ⏳
 C8  M9 prediction                    ⏳
 C9  DB1 formation coverage           ⏳
@@ -60,13 +60,14 @@ C17 FinalPrediction continuity        ⏳
 C18 deterministic rerun               ⏳
 ```
 
-### Audit status — C1 → C5
+### Audit status — C1 → C6
 
 - **C1 M3:** audit + rewrite tamamlandı. Test gerçek `PlayerAnalysisEngine` çıktısını ve gerçek `MotorPipelineService` içindeki M3 continuity'yi doğruluyor.
 - **C2 M4:** audit + registry tamamlandı. Production `FormationCandidateEngine.LegalFormations` tek source of truth; test duplicate formation/slot listesini tekrar tanımlamıyor.
 - **C3 M5:** mevcut production `GenerateCandidates(..., maxCandidatesPerFormation: 20)` davranışıyla uyumlu; regression kabul edildi.
-- **C4 M6-A:** M6-A'nın gerçek callback'i içinde çalışan **M7 → M7.2 → M8 → M9** zinciri production telemetry ile doğrulanıyor. `InvocationCount` her gerçek evaluator çağrısında artırılıyor; offline regression dört motorun da gerçekten çağrıldığını, eşit zincir uzunluğunu ve tamamlanma durumunu kontrol ediyor. M6-A'nın global TopCandidates havuzundan her formasyonun çıkması artık yanlış acceptance criterion değil; formasyon coverage DB1 sınırında doğrulanıyor.
+- **C4 M6-A:** M6-A'nın gerçek callback'i içinde çalışan **M7 → M7.2 → M8 → M9** zinciri production telemetry ile doğrulanıyor. `InvocationCount` her gerçek evaluator çağrısında artırılıyor; offline regression dört motorun da gerçekten çağrıldığını, eşit zincir uzunluğunu ve tamamlanma durumunu kontrol ediyor. M6-A'nın global TopCandidates havuzundan her formasyonun çıkması acceptance criterion değil; formasyon coverage DB1 sınırında doğrulanıyor.
 - **C5 M7:** gerçek `MotorPipelineService` çalıştırılıyor; seçilen FinalPlan XI'ı üzerinden M7 doğrudan production `RegionalRatingScenarioEngine` ile yeniden hesaplanıyor ve 7 bölgesel rating + raw değerler, MatchState, Team Spirit ve Coach Style modifier'ları karşılaştırılıyor.
+- **C6 M7.2:** gerçek `MotorPipelineService` sonucu üzerinden M7.2 continuity doğrulanıyor. Seçilen XI/state aynı `AdvancedTacticalScenarioEngine.CalculateLineup` ile yeniden hesaplanıyor; CandidateId, tactic, tactical skill, tactical level, 7 input toplamı, opponent average ve M7.2 → M8 context continuity karşılaştırılıyor. Fixture-specific sonuç hard-code edilmiyor.
 
 ### Güncel production zinciri
 
@@ -110,4 +111,4 @@ Yeni çalışma sırası:
 C1 → C2 → C3 → C4 → C5 → C6 → C7 → C8
 ```
 
-C1–C5 audit/regression çalışmaları tamamlandı. Sıradaki iş **C6 M7.2 → C7 M8 offline regression**.
+**C1–C6 audit/regression çalışmaları tamamlandı.** Sıradaki iş **C7 M8 chance model**.
