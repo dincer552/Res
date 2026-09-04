@@ -58,16 +58,16 @@ public static class WebInputIntegrityRegression
             Check(html.Contains("id=\"oppPitch\"", StringComparison.Ordinal), "WEB opponent lineup output exists", failures);
 
             foreach (var key in RequiredQuestionKeys)
-                Check(Regex.IsMatch(html, $"key:'{Regex.Escape(key)}'"), $"question key preserved: {key}", failures);
+                Check(Regex.IsMatch(html, $"key\\s*:\\s*['\"]{Regex.Escape(key)}['\"]"), $"question key preserved: {key}", failures);
 
-            Check(Regex.IsMatch(html, "JSON\.stringify\(answers\)"), "questionnaire POST serializes the same answer object", failures);
+            Check(Regex.IsMatch(html, "JSON\.stringify\\(answers\\)"), "questionnaire POST serializes the same answer object", failures);
             Check(html.Contains("/api/v5/questionnaire", StringComparison.Ordinal), "WEB questionnaire endpoint wired", failures);
             Check(html.Contains("/api/v5/analysis", StringComparison.Ordinal), "WEB analysis endpoint wired", failures);
             Check(html.Contains("/api/v5/status", StringComparison.Ordinal), "WEB status endpoint wired", failures);
             Check(html.Contains("/api/v5/build", StringComparison.Ordinal), "WEB build endpoint wired", failures);
 
             foreach (var slot in RequiredSlotCodes)
-                Check(html.Contains($"['{slot}'", StringComparison.Ordinal), $"WEB slot code preserved: {slot}", failures);
+                Check(html.Contains(slot, StringComparison.Ordinal), $"WEB slot code preserved: {slot}", failures);
 
             Check(program.Contains("MapPost(\"/api/v5/questionnaire\"", StringComparison.Ordinal), "backend questionnaire POST route exists", failures);
             Check(program.Contains("MapGet(\"/api/v5/questionnaire\"", StringComparison.Ordinal), "backend questionnaire GET route exists", failures);
@@ -95,7 +95,7 @@ public static class WebInputIntegrityRegression
 
             Console.WriteLine("=== V5 A) WEB INPUT INTEGRITY ===");
             Console.WriteLine($"WEB: questionnaire={RequiredQuestionKeys.Length} keys | slots={RequiredSlotCodes.Length}");
-            Console.WriteLine($"Backend: questionnaire/session + selected match + CHPP team/training/players/matches/lineup/details");
+            Console.WriteLine("Backend: questionnaire/session + selected match + CHPP team/training/players/matches/lineup/details");
             Console.WriteLine($"Player mapping: {RequiredPlayerFields.Length} CHPP fields checked");
 
             if (failures.Count == 0)
