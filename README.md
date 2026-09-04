@@ -40,8 +40,8 @@ Bu maddeler "yeni acceptance zincirinin yapılacak işleri" değil, mevcut V5 pr
 ### Yeni acceptance fazı — başlangıç
 
 ```text
-C1  M3 input/output continuity       🟡 CODED — CI BEKLENİYOR
-C2  M4 legal formations              🟡 CODED — CI BEKLENİYOR
+C1  M3 input/output continuity       🟢 ACCEPTED
+C2  M4 legal formations              🟢 ACCEPTED
 C3  M5 XI candidates                 🟢 ACCEPTED
 C4  M6-A + evaluator chain           🔄 AUDIT + REWRITE
 C5  M7 regional rating               ⏳
