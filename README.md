@@ -26,15 +26,16 @@ C14 M11 finalist pool                 🟢 ACCEPTED
 C15 M11 final selection               🟢 ACCEPTED
 C16 FinalPlan continuity              🟡 REGRESSION ADDED
 C17 FinalPrediction continuity        🟡 REGRESSION ADDED
-C18 deterministic rerun               ⏳
+C18 deterministic rerun               🟡 REGRESSION ADDED
 ```
 
-### Audit status — C1 → C17
+### Audit status — C1 → C18
 
 C1–C15 audit/regression çalışmaları tamamlandı.
 
 - C16: FinalPlan ile M11 BestPlan arasında formasyon, XI, rating, matchup ve tactical score continuity doğrulanıyor.
 - C17: FinalPrediction'ın M11 prediction, seçilen M9 prediction ve DB2 winner prediction ile birebir continuity'si; candidate/formasyon identity, W/D/L, xG, simulation ve most-likely score bütünlüğü doğrulanıyor.
+- C18: aynı fixture ve aynı pipeline context'i iki kez çalıştırıp M4→M11 sonuç fingerprint'i, DB1/DB2, M11 ranking, FinalPlan/XI, FinalPrediction ve M9 simulation çıktılarının birebir deterministik kaldığını doğruluyor.
 
 ### Güncel production zinciri
 
@@ -60,4 +61,4 @@ REGRESSION  → güncel production pipeline'a bağlı offline test geçiyor
 PRODUCTION  → gerçek CHPP/maç verisiyle doğrulandı
 ```
 
-**Sıradaki iş: C16/C17 CI PASS sonrası C18 deterministic rerun.**
+C18 regression artık `Program.cs` üzerinden production `MotorPipelineService` ile doğrudan çalıştırılıyor. CI PASS sonrası C18 kabul edilmiş sayılır.
