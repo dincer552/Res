@@ -37,14 +37,14 @@ Bu maddeler "yeni acceptance zincirinin yapılacak işleri" değil, mevcut V5 pr
 3. mevcut mimarinin gerçek acceptance criterion'u belirlenir,
 4. yalnızca bundan sonra regression'a alınır.
 
-### Yeni acceptance fazı — başlangıç
+### Acceptance planı
 
 ```text
 C1  M3 input/output continuity       🟢 ACCEPTED
 C2  M4 legal formations              🟢 ACCEPTED
 C3  M5 XI candidates                 🟢 ACCEPTED
 C4  M6-A + evaluator chain           🔄 AUDIT + REWRITE
-C5  M7 regional rating               ⏳
+C5  M7 regional rating               🟢 CODED + REGRESSION WIRED
 C6  M7.2 tactical scenario           ⏳
 C7  M8 chance model                  ⏳
 C8  M9 prediction                    ⏳
@@ -60,12 +60,13 @@ C17 FinalPrediction continuity        ⏳
 C18 deterministic rerun               ⏳
 ```
 
-### Audit status — C1 → C4
+### Audit status — C1 → C5
 
 - **C1 M3:** audit + rewrite tamamlandı. Test artık gerçek `PlayerAnalysisEngine` çıktısını ve gerçek `MotorPipelineService` içindeki M3 continuity'yi doğruluyor; fixture-only JSON shape assertion kaldırıldı.
 - **C2 M4:** audit + registry tamamlandı. Production `FormationCandidateEngine.LegalFormations` tek source of truth; test artık duplicate slot dizilerini tutmuyor ve production registry ile M4 çıktısını karşılaştırıyor.
 - **C3 M5:** mevcut production `GenerateCandidates(..., maxCandidatesPerFormation: 20)` davranışıyla uyumlu; regression kabul edildi.
 - **C4 M6-A:** yalnızca M6 sonuçlarının değil, güncel M6-A callback içindeki gerçek **M7 → M7.2 → M8 → M9 evaluator zincirinin** çalıştığı kanıtlanacak.
+- **C5 M7:** gerçek `MotorPipelineService` çalıştırılıyor; seçilen FinalPlan XI'ı üzerinden M7 doğrudan production `RegionalRatingScenarioEngine` ile yeniden hesaplanıyor ve 7 bölgesel rating + raw değerler, MatchState, Team Spirit ve Coach Style modifier'ları karşılaştırılıyor.
 
 ### Güncel production zinciri
 
@@ -109,4 +110,4 @@ Yeni çalışma sırası:
 C1 → C2 → C3 → C4 → C5 → C6 → C7 → C8
 ```
 
-C1–C4 audit tamamlanmadan C5–C8'e geçilmeyecek.
+C1–C4 audit tamamlandı; C5 tamamlandı. Sıradaki iş C6 M7.2 → C7 M8 offline regression zinciridir.
