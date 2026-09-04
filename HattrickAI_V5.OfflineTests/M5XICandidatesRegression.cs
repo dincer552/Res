@@ -51,7 +51,17 @@ public static class M5XICandidatesRegression
     }
 
     private static Player ReadPlayer(JsonElement e) => new(e.GetProperty("id").GetInt32(), e.GetProperty("name").GetString() ?? "Player", e.GetProperty("keeper").GetInt32(), e.GetProperty("defending").GetInt32(), e.GetProperty("playmaking").GetInt32(), e.GetProperty("passing").GetInt32(), e.GetProperty("winger").GetInt32(), e.GetProperty("scoring").GetInt32(), e.GetProperty("stamina").GetInt32(), e.GetProperty("form").GetInt32(), e.GetProperty("experience").GetInt32(), GetInt(e, "loyalty", 0), GetInt(e, "injuryLevel", -1));
-    private static RegionalRatingSnapshot ReadRating(JsonElement e) => new(GetDouble(e, "leftDefence"), GetDouble(e, "centralDefence"), GetDouble(e, "rightDefence"), GetDouble(e, "midfield"), GetDouble(e, "leftAttack"), GetDouble(e, "centralAttack"), GetDouble(e, "rightAttack"));
+    private static RegionalRatingSnapshot ReadRating(JsonElement e)
+    {
+        var ld = GetDouble(e, "leftDefence");
+        var cd = GetDouble(e, "centralDefence");
+        var rd = GetDouble(e, "rightDefence");
+        var mid = GetDouble(e, "midfield");
+        var la = GetDouble(e, "leftAttack");
+        var ca = GetDouble(e, "centralAttack");
+        var ra = GetDouble(e, "rightAttack");
+        return new RegionalRatingSnapshot(ld, cd, rd, mid, la, ca, ra, ld, cd, rd, mid, la, ca, ra);
+    }
     private static string Signature(PositionAssignmentCandidate x) => string.Join(";", x.Lineup.Slots.OrderBy(s => s.Code, StringComparer.Ordinal).Select(s => $"{s.Code}:{s.PlayerId}"));
     private static string GetString(JsonElement e, string name, string fallback) => e.TryGetProperty(name, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() ?? fallback : fallback;
     private static int GetInt(JsonElement e, string name, int fallback) => e.TryGetProperty(name, out var v) && v.TryGetInt32(out var value) ? value : fallback;
