@@ -5,18 +5,12 @@ namespace HattrickAI.V5.OfflineTests;
 /// <summary>
 /// C2 acceptance: M4 must emit only the supported legal, 11-slot formations
 /// and must drop formations that cannot be filled by the eligible player pool.
+/// The legal formation/slot contract is owned by the production registry.
 /// </summary>
 public static class M4LegalFormationRegression
 {
-    private static readonly IReadOnlyDictionary<string, string[]> Expected = new Dictionary<string, string[]>(StringComparer.Ordinal)
-    {
-        ["3-5-2"] = ["GK", "DEF-CL", "DEF-C", "DEF-CR", "W-L", "IM-L", "IM-C", "IM-R", "W-R", "FW-L", "FW-R"],
-        ["3-4-3"] = ["GK", "DEF-CL", "DEF-C", "DEF-CR", "W-L", "IM-L", "IM-R", "W-R", "FW-L", "FW-C", "FW-R"],
-        ["4-4-2"] = ["GK", "DEF-L", "DEF-CL", "DEF-CR", "DEF-R", "W-L", "IM-L", "IM-R", "W-R", "FW-L", "FW-R"],
-        ["4-5-1"] = ["GK", "DEF-L", "DEF-CL", "DEF-CR", "DEF-R", "W-L", "IM-L", "IM-C", "IM-R", "W-R", "FW-C"],
-        ["2-5-3"] = ["GK", "DEF-CL", "DEF-CR", "W-L", "IM-L", "IM-C", "IM-R", "W-R", "FW-L", "FW-C", "FW-R"],
-        ["5-3-2"] = ["GK", "DEF-L", "DEF-CL", "DEF-C", "DEF-CR", "DEF-R", "IM-L", "IM-C", "IM-R", "FW-L", "FW-R"]
-    };
+    private static readonly string[] ExpectedFormationNames =
+    ["2-5-3", "3-4-3", "3-5-2", "4-4-2", "4-5-1", "5-3-2"];
 
     private static readonly string[] AllSlots =
     [
@@ -31,6 +25,19 @@ public static class M4LegalFormationRegression
         try
         {
             Console.WriteLine("=== C2 M4 LEGAL FORMATION REGRESSION ===");
+
+            var registry = FormationCandidateEngine.LegalFormations;
+            Check(registry.Count == ExpectedFormationNames.Length, $"M4 legal registry has {registry.Count} formations; expected {ExpectedFormationNames.Length}");
+            Check(registry.Select(x => x.Formation).Distinct(StringComparer.Ordinal).Count() == registry.Count, "M4 legal registry formation identities are unique");
+            Check(registry.Select(x => x.Formation).OrderBy(x => x, StringComparer.Ordinal).SequenceEqual(ExpectedFormationNames.OrderBy(x => x, StringComparer.Ordinal)), "M4 legal registry formation set changed");
+
+            foreach (var definition in registry)
+            {
+                Check(definition.SlotCodes.Count == 11, $"registry {definition.Formation} has {definition.SlotCodes.Count} slots");
+                Check(definition.SlotCodes.Distinct(StringComparer.Ordinal).Count() == 11, $"registry {definition.Formation} contains duplicate slot codes");
+                Check(definition.SlotCodes.All(code => AllSlots.Contains(code, StringComparer.Ordinal)), $"registry {definition.Formation} contains an unknown slot code");
+                Check(definition.SlotCodes.Count(x => x == "GK") == 1, $"registry {definition.Formation} must contain exactly one GK");
+            }
 
             var engine = new PlayerAnalysisEngine();
             var formationEngine = new FormationCandidateEngine();
@@ -50,19 +57,13 @@ public static class M4LegalFormationRegression
             var m3 = new PlayerAnalysisResult(players);
             var result = formationEngine.Generate(m3);
 
-            Check(result.Candidates.Count == Expected.Count, $"M4 emitted {result.Candidates.Count} formations; expected {Expected.Count}");
-
-            var actualNames = result.Candidates.Select(x => x.Formation).Distinct(StringComparer.Ordinal).ToList();
-            Check(actualNames.Count == result.Candidates.Count, "M4 formation identities are unique");
-            Check(actualNames.OrderBy(x => x, StringComparer.Ordinal).SequenceEqual(Expected.Keys.OrderBy(x => x, StringComparer.Ordinal)), "M4 emitted an unexpected formation set");
+            Check(result.Candidates.Count == registry.Count, $"M4 emitted {result.Candidates.Count} formations; registry has {registry.Count}");
+            Check(result.Candidates.Select(x => x.Formation).OrderBy(x => x, StringComparer.Ordinal).SequenceEqual(registry.Select(x => x.Formation).OrderBy(x => x, StringComparer.Ordinal)), "M4 emitted an unexpected formation set");
 
             foreach (var candidate in result.Candidates)
             {
-                Check(Expected.TryGetValue(candidate.Formation, out var expectedSlots), $"M4 emitted non-legal formation {candidate.Formation}");
-                Check(candidate.SlotCodes.Count == 11, $"{candidate.Formation} has {candidate.SlotCodes.Count} slots");
-                Check(candidate.SlotCodes.Distinct(StringComparer.Ordinal).Count() == 11, $"{candidate.Formation} contains duplicate slot codes");
-                Check(candidate.SlotCodes.SequenceEqual(expectedSlots), $"{candidate.Formation} slot contract changed");
-                Check(candidate.SlotCodes.Count(x => x == "GK") == 1, $"{candidate.Formation} must contain exactly one GK");
+                var definition = registry.Single(x => x.Formation == candidate.Formation);
+                Check(candidate.SlotCodes.SequenceEqual(definition.SlotCodes), $"{candidate.Formation} slot contract differs from authoritative registry");
                 Check(double.IsFinite(candidate.StructuralScore) && candidate.StructuralScore > 0, $"{candidate.Formation} structural score is invalid");
             }
 
@@ -76,8 +77,8 @@ public static class M4LegalFormationRegression
             var ineligibleResult = formationEngine.Generate(new PlayerAnalysisResult(ineligible));
             Check(ineligibleResult.Candidates.Count == 0, "M4 must exclude injured/ineligible players from feasibility");
 
-            Console.WriteLine("PASS: C2 M4 legal formations");
-            Console.WriteLine("  Legal set=6 | slot contract=11 each | feasibility guard=10-player rejection");
+            Console.WriteLine("PASS: C2 M4 legal formations + authoritative registry");
+            Console.WriteLine($"Legal set={registry.Count} | slot contract=11 each | registry source=production | feasibility guard=10-player rejection");
             Console.WriteLine("NEXT: C3 M5 XI candidates");
             return 0;
         }
@@ -86,10 +87,5 @@ public static class M4LegalFormationRegression
             Console.WriteLine("FAIL: C2 " + ex.Message);
             return 1;
         }
-    }
-
-    private static void Check(bool ok, string message)
-    {
-        if (!ok) throw new InvalidOperationException(message);
     }
 }
