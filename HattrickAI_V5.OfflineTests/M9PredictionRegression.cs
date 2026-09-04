@@ -8,6 +8,7 @@ public static class M9PredictionRegression
     public static async Task<int> RunAsync(string path, CancellationToken cancellationToken = default)
     {
         if (!File.Exists(path)) return Fail($"fixture bulunamadı: {path}");
+        var runId = MotorRunLogStore.Start("offline-acceptance-c8");
         try
         {
             await using var stream = File.OpenRead(path);
@@ -22,13 +23,13 @@ public static class M9PredictionRegression
             var teamName = GetString(fixtureLineup, "teamName", "Fixture");
             var context = new MatchDataContext(players, 0, teamName, opponent, RatingContext.Default, MatchQuestionnaire.Default);
             Console.WriteLine("=== C8 M9 PREDICTION REGRESSION ===");
-            var result = await new MotorPipelineService().RunAsync(context, players, cancellationToken, "offline-c8-m9");
+            var result = await new MotorPipelineService().RunAsync(context, players, cancellationToken, runId);
             var m9 = result.M9;
             Check(m9 is not null, "production pipeline returned M9 result");
             Check(!string.IsNullOrWhiteSpace(m9.CandidateId), "M9 candidate identity is populated");
             Check(m9.CandidateId == CandidateId(result.FinalPlan.Lineup), "M9 candidate identity matches FinalPlan selected XI");
             Check(m9.Formation == result.FinalPlan.Formation, "M9 formation matches FinalPlan");
-            var telemetry = MotorRunLogStore.Get("offline-c8-m9");
+            var telemetry = MotorRunLogStore.Get(runId);
             Check(telemetry is not null, "M9 run telemetry exists");
             Check(telemetry!.Stages.Any(x => x.Motor == "M9" && x.Status == "completed"), "M9 completed telemetry exists");
             var p = m9.Prediction;
@@ -69,7 +70,7 @@ public static class M9PredictionRegression
             Console.WriteLine("PASS: C8 M9 prediction continuity");
             return 0;
         }
-        catch (Exception ex) { return Fail("C8 exception: " + ex.Message); }
+        catch (Exception ex) { MotorRunLogStore.Finish(runId, false, ex.Message); return Fail("C8 exception: " + ex.Message); }
     }
     private static Player ReadPlayer(JsonElement e) => new(e.GetProperty("id").GetInt32(), e.GetProperty("name").GetString() ?? "Player", e.GetProperty("keeper").GetInt32(), e.GetProperty("defending").GetInt32(), e.GetProperty("playmaking").GetInt32(), e.GetProperty("passing").GetInt32(), e.GetProperty("winger").GetInt32(), e.GetProperty("scoring").GetInt32(), e.GetProperty("stamina").GetInt32(), e.GetProperty("form").GetInt32(), e.GetProperty("experience").GetInt32(), GetInt(e, "loyalty", 0), GetInt(e, "injuryLevel", -1));
     private static RegionalRatingSnapshot ReadRating(JsonElement e) { var ld=GetDouble(e,"leftDefence"); var cd=GetDouble(e,"centralDefence"); var rd=GetDouble(e,"rightDefence"); var mid=GetDouble(e,"midfield"); var la=GetDouble(e,"leftAttack"); var ca=GetDouble(e,"centralAttack"); var ra=GetDouble(e,"rightAttack"); return new RegionalRatingSnapshot(ld,cd,rd,mid,la,ca,ra,ld,cd,rd,mid,la,ca,ra); }
