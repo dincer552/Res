@@ -35,6 +35,9 @@ var path = args.Length > 0
 var m5XiCandidatesRegression = await M5XICandidatesRegression.RunAsync(path);
 if (m5XiCandidatesRegression != 0) return m5XiCandidatesRegression;
 
+var m6aCandidateEvaluationRegression = await M6ACandidateEvaluationRegression.RunAsync(path);
+if (m6aCandidateEvaluationRegression != 0) return m6aCandidateEvaluationRegression;
+
 var historicalMultiMatchAcceptance = HistoricalMultiMatchProductionAcceptance.Run(path);
 if (historicalMultiMatchAcceptance != 0) return historicalMultiMatchAcceptance;
 
