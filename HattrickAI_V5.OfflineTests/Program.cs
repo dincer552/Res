@@ -25,6 +25,9 @@ if (longShotRegression != 0) return longShotRegression;
 var m9EventRegression = M9EventGoalRegression.Run();
 if (m9EventRegression != 0) return m9EventRegression;
 
+var m4LegalFormationRegression = M4LegalFormationRegression.Run();
+if (m4LegalFormationRegression != 0) return m4LegalFormationRegression;
+
 var path = args.Length > 0
     ? args[0]
     : "TestJSON/HattrickAI_V5_CHPP_FullOffline_2026-09-01.json";
