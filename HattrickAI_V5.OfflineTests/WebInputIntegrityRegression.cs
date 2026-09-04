@@ -60,7 +60,7 @@ public static class WebInputIntegrityRegression
             foreach (var key in RequiredQuestionKeys)
                 Check(Regex.IsMatch(html, $"key\\s*:\\s*['\"]{Regex.Escape(key)}['\"]"), $"question key preserved: {key}", failures);
 
-            Check(Regex.IsMatch(html, "JSON\.stringify\\(answers\\)"), "questionnaire POST serializes the same answer object", failures);
+            Check(html.Contains("JSON.stringify(answers)", StringComparison.Ordinal), "questionnaire POST serializes the same answer object", failures);
             Check(html.Contains("/api/v5/questionnaire", StringComparison.Ordinal), "WEB questionnaire endpoint wired", failures);
             Check(html.Contains("/api/v5/analysis", StringComparison.Ordinal), "WEB analysis endpoint wired", failures);
             Check(html.Contains("/api/v5/status", StringComparison.Ordinal), "WEB status endpoint wired", failures);
