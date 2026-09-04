@@ -58,7 +58,7 @@ DB1 → M10 → M6-B → DB2 → M11 → WEB
 
 ## HISTORICAL MULTI-MATCH ACCEPTANCE — 60 MAÇ
 
-`HistoricalMultiMatchProductionAcceptance` offline suite içine bağlıdır. Kabul eşiği artık 60 gerçek CHPP-türetilmiş maçtır:
+`HistoricalMultiMatchProductionAcceptance` offline suite içine bağlıdır. Kabul eşiği 60 gerçek CHPP-türetilmiş maçtır:
 
 ```text
 CHPP / calibration schema doğrulaması
@@ -72,19 +72,17 @@ final skor bütünlüğü
 0 invalid sample/source row
 ```
 
-M8 Phase D collector tarafından üretilen `hattrickai-v5-m8-phase-d-calibration-v2` JSON'u da acceptance gate tarafından doğrudan okunur. Bu veri setinde 60 sample, 60 source row, 60 detail fetch ve 60 chance sample bulunur; katsayılar bu kabul testi sırasında değiştirilmez.
+M8 Phase D collector tarafından üretilen `hattrickai-v5-m8-phase-d-calibration-v2` JSON'u acceptance gate tarafından okunur. Bu veri setinde 60 sample, 60 source row, 60 detail fetch ve 60 chance sample bulunur; katsayılar bu kabul testi sırasında değiştirilmez.
 
-Web tarafındaki geniş collector hâlâ daha büyük corpus üretebilir; ancak mevcut proje kabul aşamasını kapatmak için **60 maçlık CHPP-derived corpus** yeterlidir.
-
-`observedOwnSetPieceChances` sample alanı bu corpus'ta boş/null kalmıştır; buna rağmen raw-derived `sourceRows` içinde home/away special-event chance alanları mevcuttur. Bu durum acceptance'i bloke etmez ve set-piece taker katsayılarını değiştirmez.
+`observedOwnSetPieceChances` sample alanı bu corpus'ta boş/null kalmıştır; raw-derived `sourceRows` içinde home/away special-event chance alanları mevcuttur. Bu durum acceptance'i bloke etmez ve set-piece taker katsayılarını değiştirmez.
 
 ## FINAL WEB PRODUCTION ACCEPTANCE
 
 Bu aşamada yeni mekanizma geliştirmek yerine V5'in gerçek WEB sınırından Core motora ve tekrar WEB çıktısına kadar tek sözleşme olarak çalıştığı doğrulanır. Testler aşağıdaki sırayla ve birbirini geçtikten sonra ilerletilir:
 
 ```text
-A) WEB input integrity             🟡 CI RERUN — BLOCKER FIX UYGULANDI
-B) Core ↔ WEB parity               ⏳
+A) WEB input integrity             🟡 CI RERUN
+B) Core ↔ WEB parity               🟡 IMPLEMENTED — CI PENDING
 C) M3→M11 end-to-end               ⏳
 D) Gerçek Hattrick match input     ⏳
 E) prediction output               ⏳
@@ -99,11 +97,42 @@ G) production smoke test           ⏳
 
 ### A) WEB input integrity
 
-`HattrickAI_V5.OfflineTests/WebInputIntegrityRegression.cs` oluşturuldu ve offline suite'in ilk kontrolü olarak bağlandı. A testi WEB questionnaire alanlarını, 14 saha slotunu, WEB → API endpoint bağlantılarını, session taşımasını, seçili maç ID'sini ve AnalysisService'in CHPP `teamdetails / training / players / matches / matchlineup / matchdetails` veri akışını statik sözleşme seviyesinde kontrol eder. Oyuncu tarafında 15 temel CHPP alanının map edildiği ve own/opponent 11 oyuncu bütünlüğünün korunduğu doğrulanır.
+`HattrickAI_V5.OfflineTests/WebInputIntegrityRegression.cs` offline suite'in ilk kontrolüdür. WEB questionnaire alanlarını, 14 saha slotunu, WEB → API endpoint bağlantılarını, session taşımasını, seçili maç ID'sini ve AnalysisService'in CHPP `teamdetails / training / players / matches / matchlineup / matchdetails` veri akışını statik sözleşme seviyesinde kontrol eder. Oyuncu tarafında 15 temel CHPP alanının map edildiği ve own/opponent 11 oyuncu bütünlüğünün korunduğu doğrulanır.
 
-İlk CI koşusunda A testinden bağımsız mevcut bir derleme engeli de yakalandı: `SpecialtyInteractionEngine` içindeki `AdvancedTactic.Counter` referansı yanlış enum adı kullanıyordu. Bu `AdvancedTactic.CounterAttack` olarak düzeltildi. A testindeki questionnaire assertion da gerçek `questionnaire.MatchImportance` erişimine göre düzeltildi ve slot/questionnaire kontrolleri daha toleranslı hale getirildi.
+Canlı OAuth/CHPP erişimi A testinin parçası değildir; gerçek ortam doğrulaması G production smoke testinde yapılacaktır.
 
-Canlı OAuth/CHPP erişimi A testinin parçası değildir; bu gerçek ortam doğrulaması son aşama olan G production smoke testinde yapılacaktır.
+### B) Core ↔ WEB parity — AKTİF
+
+`HattrickAI_V5.OfflineTests/CoreWebParityRegression.cs` eklendi ve offline suite'te A testinden hemen sonra çalıştırılıyor.
+
+B'nin kabul ettiği sınır:
+
+```text
+Core Analysis object
+        ↓
+ASP.NET camelCase JSON serializer
+        ↓
+/api/v5/analysis
+        ↓
+WEB response bindings
+```
+
+Kontroller:
+
+```text
+analysis endpoint → Analysis object
+camelCase JSON naming
+build / team / opponent / match fields
+own + opponent lineup
+11 + 11 slot bütünlüğü
+formation parity
+ownRating / opponentRating
+appliedQuestionnaire
+regionalRatings / opponentThreat
+WEB'in aynı canonical /api/v5/analysis response sözleşmesini tüketmesi
+```
+
+B testi canlı CHPP/OAuth yapmaz. Bu nedenle B PASS olsa bile production kabulü anlamına gelmez; canlı sınır G aşamasında doğrulanacaktır.
 
 ## PAPER M8 / TACTIC CONVERSION
 
@@ -128,17 +157,11 @@ TestJSON/
 └── HattrickAI_V5_CHPP_FullOffline_2026-09-01.json
 ```
 
-Offline zincirde M3→M11 akışının çalışması regression ile doğrulanır. Historical acceptance gate eski export'u geriye dönük uyumlulukla kontrol eder; Phase D calibration corpus ise `hattrickai-v5-m8-phase-d-calibration-v2` şemasıyla 60 maçlık acceptance yolundan geçer.
+Offline zincirde M3→M11 akışının çalışması regression ile doğrulanır. Historical acceptance gate eski export'u geriye dönük uyumlulukla kontrol eder; Phase D calibration corpus ise 60 maçlık CHPP-derived kabul yolundan geçer.
 
 ## CI CHECKPOINT
 
-Son doğrulanmış baseline:
-
-```text
-HattrickAI V5 Deploy #505  → SUCCESS
-```
-
-A testinde ilk assertion düzeltmesi ve ardından specialty engine derleme blocker'ı giderildi. Güncel branch'te bu iki düzeltmeden sonra yeni CI koşusu tetiklenmiştir.
+A ve B değişiklikleri `v5` branch'ine işlendi. B'nin CI sonucu henüz bekleniyor; CI temizlenmeden B production PASS olarak işaretlenmeyecektir.
 
 ## KALANLAR
 
@@ -147,7 +170,7 @@ A testinde ilk assertion düzeltmesi ve ardından specialty engine derleme block
 2. Specialty ↔ weather / tactic cross-effects          ✅ CODED + REGRESSION
 3. Exact V5 tactic-level → paper RT mapping             ✅ CODED + REGRESSION
 4. Historical multi-match production acceptance         ✅ 60-MATCH CHPP CALIBRATION ACCEPTED
-5. Final WEB production acceptance                      🟡 A TESTİ / CI DOĞRULAMASI
+5. Final WEB production acceptance                      🟡 A / B CI DOĞRULAMASI
 ```
 
 ## KABUL KRİTERİ
@@ -158,4 +181,4 @@ REGRESSION  → offline test geçiyor
 PRODUCTION  → gerçek CHPP/maç verisiyle doğrulandı
 ```
 
-#4 için 60-maç collector + acceptance gate hazır ve Phase D CHPP-derived corpus ile kabul edildi. Final WEB acceptance ise **A → B → C → D → E → F → G** sırasıyla kapatılacaktır.
+Final WEB acceptance **A → B → C → D → E → F → G** sırasıyla kapatılacaktır.
