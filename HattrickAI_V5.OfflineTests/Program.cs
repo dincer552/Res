@@ -21,12 +21,13 @@ var m5XiCandidatesRegression = await M5XICandidatesRegression.RunAsync(path); if
 var m6aCandidateEvaluationRegression = await M6ACandidateEvaluationRegression.RunAsync(path); if (m6aCandidateEvaluationRegression != 0) return m6aCandidateEvaluationRegression;
 var c5M7RegionalRatingRegression = await M7RegionalRatingRegression.RunAsync(path); if (c5M7RegionalRatingRegression != 0) return c5M7RegionalRatingRegression;
 var c6M72TacticalScenarioRegression = await M7_2TacticalScenarioRegression.RunAsync(path); if (c6M72TacticalScenarioRegression != 0) return c6M72TacticalScenarioRegression;
-var c7M8ChanceModelRegression = await M8ChanceModelRegression.RunAsync(path); if (c7M8ChanceModelRegression != 0) return c7M8ChanceModelRegression;
+var c7M8ChanceModelRegression = await M8ChanceModelRegression.RunAsync(path); if (c7M8ChanceModelRegression != 0) return c7M72TacticalScenarioRegression;
 var c8M9PredictionRegression = await M9PredictionRegression.RunAsync(path); if (c8M9PredictionRegression != 0) return c8M9PredictionRegression;
 var c9Db1FormationCoverageRegression = await DB1FormationCoverageRegression.RunAsync(path); if (c9Db1FormationCoverageRegression != 0) return c9Db1FormationCoverageRegression;
 var c10M10FormationCompetitionRegression = await M10FormationCompetitionRegression.RunAsync(path); if (c10M10FormationCompetitionRegression != 0) return c10M10FormationCompetitionRegression;
 var c11M10ToM6BHandoffRegression = await M10ToM6BRankDrivenHandoffRegression.RunAsync(path); if (c11M10ToM6BHandoffRegression != 0) return c11M10ToM6BHandoffRegression;
 var c12M6BRefinementRegression = await M6BRefinementRegression.RunAsync(path); if (c12M6BRefinementRegression != 0) return c12M6BRefinementRegression;
 var c13Db2FormationCoverageRegression = await DB2FormationCoverageRegression.RunAsync(path); if (c13Db2FormationCoverageRegression != 0) return c13Db2FormationCoverageRegression;
+var c14M11FinalistPoolRegression = await M11FinalistPoolRegression.RunAsync(path); if (c14M11FinalistPoolRegression != 0) return c14M11FinalistPoolRegression;
 var historicalMultiMatchAcceptance = HistoricalMultiMatchProductionAcceptance.Run(path); if (historicalMultiMatchAcceptance != 0) return historicalMultiMatchAcceptance;
 return await FullPipelineRegressionRunner.RunAsync(path);
