@@ -4,6 +4,9 @@ using HattrickAI.V5.OfflineTests;
 var webInputIntegrityRegression = WebInputIntegrityRegression.Run();
 if (webInputIntegrityRegression != 0) return webInputIntegrityRegression;
 
+var coreWebParityRegression = CoreWebParityRegression.Run();
+if (coreWebParityRegression != 0) return coreWebParityRegression;
+
 var historicalCalibrationRegression = HistoricalCalibrationRegression.Run();
 if (historicalCalibrationRegression != 0) return historicalCalibrationRegression;
 
