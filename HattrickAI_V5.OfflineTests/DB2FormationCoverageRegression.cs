@@ -1,0 +1,57 @@
+using System.Text.Json;
+using HattrickAI.V5.Core;
+
+namespace HattrickAI.V5.OfflineTests;
+
+public static class DB2FormationCoverageRegression
+{
+    public static async Task<int> RunAsync(string path, CancellationToken cancellationToken = default)
+    {
+        if (!File.Exists(path)) return Fail($"fixture bulunamadı: {path}");
+        try
+        {
+            await using var stream = File.OpenRead(path);
+            using var doc = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
+            var root = doc.RootElement;
+            var normalized = root.GetProperty("normalized");
+            var analysis = root.GetProperty("v5Analysis");
+            var players = normalized.GetProperty("ownPlayers").EnumerateArray().Select(ReadPlayer).ToList();
+            var opponentRating = ReadRating(analysis.GetProperty("opponentRating"));
+            var opponent = new OpponentMatchProfile(GetString(analysis, "opponentName", "Opponent"), GetString(analysis, "opponentFormation", ""), opponentRating, new OpponentThreatEngine().Analyze(opponentRating));
+            var context = new MatchDataContext(players, 0, GetString(analysis.GetProperty("ownLineup"), "teamName", "Fixture"), opponent, RatingContext.Default, MatchQuestionnaire.Default);
+
+            Console.WriteLine("=== C13 DB2 FORMATION COVERAGE REGRESSION ===");
+            var result = await new MotorPipelineService().RunAsync(context, players, cancellationToken, "offline-c13-db2");
+            var legalFormations = result.M4.Candidates.Select(x => x.Formation).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.Ordinal).OrderBy(x => x, StringComparer.Ordinal).ToList();
+            var db2 = result.CandidateDatabase2;
+
+            Check(db2.Count == result.CandidateDatabase2Count, "DB2 exposed record count differs from production DB2 count");
+            Check(db2.Count > 0, "DB2 is empty");
+            Check(db2.Count <= CandidateEvaluationDatabase.DefaultCapacity, "DB2 exceeds capacity");
+            Check(db2.All(x => x.Stage == "M6-B"), "DB2 contains a record not produced by M6-B");
+            Check(db2.Select(x => x.CandidateId).Distinct(StringComparer.Ordinal).Count() == db2.Count, "DB2 contains duplicate candidate IDs");
+            Check(db2.All(x => legalFormations.Contains(x.Formation, StringComparer.Ordinal)), "DB2 contains an illegal formation");
+            var missing = legalFormations.Where(f => !db2.Any(x => x.Formation.Equals(f, StringComparison.Ordinal))).ToList();
+            Check(missing.Count == 0, $"DB2 lost legal formation coverage: {string.Join(", ", missing)}");
+            Check(db2.All(x => x.Lineup.Slots.Count == 11), "DB2 contains a non-XI lineup");
+            Check(db2.All(x => x.Lineup.Slots.Select(s => s.PlayerId).Where(id => id > 0).Distinct().Count() == 11), "DB2 contains duplicate active players");
+            Check(db2.All(x => double.IsFinite(x.TacticalScore) && double.IsFinite(x.RankingScore)), "DB2 contains non-finite scores");
+            Check(db2.All(x => x.Chance is not null && double.IsFinite(x.Chance.StructuralChanceIndex)), "DB2 contains invalid M8 chance data");
+            Check(result.M6B is not null && result.M6B.EvaluatedCandidates >= db2.Count, "DB2 contains more records than M6-B evaluated candidates");
+
+            var counts = db2.GroupBy(x => x.Formation, StringComparer.Ordinal).OrderBy(x => x.Key, StringComparer.Ordinal).Select(x => $"{x.Key}={x.Count()}");
+            Console.WriteLine($"Legal formations={legalFormations.Count} | DB2={db2.Count} | coverage={string.Join(", ", counts)}");
+            Console.WriteLine("PASS: C13 DB2 formation coverage");
+            return 0;
+        }
+        catch (Exception ex) { return Fail("C13 exception: " + ex.Message); }
+    }
+
+    private static Player ReadPlayer(JsonElement e) => new(e.GetProperty("id").GetInt32(), e.GetProperty("name").GetString() ?? "Player", e.GetProperty("keeper").GetInt32(), e.GetProperty("defending").GetInt32(), e.GetProperty("playmaking").GetInt32(), e.GetProperty("passing").GetInt32(), e.GetProperty("winger").GetInt32(), e.GetProperty("scoring").GetInt32(), e.GetProperty("stamina").GetInt32(), e.GetProperty("form").GetInt32(), e.GetProperty("experience").GetInt32(), GetInt(e, "loyalty", 0), GetInt(e, "injuryLevel", -1));
+    private static RegionalRatingSnapshot ReadRating(JsonElement e) { var ld = GetDouble(e, "leftDefence"); var cd = GetDouble(e, "centralDefence"); var rd = GetDouble(e, "rightDefence"); var mid = GetDouble(e, "midfield"); var la = GetDouble(e, "leftAttack"); var ca = GetDouble(e, "centralAttack"); var ra = GetDouble(e, "rightAttack"); return new RegionalRatingSnapshot(ld, cd, rd, mid, la, ca, ra, ld, cd, rd, mid, la, ca, ra); }
+    private static string GetString(JsonElement e, string n, string f) => e.TryGetProperty(n, out var v) && v.ValueKind == JsonValueKind.String ? v.GetString() ?? f : f;
+    private static int GetInt(JsonElement e, string n, int f) => e.TryGetProperty(n, out var v) && v.TryGetInt32(out var x) ? x : f;
+    private static double GetDouble(JsonElement e, string n) => e.GetProperty(n).GetDouble();
+    private static void Check(bool ok, string message) { if (!ok) throw new InvalidOperationException(message); }
+    private static int Fail(string message) { Console.WriteLine("FAIL: " + message); return 1; }
+}
