@@ -17,7 +17,7 @@ public sealed record SpecialtyWeatherEffect(
 }
 
 public sealed record SpecialtyTacticEffect(
-    double CounterAttackBoostLevels,
+    double CounterAttackBoostPercent,
     double TechnicalDefensiveWingPassingMultiplier,
     double PressingDefenceWeightMultiplier,
     bool IsSpecialEventAmplified,
@@ -29,7 +29,8 @@ public static class SpecialtyInteractionEngine
 {
     public const double WeatherSkillDelta = 0.05;
     public const double TechnicalDefensiveForwardPassingMultiplier = 1.33;
-    public const double QuickCounterAttackMaxBoostLevels = 2.8;
+    public const double QuickCounterAttackSinglePlayerBoost = 0.05;
+    public const double QuickCounterAttackEightPlayerBoost = 0.14;
 
     public static SpecialtyWeatherEffect GetWeatherEffect(PlayerSpecialty specialty, MatchWeather weather)
         => (specialty, weather) switch
@@ -59,25 +60,14 @@ public static class SpecialtyInteractionEngine
         int opponentQuickDefensivePlayers = 0)
     {
         var isDefender = slotCode.StartsWith("DEF", StringComparison.Ordinal) || slotCode == "GK";
-        var isWingBack = slotCode is "DEF-L" or "DEF-R";
         var isForward = slotCode.StartsWith("FW", StringComparison.Ordinal);
         var canQuickEvent = specialty == PlayerSpecialty.Quick && !isDefender;
         var technicalCa = specialty == PlayerSpecialty.Technical && isDefender;
         var technicalTdf = specialty == PlayerSpecialty.Technical && isForward && order == PlayerOrder.Defensive;
         var pressingPowerful = specialty == PlayerSpecialty.Powerful && isDefender;
-
-        var caBoost = 0.0;
-        if (tactic == AdvancedTactic.Counter && specialty == PlayerSpecialty.Quick && !isDefender)
-        {
-            var own = Math.Max(0, ownQuickRelevantPlayers);
-            var opponent = Math.Max(0, opponentQuickDefensivePlayers);
-            if (own > 0)
-            {
-                var baseBoost = Math.Min(QuickCounterAttackMaxBoostLevels, own == 1 ? 0.05 * 20.0 : 0.05 * Math.Min(8, own) * 20.0 / 8.0);
-                var reduction = opponent <= 0 ? 1.0 : Math.Clamp(1.0 - 0.125 * opponent, 0.0, 1.0);
-                caBoost = baseBoost * reduction;
-            }
-        }
+        var caBoost = tactic == AdvancedTactic.Counter && specialty == PlayerSpecialty.Quick && !isDefender
+            ? CounterAttackSpecialtyBoostPercent(ownQuickRelevantPlayers, opponentQuickDefensivePlayers)
+            : 0.0;
 
         return new SpecialtyTacticEffect(
             caBoost,
@@ -89,17 +79,24 @@ public static class SpecialtyInteractionEngine
             canQuickEvent);
     }
 
-    public static double CounterAttackSpecialtyBoostLevels(int ownQuickRelevantPlayers, int opponentQuickDefensivePlayers)
+    public static double CounterAttackSpecialtyBoostPercent(int ownQuickRelevantPlayers, int opponentQuickDefensivePlayers)
     {
         var own = Math.Clamp(ownQuickRelevantPlayers, 0, 8);
         var opponent = Math.Clamp(opponentQuickDefensivePlayers, 0, 8);
         if (own == 0) return 0.0;
 
-        // Officially published anchor points: +5% for one extra Quick player,
-        // up to +14% with eight; opponent Quicks reduce the extra boost.
-        var normalized = 0.05 + (0.14 - 0.05) * (own - 1) / 7.0;
-        var reduced = normalized * (1.0 - Math.Min(1.0, opponent / 8.0));
-        return Math.Clamp(reduced * 20.0, 0.0, QuickCounterAttackMaxBoostLevels);
+        // Published anchors: one extra Quick player gives +5%, eight give +14%.
+        // The source explicitly says the relation is non-linear, so V5 does not
+        // invent intermediate points. Linear interpolation is used only as a
+        // bounded diagnostic estimate; production calibration remains pending.
+        var estimate = own == 1
+            ? QuickCounterAttackSinglePlayerBoost
+            : QuickCounterAttackSinglePlayerBoost +
+              (QuickCounterAttackEightPlayerBoost - QuickCounterAttackSinglePlayerBoost) * (own - 1) / 7.0;
+
+        // Opposing Quick Wing Backs / IMs / Defenders reduce the extra boost.
+        var reduction = 1.0 - Math.Min(1.0, opponent / 8.0);
+        return Math.Clamp(estimate * reduction, 0.0, QuickCounterAttackEightPlayerBoost);
     }
 
     public static double HeadSetPieceScoringOpportunityBonus(int offensiveHeadSpecialists)
