@@ -21,6 +21,9 @@ public static class M10FormationCompetitionRegression
             var result=await new MotorPipelineService().RunAsync(context,players,cancellationToken,"offline-c10-m10");
             var legal=result.M4.Candidates.Select(x=>x.Formation).Distinct(StringComparer.Ordinal).ToList();
             var competition=result.M10.FormationCompetition ?? [];
+            var telemetry=MotorRunLogStore.Get("offline-c10-m10");
+            Check(telemetry is not null,"M10 run telemetry exists");
+            Check(telemetry!.Stages.Any(x=>x.Motor=="M10"&&x.Status=="completed"),"M10 completed telemetry exists");
             Check(competition.Count==legal.Count,$"M10 compares {competition.Count} formations; expected {legal.Count}");
             Check(competition.Select(x=>x.Formation).Distinct(StringComparer.Ordinal).Count()==competition.Count,"M10 formation competition contains duplicates");
             Check(competition.Select(x=>x.Formation).OrderBy(x=>x,StringComparer.Ordinal).SequenceEqual(legal.OrderBy(x=>x,StringComparer.Ordinal)),"M10 formation competition does not cover the legal M4 set");
