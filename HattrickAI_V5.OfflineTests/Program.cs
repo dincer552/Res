@@ -21,7 +21,7 @@ var m5XiCandidatesRegression = await M5XICandidatesRegression.RunAsync(path); if
 var m6aCandidateEvaluationRegression = await M6ACandidateEvaluationRegression.RunAsync(path); if (m6aCandidateEvaluationRegression != 0) return m6aCandidateEvaluationRegression;
 var c5M7RegionalRatingRegression = await M7RegionalRatingRegression.RunAsync(path); if (c5M7RegionalRatingRegression != 0) return c5M7RegionalRatingRegression;
 var c6M72TacticalScenarioRegression = await M7_2TacticalScenarioRegression.RunAsync(path); if (c6M72TacticalScenarioRegression != 0) return c6M72TacticalScenarioRegression;
-var c7M8ChanceModelRegression = await M8ChanceModelRegression.RunAsync(path); if (c7M8ChanceModelRegression != 0) return c7M72TacticalScenarioRegression;
+var c7M8ChanceModelRegression = await M8ChanceModelRegression.RunAsync(path); if (c7M8ChanceModelRegression != 0) return c7M8ChanceModelRegression;
 var c8M9PredictionRegression = await M9PredictionRegression.RunAsync(path); if (c8M9PredictionRegression != 0) return c8M9PredictionRegression;
 var c9Db1FormationCoverageRegression = await DB1FormationCoverageRegression.RunAsync(path); if (c9Db1FormationCoverageRegression != 0) return c9Db1FormationCoverageRegression;
 var c10M10FormationCompetitionRegression = await M10FormationCompetitionRegression.RunAsync(path); if (c10M10FormationCompetitionRegression != 0) return c10M10FormationCompetitionRegression;
