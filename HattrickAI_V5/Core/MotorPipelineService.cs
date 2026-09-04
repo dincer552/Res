@@ -18,7 +18,6 @@ public sealed class MotorPipelineService
 
     // C11 acceptance surface: the exact budgets computed from M10 formation ranks
     // are returned with the production result instead of being reconstructed by tests.
-    // The rest of this file remains unchanged in production behavior.
     public static IReadOnlyDictionary<string, M6FormationSearchBudget> BuildM6BFormationBudgetsForAcceptance(
         IReadOnlyList<M10FormationCompetition> competition,
         int baseBeamWidth,
@@ -157,7 +156,7 @@ public sealed class MotorPipelineService
             var selectedEval = cache["B:" + selectedKey];
             var selectedM9 = selectedRecord.Prediction ?? m11.Prediction;
             var selectedM9Result = new M9PredictionResult(selected.TacticalCandidate.Lineup.Formation, selectedKey, selectedM9, selectedEval.Chance.StructuralChanceIndex, ComputeM9OwnChanceShare(selectedEval.Chance), 1.0 - ComputeM9OwnChanceShare(selectedEval.Chance), ComputeM9OwnAttackQuality(selectedEval.Tactical.Rating, context.Opponent.Rating, selectedEval.Chance), ComputeM9OpponentAttackQuality(selectedEval.Tactical.Rating, context.Opponent.Rating, selectedEval.Chance), ComputeM9OwnLeft(selectedEval.Tactical.Rating, context.Opponent.Rating), ComputeM9OwnCentre(selectedEval.Tactical.Rating, context.Opponent.Rating), ComputeM9OwnRight(selectedEval.Tactical.Rating, context.Opponent.Rating), ComputeM9OpponentLeft(selectedEval.Tactical.Rating, context.Opponent.Rating), ComputeM9OpponentCentre(selectedEval.Tactical.Rating, context.Opponent.Rating), ComputeM9OpponentRight(selectedEval.Tactical.Rating, context.Opponent.Rating), context.RatingContext.MatchLocation, M9CalibrationStatus.StructuralModelAwaitingHistoricalCalibration) { EventGoals = selectedM9.EventGoals, OpponentEventGoals = selectedM9ResultOpponentEvents(selectedM9) };
-            return new MotorPipelineResult(m3, m4, m5, m6, selectedEval.Scenario, selectedEval.Advanced, selectedEval.Chance, selectedM9Result, m10, m11.BestPlan, m11.Prediction) { M11 = m11, CandidateDatabase1Count = databases.FirstPass.Count, CandidateDatabase2Count = databases.SecondPass.Count, SelectedMatchApproach = context.RatingContext.Attitude == TeamAttitude.Auto ? TeamAttitude.Normal : context.RatingContext.Attitude, M6BFormationBudgets = m6bBudgets };
+            return new MotorPipelineResult(m3, m4, m5, m6, selectedEval.Scenario, selectedEval.Advanced, selectedEval.Chance, selectedM9Result, m10, m11.BestPlan, m11.Prediction) { M11 = m11, CandidateDatabase1Count = databases.FirstPass.Count, CandidateDatabase2Count = databases.SecondPass.Count, CandidateDatabase1 = db1, CandidateDatabase2 = db2, SelectedMatchApproach = context.RatingContext.Attitude == TeamAttitude.Auto ? TeamAttitude.Normal : context.RatingContext.Attitude, M6BFormationBudgets = m6bBudgets };
         }
         catch (Exception ex)
         {
@@ -191,7 +190,7 @@ public sealed class MotorPipelineService
     private static double ComputeM9OwnRight(RegionalRatingSnapshot own, RegionalRatingSnapshot opponent) => Share(own.RightAttack, opponent.LeftDefence);
     private static double ComputeM9OpponentLeft(RegionalRatingSnapshot own, RegionalRatingSnapshot opponent) => Share(opponent.LeftAttack, own.RightDefence);
     private static double ComputeM9OpponentCentre(RegionalRatingSnapshot own, RegionalRatingSnapshot opponent) => Share(opponent.CentralAttack, own.CentralDefence);
-    private static double ComputeM9OpponentRight(RegionalRatingSnapshot own, RegionalRatingSnapshot opponent) => Share(opponent.RightAttack, own.LeftDefence);
+    private static double ComputeM9OpponentRight(RegionalRatingSnapshot own, RegionalRatingSnapshot opponent) => Share(opponent.RightAttack, own.RightDefence);
     private static double WeightedAttackQuality(double left, double centre, double right, double leftWeight, double centreWeight, double rightWeight, double setPieceWeight) { var regularWeight = leftWeight + centreWeight + rightWeight; var weightedRegular = regularWeight <= 0 ? 0.5 : ((left * leftWeight) + (centre * centreWeight) + (right * rightWeight)) / regularWeight; return Math.Clamp((regularWeight * weightedRegular) + (setPieceWeight * 0.5), 0, 1); }
     private static double ComputeM9OwnAttackQuality(RegionalRatingSnapshot own, RegionalRatingSnapshot opponent, M8ChanceResult chance) => WeightedAttackQuality(ComputeM9OwnLeft(own, opponent), ComputeM9OwnCentre(own, opponent), ComputeM9OwnRight(own, opponent), chance.LeftChanceShare, chance.CentreChanceShare, chance.RightChanceShare, chance.SetPieceChanceShare);
     private static double ComputeM9OpponentAttackQuality(RegionalRatingSnapshot own, RegionalRatingSnapshot opponent, M8ChanceResult chance) => WeightedAttackQuality(ComputeM9OpponentLeft(own, opponent), ComputeM9OpponentCentre(own, opponent), ComputeM9OpponentRight(own, opponent), .25, .35, .25, .15);
@@ -210,6 +209,8 @@ public sealed record MotorPipelineResult(PlayerAnalysisResult M3, FormationCandi
     public M11DecisionResult? M11 { get; init; }
     public int CandidateDatabase1Count { get; init; }
     public int CandidateDatabase2Count { get; init; }
+    public IReadOnlyList<CandidateEvaluationRecord> CandidateDatabase1 { get; init; } = [];
+    public IReadOnlyList<CandidateEvaluationRecord> CandidateDatabase2 { get; init; } = [];
     public TeamAttitude SelectedMatchApproach { get; init; }
     public IReadOnlyDictionary<string, M6FormationSearchBudget> M6BFormationBudgets { get; init; } = new Dictionary<string, M6FormationSearchBudget>(StringComparer.Ordinal);
 }
