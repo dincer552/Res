@@ -55,9 +55,11 @@ public static class HistoricalMultiMatchProductionAcceptance
         }
 
         var invalidSourceRows = 0;
+        var sourceIds = new HashSet<string>(StringComparer.Ordinal);
         foreach (var row in sourceRows)
         {
             var id = row.TryGetProperty("matchId", out var idNode) ? idNode.ToString() : string.Empty;
+            if (!string.IsNullOrWhiteSpace(id)) sourceIds.Add(id);
             var valid = !string.IsNullOrWhiteSpace(id)
                 && HasNumber(row,"ownPossessionPercent")
                 && HasNumber(row,"homeSectorChances") && HasNumber(row,"awaySectorChances")
@@ -76,6 +78,7 @@ public static class HistoricalMultiMatchProductionAcceptance
             if (!valid) invalidSourceRows++;
         }
 
+        var missingSourceIds = samples.Count(x => x.TryGetProperty("matchId", out var id) && !sourceIds.Contains(id.ToString()));
         var ready = sampleCount >= MinimumFinishedMatches
             && samples.Length >= MinimumFinishedMatches
             && sourceRows.Length >= MinimumDetailedMatches
@@ -84,10 +87,11 @@ public static class HistoricalMultiMatchProductionAcceptance
             && failedDetails == 0
             && archiveUnique >= MinimumFinishedMatches
             && invalidSamples == 0
-            && invalidSourceRows == 0;
+            && invalidSourceRows == 0
+            && missingSourceIds == 0;
 
         var setPieceObserved = samples.Count(x => x.TryGetProperty("observedOwnSetPieceChances", out var n) && n.ValueKind != JsonValueKind.Null);
-        Console.WriteLine($"HistoricalMultiMatchProductionAcceptance: {(ready ? "PASS" : "DATA_INCOMPLETE")} | phaseD samples={samples.Length}; sourceRows={sourceRows.Length}; detailsFetched={detailsFetched}; failedDetails={failedDetails}; chanceSamples={chanceSamples}; archiveUnique={archiveUnique}; invalidSamples={invalidSamples}; invalidSourceRows={invalidSourceRows}; setPieceSampleFieldPresent={setPieceObserved}");
+        Console.WriteLine($"HistoricalMultiMatchProductionAcceptance: {(ready ? "PASS" : "DATA_INCOMPLETE")} | phaseD samples={samples.Length}; sourceRows={sourceRows.Length}; detailsFetched={detailsFetched}; failedDetails={failedDetails}; chanceSamples={chanceSamples}; archiveUnique={archiveUnique}; invalidSamples={invalidSamples}; invalidSourceRows={invalidSourceRows}; missingSourceIds={missingSourceIds}; setPieceSampleFieldPresent={setPieceObserved}");
         if (setPieceObserved == 0) Console.WriteLine("Phase D note: observedOwnSetPieceChances is null in all sample rows; raw sourceRows still expose home/away special-event chances.");
         if (!ready) Console.WriteLine($"60-match acceptance requires >={MinimumFinishedMatches} samples, >={MinimumDetailedMatches} detailed source rows, zero failed details and zero invalid rows.");
         else Console.WriteLine("60-match CHPP-derived calibration corpus structurally accepted. Coefficients remain unchanged.");
