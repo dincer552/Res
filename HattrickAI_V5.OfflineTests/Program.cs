@@ -32,6 +32,9 @@ var path = args.Length > 0
     ? args[0]
     : "TestJSON/HattrickAI_V5_CHPP_FullOffline_2026-09-01.json";
 
+var m5XiCandidatesRegression = await M5XICandidatesRegression.RunAsync(path);
+if (m5XiCandidatesRegression != 0) return m5XiCandidatesRegression;
+
 var historicalMultiMatchAcceptance = HistoricalMultiMatchProductionAcceptance.Run(path);
 if (historicalMultiMatchAcceptance != 0) return historicalMultiMatchAcceptance;
 
