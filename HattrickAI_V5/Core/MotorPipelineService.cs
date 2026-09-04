@@ -16,171 +16,51 @@ public sealed class MotorPipelineService
     private readonly M10FinalDecisionEngine _m10 = new();
     private readonly M11FinalSelectorEngine _m11 = new();
 
-    // C11 acceptance surface: the exact budgets computed from M10 formation ranks
-    // are returned with the production result instead of being reconstructed by tests.
-    public static IReadOnlyDictionary<string, M6FormationSearchBudget> BuildM6BFormationBudgetsForAcceptance(
-        IReadOnlyList<M10FormationCompetition> competition,
-        int baseBeamWidth,
-        int baseIterations)
+    public static IReadOnlyDictionary<string, M6FormationSearchBudget> BuildM6BFormationBudgetsForAcceptance(IReadOnlyList<M10FormationCompetition> competition, int baseBeamWidth, int baseIterations)
     {
         ArgumentNullException.ThrowIfNull(competition);
         if (baseBeamWidth < 1) throw new ArgumentOutOfRangeException(nameof(baseBeamWidth));
         if (baseIterations < 1) throw new ArgumentOutOfRangeException(nameof(baseIterations));
         var count = competition.Count;
-        return competition.ToDictionary(
-            x => x.Formation,
-            x => BudgetFromRank(x.Rank, count, baseBeamWidth, baseIterations),
-            StringComparer.Ordinal);
+        return competition.ToDictionary(x => x.Formation, x => BudgetFromRank(x.Rank, count, baseBeamWidth, baseIterations), StringComparer.Ordinal);
     }
 
     private static M6FormationSearchBudget BudgetFromRank(int rank, int formationCount, int baseBeamWidth, int baseIterations)
     {
         if (rank < 1 || rank > formationCount) throw new ArgumentOutOfRangeException(nameof(rank));
-        var tier = rank <= Math.Max(1, formationCount / 3) ? 0
-            : rank <= Math.Max(2, (2 * formationCount) / 3) ? 1 : 2;
-        return tier switch
-        {
-            0 => new M6FormationSearchBudget(Math.Max(baseBeamWidth, 8), Math.Max(baseIterations, 4)),
-            1 => new M6FormationSearchBudget(Math.Max(baseBeamWidth, 6), Math.Max(baseIterations, 3)),
-            _ => new M6FormationSearchBudget(Math.Max(4, baseBeamWidth - 1), Math.Max(2, baseIterations - 1))
-        };
+        var tier = rank <= Math.Max(1, formationCount / 3) ? 0 : rank <= Math.Max(2, (2 * formationCount) / 3) ? 1 : 2;
+        return tier switch { 0 => new M6FormationSearchBudget(Math.Max(baseBeamWidth, 8), Math.Max(baseIterations, 4)), 1 => new M6FormationSearchBudget(Math.Max(baseBeamWidth, 6), Math.Max(baseIterations, 3)), _ => new M6FormationSearchBudget(Math.Max(4, baseBeamWidth - 1), Math.Max(2, baseIterations - 1)) };
     }
 
     public async Task<MotorPipelineResult> RunAsync(MatchDataContext context, IReadOnlyList<Player> players, CancellationToken ct, string? runId = null)
     {
-        ArgumentNullException.ThrowIfNull(context);
-        ArgumentNullException.ThrowIfNull(players);
-        runId ??= MotorRunLogContext.CurrentRunId;
-        var cache = new ConcurrentDictionary<string, CandidateEvaluation>(StringComparer.Ordinal);
-        var sw = Stopwatch.StartNew();
-
+        ArgumentNullException.ThrowIfNull(context); ArgumentNullException.ThrowIfNull(players); runId ??= MotorRunLogContext.CurrentRunId;
+        var cache = new ConcurrentDictionary<string, CandidateEvaluation>(StringComparer.Ordinal); var sw = Stopwatch.StartNew();
         try
         {
-            LogStart(runId, "M3", "Çalışıyor");
-            var m3 = _m3.Analyze(players);
-            LogComplete(runId, "M3", $"{m3.Players.Count} oyuncu analiz edildi", sw.ElapsedMilliseconds, m3.Players.Count);
-            sw.Restart();
-            LogStart(runId, "M4", "Çalışıyor");
-            var m4 = _m4.Generate(context, m3);
-            if (m4.Candidates.Count == 0) throw new InvalidOperationException("M4 geçerli bir diziliş adayı üretemedi.");
-            var legalFormations = m4.Candidates.Select(x => x.Formation).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.Ordinal).ToList();
-            var databases = new CandidateDatabaseSet(CandidateEvaluationDatabase.DefaultCapacity, legalFormations);
-            LogComplete(runId, "M4", $"{m4.Candidates.Count} diziliş üretildi • Anti-lock havuzu: {string.Join(", ", legalFormations)}", sw.ElapsedMilliseconds, m4.Candidates.Count);
-            sw.Restart();
-            LogStart(runId, "M5", "Geniş XI havuzu: yaklaşık 20 / formasyon");
-            var m5 = _m5.GenerateCandidates(context, m3, m4, maxCandidatesPerFormation: 20);
-            if (m5.Count == 0) throw new InvalidOperationException("M5 geçerli bir XI adayı üretemedi.");
-            LogComplete(runId, "M5", $"{m5.Count} XI adayı üretildi", sw.ElapsedMilliseconds, m5.Count);
-            sw.Restart();
-            LogStart(runId, "M6", "M6-A: geniş global search + Candidate DB #1");
-            LogStart(runId, "M7", "M6-A downstream evaluator: bölgesel rating");
-            LogStart(runId, "M7.2", "M6-A downstream evaluator: taktik senaryo");
-            LogStart(runId, "M8", "M6-A downstream evaluator: matchup / şans");
-            LogStart(runId, "M9", "M6-A downstream evaluator: maç tahmini");
-            var m6 = await _m6.OptimizeAsync(m5, players, async (lineup, token) =>
-            {
-                token.ThrowIfCancellationRequested();
-                var evaluation = Evaluate(lineup, runId, context.RatingContext.Attitude, false);
-                var prediction = _m9.Predict(evaluation.Tactical, evaluation.Chance, context.Opponent.Rating, context.RatingContext.MatchLocation, players, context.Opponent.LastMatchLineup, context.Opponent.Players);
-                cache[Signature(lineup)] = evaluation;
-                var source = m5.FirstOrDefault(x => Signature(x.Lineup) == Signature(lineup));
-                var rankingScore = (0.70 * evaluation.Tactical.TacticalScore) + (0.30 * prediction.Prediction.WinProbability);
-                databases.FirstPass.Add(new CandidateEvaluationRecord(Signature(lineup), lineup.Formation, lineup, source?.SuitabilityScore ?? 0, source?.StructuralScore ?? 0, evaluation.Tactical.TacticalScore, evaluation.Scenario.Rating, evaluation.Advanced, evaluation.Chance, prediction.Prediction, rankingScore, "M6-A"));
-                await Task.CompletedTask;
-                return evaluation.Tactical;
-            }, beamWidth: 6, maxIterations: 4, ct, progress: (iteration, maximum, evaluated, retained) =>
-            {
-                if (!string.IsNullOrWhiteSpace(runId)) MotorRunLogStore.Progress(runId, "M6", $"A {iteration}/{maximum} • {evaluated} değerlendirildi • DB1 {databases.FirstPass.Count}", iteration, maximum);
-            });
-            var db1 = databases.FirstPass.TopWithFormationDiversity(100, CandidateEvaluationDatabase.MaxPerFormation);
-            if (db1.Count == 0) throw new InvalidOperationException("Candidate DB #1 boş kaldı.");
-            var missingDb1Formations = legalFormations.Where(f => !db1.Any(x => x.Formation.Equals(f, StringComparison.Ordinal))).ToList();
-            if (missingDb1Formations.Count > 0) throw new InvalidOperationException($"Anti-lock ihlali: DB1 içinde formasyon yok: {string.Join(", ", missingDb1Formations)}");
-            var formationDb1Summary = FormatFormationCounts(db1);
-            if (!string.IsNullOrWhiteSpace(runId)) MotorRunLogStore.Progress(runId, "M6", $"DB1 formasyon dağılımı: {formationDb1Summary}", m6.Iterations, m6.Iterations);
-            var firstPassCandidates = db1.Select(record => { var tactical = cache.TryGetValue(record.CandidateId, out var cached) ? cached.Tactical : null; return tactical is null || record.Prediction is null ? null : new M10CandidateEvaluation(tactical, record.Prediction, record.Chance.StructuralChanceIndex); }).Where(x => x is not null).Cast<M10CandidateEvaluation>().ToList();
-            if (firstPassCandidates.Count == 0) throw new InvalidOperationException("Candidate DB #1 M10 değerlendirmesi için boş.");
-            if (firstPassCandidates.Select(x => x.TacticalCandidate.Lineup.Formation).Distinct(StringComparer.Ordinal).Count() != legalFormations.Count) throw new InvalidOperationException("Anti-lock ihlali: M10 havuzuna tüm legal formasyonlar taşınamadı.");
-            if (m6.BestCandidate is null || m6.TopCandidates.Count == 0) throw new InvalidOperationException("M6-A geçerli aday database'i oluşturamadı.");
-            var downstreamElapsed = sw.ElapsedMilliseconds;
-            LogComplete(runId, "M7", $"M6-A içinde {m6.EvaluatedCandidates} aday değerlendirildi", downstreamElapsed, m6.EvaluatedCandidates);
-            LogComplete(runId, "M7.2", "M6-A taktik senaryo değerlendirmesi tamamlandı", downstreamElapsed, m6.EvaluatedCandidates);
-            LogComplete(runId, "M8", "M6-A matchup / şans değerlendirmesi tamamlandı", downstreamElapsed, m6.EvaluatedCandidates);
-            LogComplete(runId, "M9", $"M6-A maç tahmini tamamlandı • DB1 {databases.FirstPass.Count} • {formationDb1Summary}", downstreamElapsed, m6.EvaluatedCandidates);
-            LogComplete(runId, "M6", $"M6-A • {m6.Iterations}/4 iteration • {m6.EvaluatedCandidates} değerlendirildi • DB1 {databases.FirstPass.Count} aday • {formationDb1Summary}", downstreamElapsed, m6.EvaluatedCandidates);
-            sw.Restart();
-            LogStart(runId, "M10", $"DB1 review: {firstPassCandidates.Count} finalist adayı karşılaştırılıyor • {legalFormations.Count} formasyon yarışta");
-            var m10 = _m10.Select(firstPassCandidates);
-            var m10FormationCompetition = m10.FormationCompetition ?? [];
-            var missingM10Formations = legalFormations.Where(f => !m10FormationCompetition.Any(x => x.Formation.Equals(f, StringComparison.Ordinal))).ToList();
-            if (missingM10Formations.Count > 0) throw new InvalidOperationException($"Anti-lock ihlali: M10 karşılaştırmasında formasyon yok: {string.Join(", ", missingM10Formations)}");
-            LogComplete(runId, "M10", $"DB1 review tamamlandı • lider {m10.BestPlan.Formation} • {m10FormationCompetition.Count} formasyon karşılaştırıldı", sw.ElapsedMilliseconds, firstPassCandidates.Count);
-            var m10RankByFormation = m10FormationCompetition.ToDictionary(x => x.Formation, x => x.Rank, StringComparer.Ordinal);
-            var m6bBudgets = BuildM6BFormationBudgetsForAcceptance(m10FormationCompetition, 6, 3);
-            var missingM6BBudgets = legalFormations.Where(f => !m6bBudgets.ContainsKey(f)).ToList();
-            if (missingM6BBudgets.Count > 0) throw new InvalidOperationException($"M6-B budget üretilemedi: {string.Join(", ", missingM6BBudgets)}");
-            var rankSummary = string.Join(" | ", m10FormationCompetition.OrderBy(x => x.Rank).Select(x => $"#{x.Rank} {x.Formation}:B{m6bBudgets[x.Formation].BeamWidth}/I{m6bBudgets[x.Formation].MaxIterations}"));
-            var searchSeeds = db1.OrderBy(record => m10RankByFormation.TryGetValue(record.Formation, out var rank) ? rank : int.MaxValue).ThenByDescending(record => record.RankingScore).Select(record => ToPositionCandidate(record.Lineup, record.Formation, record.RankingScore)).ToList();
-            sw.Restart();
-            LogStart(runId, "M6-B", $"M10 rank-driven refinement • {searchSeeds.Count} seed • {legalFormations.Count} formasyon • {rankSummary}");
-            var m6b = await _m6.OptimizeAsync(searchSeeds, players, async (lineup, token) =>
-            {
-                token.ThrowIfCancellationRequested();
-                var evaluation = Evaluate(lineup, runId, context.RatingContext.Attitude, false);
-                var prediction = _m9.Predict(evaluation.Tactical, evaluation.Chance, context.Opponent.Rating, context.RatingContext.MatchLocation, players, context.Opponent.LastMatchLineup, context.Opponent.Players);
-                cache["B:" + Signature(lineup)] = evaluation;
-                var rankingScore = (0.70 * evaluation.Tactical.TacticalScore) + (0.30 * prediction.Prediction.WinProbability);
-                databases.SecondPass.Add(new CandidateEvaluationRecord(Signature(lineup), lineup.Formation, lineup, 0, 0, evaluation.Tactical.TacticalScore, evaluation.Scenario.Rating, evaluation.Advanced, evaluation.Chance, prediction.Prediction, rankingScore, "M6-B"));
-                await Task.CompletedTask;
-                return evaluation.Tactical;
-            }, beamWidth: 6, maxIterations: 3, ct, progress: (iteration, maximum, evaluated, retained) =>
-            {
-                if (!string.IsNullOrWhiteSpace(runId)) MotorRunLogStore.Progress(runId, "M6-B", $"B {iteration}/{maximum} • {evaluated} değerlendirildi • DB2 {databases.SecondPass.Count}", iteration, maximum);
-            }, preserveInputOrders: true, formationBudgets: m6bBudgets);
-            var db2 = databases.SecondPass.TopWithFormationDiversity(100, CandidateEvaluationDatabase.MaxPerFormation);
-            if (db2.Count == 0 || m6b.TopCandidates.Count == 0) throw new InvalidOperationException("M6-B Candidate DB #2 oluşturamadı.");
-            var missingDb2Formations = legalFormations.Where(f => !db2.Any(x => x.Formation.Equals(f, StringComparison.Ordinal))).ToList();
-            if (missingDb2Formations.Count > 0) throw new InvalidOperationException($"Anti-lock ihlali: DB2 içinde formasyon yok: {string.Join(", ", missingDb2Formations)}");
-            var formationDb2Summary = FormatFormationCounts(db2);
-            LogComplete(runId, "M6-B", $"İkinci search tamamlandı • DB2 {databases.SecondPass.Count} aday • {formationDb2Summary} • M10 rank-driven", sw.ElapsedMilliseconds, m6b.EvaluatedCandidates);
-            var finalists = db2.Select(record => { var tactical = cache.TryGetValue("B:" + record.CandidateId, out var cached) ? cached.Tactical : null; return tactical is null || record.Prediction is null ? null : new M11CandidateEvaluation(tactical, record.Prediction, record.Chance.StructuralChanceIndex, 1.0); }).Where(x => x is not null).Cast<M11CandidateEvaluation>().ToList();
-            if (finalists.Count == 0) throw new InvalidOperationException("M11 final havuzu oluşturulamadı.");
-            if (finalists.Select(x => x.TacticalCandidate.Lineup.Formation).Distinct(StringComparer.Ordinal).Count() != legalFormations.Count) throw new InvalidOperationException("Anti-lock ihlali: M11 finalist havuzuna tüm legal formasyonlar taşınamadı.");
-            sw.Restart();
-            LogStart(runId, "M11", $"DB2 final selection: {finalists.Count} aday • {legalFormations.Count} formasyon karşılaştırılıyor");
-            var m11 = _m11.Select(finalists);
-            LogComplete(runId, "M11", $"FINAL: {m11.BestPlan.Formation} • {m11.CandidateCount} aday • {m11.FormationCount} formasyon • DB2 {formationDb2Summary}", sw.ElapsedMilliseconds, m11.CandidateCount);
-            var selectedKey = Signature(m11.BestPlan.Lineup);
-            var selectedRecord = db2.First(x => x.CandidateId == selectedKey);
-            var selected = finalists.First(x => Signature(x.TacticalCandidate.Lineup) == selectedKey);
-            var selectedEval = cache["B:" + selectedKey];
-            var selectedM9 = selectedRecord.Prediction ?? m11.Prediction;
-            var selectedM9Result = new M9PredictionResult(selected.TacticalCandidate.Lineup.Formation, selectedKey, selectedM9, selectedEval.Chance.StructuralChanceIndex, ComputeM9OwnChanceShare(selectedEval.Chance), 1.0 - ComputeM9OwnChanceShare(selectedEval.Chance), ComputeM9OwnAttackQuality(selectedEval.Tactical.Rating, context.Opponent.Rating, selectedEval.Chance), ComputeM9OpponentAttackQuality(selectedEval.Tactical.Rating, context.Opponent.Rating, selectedEval.Chance), ComputeM9OwnLeft(selectedEval.Tactical.Rating, context.Opponent.Rating), ComputeM9OwnCentre(selectedEval.Tactical.Rating, context.Opponent.Rating), ComputeM9OwnRight(selectedEval.Tactical.Rating, context.Opponent.Rating), ComputeM9OpponentLeft(selectedEval.Tactical.Rating, context.Opponent.Rating), ComputeM9OpponentCentre(selectedEval.Tactical.Rating, context.Opponent.Rating), ComputeM9OpponentRight(selectedEval.Tactical.Rating, context.Opponent.Rating), context.RatingContext.MatchLocation, M9CalibrationStatus.StructuralModelAwaitingHistoricalCalibration) { EventGoals = selectedM9.EventGoals, OpponentEventGoals = selectedM9ResultOpponentEvents(selectedM9) };
+            LogStart(runId, "M3", "Çalışıyor"); var m3 = _m3.Analyze(players); LogComplete(runId, "M3", $"{m3.Players.Count} oyuncu analiz edildi", sw.ElapsedMilliseconds, m3.Players.Count); sw.Restart();
+            LogStart(runId, "M4", "Çalışıyor"); var m4 = _m4.Generate(context, m3); if (m4.Candidates.Count == 0) throw new InvalidOperationException("M4 geçerli bir diziliş adayı üretemedi.");
+            var legalFormations = m4.Candidates.Select(x => x.Formation).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.Ordinal).ToList(); var databases = new CandidateDatabaseSet(CandidateEvaluationDatabase.DefaultCapacity, legalFormations);
+            LogComplete(runId, "M4", $"{m4.Candidates.Count} diziliş üretildi • Anti-lock havuzu: {string.Join(", ", legalFormations)}", sw.ElapsedMilliseconds, m4.Candidates.Count); sw.Restart(); LogStart(runId, "M5", "Geniş XI havuzu: yaklaşık 20 / formasyon");
+            var m5 = _m5.GenerateCandidates(context, m3, m4, maxCandidatesPerFormation: 20); if (m5.Count == 0) throw new InvalidOperationException("M5 geçerli bir XI adayı üretemedi."); LogComplete(runId, "M5", $"{m5.Count} XI adayı üretildi", sw.ElapsedMilliseconds, m5.Count); sw.Restart();
+            LogStart(runId, "M6", "M6-A: geniş global search + Candidate DB #1"); LogStart(runId, "M7", "M6-A downstream evaluator: bölgesel rating"); LogStart(runId, "M7.2", "M6-A downstream evaluator: taktik senaryo"); LogStart(runId, "M8", "M6-A downstream evaluator: matchup / şans"); LogStart(runId, "M9", "M6-A downstream evaluator: maç tahmini");
+            var m6 = await _m6.OptimizeAsync(m5, players, async (lineup, token) => { token.ThrowIfCancellationRequested(); var evaluation = Evaluate(lineup, runId, context.RatingContext.Attitude, false); var prediction = _m9.Predict(evaluation.Tactical, evaluation.Chance, context.Opponent.Rating, context.RatingContext.MatchLocation, players, context.Opponent.LastMatchLineup, context.Opponent.Players); cache[Signature(lineup)] = evaluation; var source = m5.FirstOrDefault(x => Signature(x.Lineup) == Signature(lineup)); var rankingScore = (0.70 * evaluation.Tactical.TacticalScore) + (0.30 * prediction.Prediction.WinProbability); databases.FirstPass.Add(new CandidateEvaluationRecord(Signature(lineup), lineup.Formation, lineup, source?.SuitabilityScore ?? 0, source?.StructuralScore ?? 0, evaluation.Tactical.TacticalScore, evaluation.Scenario.Rating, evaluation.Advanced, evaluation.Chance, prediction.Prediction, rankingScore, "M6-A")); await Task.CompletedTask; return evaluation.Tactical; }, beamWidth: 6, maxIterations: 4, ct, progress: (iteration, maximum, evaluated, retained) => { if (!string.IsNullOrWhiteSpace(runId)) MotorRunLogStore.Progress(runId, "M6", $"A {iteration}/{maximum} • {evaluated} değerlendirildi • DB1 {databases.FirstPass.Count}", iteration, maximum); });
+            var db1 = databases.FirstPass.TopWithFormationDiversity(100, CandidateEvaluationDatabase.MaxPerFormation); if (db1.Count == 0) throw new InvalidOperationException("Candidate DB #1 boş kaldı."); var missingDb1Formations = legalFormations.Where(f => !db1.Any(x => x.Formation.Equals(f, StringComparison.Ordinal))).ToList(); if (missingDb1Formations.Count > 0) throw new InvalidOperationException($"Anti-lock ihlali: DB1 içinde formasyon yok: {string.Join(", ", missingDb1Formations)}"); var formationDb1Summary = FormatFormationCounts(db1); if (!string.IsNullOrWhiteSpace(runId)) MotorRunLogStore.Progress(runId, "M6", $"DB1 formasyon dağılımı: {formationDb1Summary}", m6.Iterations, m6.Iterations);
+            var firstPassCandidates = db1.Select(record => { var tactical = cache.TryGetValue(record.CandidateId, out var cached) ? cached.Tactical : null; return tactical is null || record.Prediction is null ? null : new M10CandidateEvaluation(tactical, record.Prediction, record.Chance.StructuralChanceIndex); }).Where(x => x is not null).Cast<M10CandidateEvaluation>().ToList(); if (firstPassCandidates.Count == 0) throw new InvalidOperationException("Candidate DB #1 M10 değerlendirmesi için boş."); if (firstPassCandidates.Select(x => x.TacticalCandidate.Lineup.Formation).Distinct(StringComparer.Ordinal).Count() != legalFormations.Count) throw new InvalidOperationException("Anti-lock ihlali: M10 havuzuna tüm legal formasyonlar taşınamadı."); if (m6.BestCandidate is null || m6.TopCandidates.Count == 0) throw new InvalidOperationException("M6-A geçerli aday database'i oluşturamadı.");
+            var downstreamElapsed = sw.ElapsedMilliseconds; LogComplete(runId, "M7", $"M6-A içinde {m6.EvaluatedCandidates} aday değerlendirildi", downstreamElapsed, m6.EvaluatedCandidates); LogComplete(runId, "M7.2", "M6-A taktik senaryo değerlendirmesi tamamlandı", downstreamElapsed, m6.EvaluatedCandidates); LogComplete(runId, "M8", "M6-A matchup / şans değerlendirmesi tamamlandı", downstreamElapsed, m6.EvaluatedCandidates); LogComplete(runId, "M9", $"M6-A maç tahmini tamamlandı • DB1 {databases.FirstPass.Count} • {formationDb1Summary}", downstreamElapsed, m6.EvaluatedCandidates); LogComplete(runId, "M6", $"M6-A • {m6.Iterations}/4 iteration • {m6.EvaluatedCandidates} değerlendirildi • DB1 {databases.FirstPass.Count} aday • {formationDb1Summary}", downstreamElapsed, m6.EvaluatedCandidates); sw.Restart();
+            LogStart(runId, "M10", $"DB1 review: {firstPassCandidates.Count} finalist adayı karşılaştırılıyor • {legalFormations.Count} formasyon yarışta"); var m10 = _m10.Select(firstPassCandidates); var m10FormationCompetition = m10.FormationCompetition ?? []; var missingM10Formations = legalFormations.Where(f => !m10FormationCompetition.Any(x => x.Formation.Equals(f, StringComparison.Ordinal))).ToList(); if (missingM10Formations.Count > 0) throw new InvalidOperationException($"Anti-lock ihlali: M10 karşılaştırmasında formasyon yok: {string.Join(", ", missingM10Formations)}"); LogComplete(runId, "M10", $"DB1 review tamamlandı • lider {m10.BestPlan.Formation} • {m10FormationCompetition.Count} formasyon karşılaştırıldı", sw.ElapsedMilliseconds, firstPassCandidates.Count);
+            var m10RankByFormation = m10FormationCompetition.ToDictionary(x => x.Formation, x => x.Rank, StringComparer.Ordinal); var m6bBudgets = BuildM6BFormationBudgetsForAcceptance(m10FormationCompetition, 6, 3); var missingM6BBudgets = legalFormations.Where(f => !m6bBudgets.ContainsKey(f)).ToList(); if (missingM6BBudgets.Count > 0) throw new InvalidOperationException($"M6-B budget üretilemedi: {string.Join(", ", missingM6BBudgets)}"); var rankSummary = string.Join(" | ", m10FormationCompetition.OrderBy(x => x.Rank).Select(x => $"#{x.Rank} {x.Formation}:B{m6bBudgets[x.Formation].BeamWidth}/I{m6bBudgets[x.Formation].MaxIterations}")); var searchSeeds = db1.OrderBy(record => m10RankByFormation.TryGetValue(record.Formation, out var rank) ? rank : int.MaxValue).ThenByDescending(record => record.RankingScore).Select(record => ToPositionCandidate(record.Lineup, record.Formation, record.RankingScore)).ToList();
+            sw.Restart(); LogStart(runId, "M6-B", $"M10 rank-driven refinement • {searchSeeds.Count} seed • {legalFormations.Count} formasyon • {rankSummary}"); var m6b = await _m6.OptimizeAsync(searchSeeds, players, async (lineup, token) => { token.ThrowIfCancellationRequested(); var evaluation = Evaluate(lineup, runId, context.RatingContext.Attitude, false); var prediction = _m9.Predict(evaluation.Tactical, evaluation.Chance, context.Opponent.Rating, context.RatingContext.MatchLocation, players, context.Opponent.LastMatchLineup, context.Opponent.Players); cache["B:" + Signature(lineup)] = evaluation; var rankingScore = (0.70 * evaluation.Tactical.TacticalScore) + (0.30 * prediction.Prediction.WinProbability); databases.SecondPass.Add(new CandidateEvaluationRecord(Signature(lineup), lineup.Formation, lineup, 0, 0, evaluation.Tactical.TacticalScore, evaluation.Scenario.Rating, evaluation.Advanced, evaluation.Chance, prediction.Prediction, rankingScore, "M6-B")); await Task.CompletedTask; return evaluation.Tactical; }, beamWidth: 6, maxIterations: 3, ct, progress: (iteration, maximum, evaluated, retained) => { if (!string.IsNullOrWhiteSpace(runId)) MotorRunLogStore.Progress(runId, "M6-B", $"B {iteration}/{maximum} • {evaluated} değerlendirildi • DB2 {databases.SecondPass.Count}", iteration, maximum); }, preserveInputOrders: true, formationBudgets: m6bBudgets);
+            var db2 = databases.SecondPass.TopWithFormationDiversity(100, CandidateEvaluationDatabase.MaxPerFormation); if (db2.Count == 0 || m6b.TopCandidates.Count == 0) throw new InvalidOperationException("M6-B Candidate DB #2 oluşturamadı."); var missingDb2Formations = legalFormations.Where(f => !db2.Any(x => x.Formation.Equals(f, StringComparison.Ordinal))).ToList(); if (missingDb2Formations.Count > 0) throw new InvalidOperationException($"Anti-lock ihlali: DB2 içinde formasyon yok: {string.Join(", ", missingDb2Formations)}"); var formationDb2Summary = FormatFormationCounts(db2); LogComplete(runId, "M6-B", $"İkinci search tamamlandı • DB2 {databases.SecondPass.Count} aday • {formationDb2Summary} • M10 rank-driven", sw.ElapsedMilliseconds, m6b.EvaluatedCandidates);
+            var finalists = db2.Select(record => { var tactical = cache.TryGetValue("B:" + record.CandidateId, out var cached) ? cached.Tactical : null; return tactical is null || record.Prediction is null ? null : new M11CandidateEvaluation(tactical, record.Prediction, record.Chance.StructuralChanceIndex, 1.0); }).Where(x => x is not null).Cast<M11CandidateEvaluation>().ToList(); if (finalists.Count == 0) throw new InvalidOperationException("M11 final havuzu oluşturulamadı."); if (finalists.Select(x => x.TacticalCandidate.Lineup.Formation).Distinct(StringComparer.Ordinal).Count() != legalFormations.Count) throw new InvalidOperationException("Anti-lock ihlali: M11 finalist havuzuna tüm legal formasyonlar taşınamadı."); sw.Restart(); LogStart(runId, "M11", $"DB2 final selection: {finalists.Count} aday • {legalFormations.Count} formasyon karşılaştırılıyor"); var m11 = _m11.Select(finalists); LogComplete(runId, "M11", $"FINAL: {m11.BestPlan.Formation} • {m11.CandidateCount} aday • {m11.FormationCount} formasyon • DB2 {formationDb2Summary}", sw.ElapsedMilliseconds, m11.CandidateCount);
+            var selectedKey = Signature(m11.BestPlan.Lineup); var selectedRecord = db2.First(x => x.CandidateId == selectedKey); var selected = finalists.First(x => Signature(x.TacticalCandidate.Lineup) == selectedKey); var selectedEval = cache["B:" + selectedKey]; var selectedM9 = selectedRecord.Prediction ?? m11.Prediction; var selectedM9Result = new M9PredictionResult(selected.TacticalCandidate.Lineup.Formation, selectedKey, selectedM9, selectedEval.Chance.StructuralChanceIndex, ComputeM9OwnChanceShare(selectedEval.Chance), 1.0 - ComputeM9OwnChanceShare(selectedEval.Chance), ComputeM9OwnAttackQuality(selectedEval.Tactical.Rating, context.Opponent.Rating, selectedEval.Chance), ComputeM9OpponentAttackQuality(selectedEval.Tactical.Rating, context.Opponent.Rating, selectedEval.Chance), ComputeM9OwnLeft(selectedEval.Tactical.Rating, context.Opponent.Rating), ComputeM9OwnCentre(selectedEval.Tactical.Rating, context.Opponent.Rating), ComputeM9OwnRight(selectedEval.Tactical.Rating, context.Opponent.Rating), ComputeM9OpponentLeft(selectedEval.Tactical.Rating, context.Opponent.Rating), ComputeM9OpponentCentre(selectedEval.Tactical.Rating, context.Opponent.Rating), ComputeM9OpponentRight(selectedEval.Tactical.Rating, context.Opponent.Rating), context.RatingContext.MatchLocation, M9CalibrationStatus.StructuralModelAwaitingHistoricalCalibration) { EventGoals = selectedM9.EventGoals, OpponentEventGoals = selectedM9ResultOpponentEvents(selectedM9) };
             return new MotorPipelineResult(m3, m4, m5, m6, selectedEval.Scenario, selectedEval.Advanced, selectedEval.Chance, selectedM9Result, m10, m11.BestPlan, m11.Prediction) { M11 = m11, CandidateDatabase1Count = databases.FirstPass.Count, CandidateDatabase2Count = databases.SecondPass.Count, CandidateDatabase1 = db1, CandidateDatabase2 = db2, SelectedMatchApproach = context.RatingContext.Attitude == TeamAttitude.Auto ? TeamAttitude.Normal : context.RatingContext.Attitude, M6BFormationBudgets = m6bBudgets };
         }
-        catch (Exception ex)
-        {
-            if (!string.IsNullOrWhiteSpace(runId)) { var log = MotorRunLogStore.Get(runId); var active = log?.Stages.FirstOrDefault(x => x.Status == "running"); if (active is not null) MotorRunLogStore.FailMotor(runId, active.Motor, ex.Message, sw.ElapsedMilliseconds); }
-            throw;
-        }
+        catch (Exception ex) { if (!string.IsNullOrWhiteSpace(runId)) { var log = MotorRunLogStore.Get(runId); var active = log?.Stages.FirstOrDefault(x => x.Status == "running"); if (active is not null) MotorRunLogStore.FailMotor(runId, active.Motor, ex.Message, sw.ElapsedMilliseconds); } throw; }
 
         CandidateEvaluation Evaluate(Lineup lineup, string? currentRunId, TeamAttitude attitude, bool logStages)
         {
-            var signature = Signature(lineup);
-            var tactic = context.RatingContext.Tactic;
-            var state = new MatchState(signature, lineup.Formation, signature, signature, context.RatingContext.MatchLocation, attitude, tactic, TeamSpiritValue(context.Questionnaire.TeamSpirit), context.Questionnaire.Coach);
-            var stageWatch = Stopwatch.StartNew();
-            var stage = "M7";
-            var scenario = _m7.CalculateLineup(state, lineup, players, context.RatingContext.Tactic, context.RatingContext.MatchLocation, context.RatingContext.Attitude, context.Questionnaire.TeamSpirit, context.Questionnaire.Coach);
-            if (logStages) LogComplete(currentRunId, stage, $"{lineup.Formation} • rating {scenario.Rating.Midfield:0.##}/{scenario.Rating.CentralAttack:0.##}", stageWatch.ElapsedMilliseconds, 1);
-            stageWatch.Restart(); stage = "M7.2";
-            var advanced = _m72.CalculateLineup(state, lineup, players, scenario, context.RatingContext.Tactic, context.RatingContext.MatchLocation, context.RatingContext.Attitude, context.Questionnaire.TeamSpirit, context.Questionnaire.Coach);
-            if (logStages) LogComplete(currentRunId, stage, $"{lineup.Formation} • tactic {advanced.Tactic} lvl {advanced.TacticalLevel}", stageWatch.ElapsedMilliseconds, 1);
-            stageWatch.Restart(); stage = "M8";
-            var m8Input = _m72.BuildM8Input(scenario, advanced);
-            var chance = _m8.Calculate(m8Input, context.Opponent.Rating);
-            if (logStages) LogComplete(currentRunId, stage, $"{lineup.Formation} • possession {chance.MidfieldShare:P1} • regular {chance.OwnRegularChanceExpected:0.##}", stageWatch.ElapsedMilliseconds, 1);
-            return new CandidateEvaluation(new TacticalCandidate(lineup, scenario.Rating, BuildMatchup(scenario.Rating, context.Opponent.Rating, chance), advanced.TacticalScore) { Matchup = BuildMatchup(scenario.Rating, context.Opponent.Rating, chance) }, scenario, advanced, chance);
+            var signature = Signature(lineup); var tactic = context.RatingContext.Tactic; var state = new MatchState(signature, lineup.Formation, signature, signature, context.RatingContext.MatchLocation, attitude, tactic, TeamSpiritValue(context.Questionnaire.TeamSpirit), context.Questionnaire.Coach); var stageWatch = Stopwatch.StartNew(); var stage = "M7"; var scenario = _m7.CalculateLineup(state, lineup, players, context.RatingContext.Tactic, context.RatingContext.MatchLocation, context.RatingContext.Attitude, context.Questionnaire.TeamSpirit, context.Questionnaire.Coach); if (logStages) LogComplete(currentRunId, stage, $"{lineup.Formation} • rating {scenario.Rating.Midfield:0.##}/{scenario.Rating.CentralAttack:0.##}", stageWatch.ElapsedMilliseconds, 1); stageWatch.Restart(); stage = "M7.2"; var advanced = _m72.CalculateLineup(state, lineup, players, scenario, context.RatingContext.Tactic, context.RatingContext.MatchLocation, context.RatingContext.Attitude, context.Questionnaire.TeamSpirit, context.Questionnaire.Coach); if (logStages) LogComplete(currentRunId, stage, $"{lineup.Formation} • tactic {advanced.Tactic} lvl {advanced.TacticalLevel}", stageWatch.ElapsedMilliseconds, 1); stageWatch.Restart(); stage = "M8"; var m8Input = _m72.BuildM8Input(scenario, advanced); var chance = _m8.Calculate(m8Input, context.Opponent.Rating); if (logStages) LogComplete(currentRunId, stage, $"{lineup.Formation} • possession {chance.MidfieldShare:P1} • regular {chance.OwnRegularChanceExpected:0.##}", stageWatch.ElapsedMilliseconds, 1); return new CandidateEvaluation(new TacticalCandidate(lineup, scenario.Rating, BuildMatchup(scenario.Rating, context.Opponent.Rating, chance), advanced.TacticalScore) { Matchup = BuildMatchup(scenario.Rating, context.Opponent.Rating, chance) }, scenario, advanced, chance);
         }
     }
 
