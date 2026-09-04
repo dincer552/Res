@@ -26,8 +26,11 @@ public static class M9PredictionRegression
             var m9 = result.M9;
             Check(m9 is not null, "production pipeline returned M9 result");
             Check(!string.IsNullOrWhiteSpace(m9.CandidateId), "M9 candidate identity is populated");
-            Check(result.M6.BestCandidate is not null, "M6 best candidate exists for M9 continuity");
-            Check(m9.CandidateId == CandidateId(result.M6.BestCandidate!.Lineup), "M9 candidate identity matches M6 selected candidate");
+            Check(m9.CandidateId == CandidateId(result.FinalPlan.Lineup), "M9 candidate identity matches FinalPlan selected XI");
+            Check(m9.Formation == result.FinalPlan.Formation, "M9 formation matches FinalPlan");
+            var telemetry = MotorRunLogStore.Get("offline-c8-m9");
+            Check(telemetry is not null, "M9 run telemetry exists");
+            Check(telemetry!.Stages.Any(x => x.Motor == "M9" && x.Status == "completed"), "M9 completed telemetry exists");
             var p = m9.Prediction;
             Check(double.IsFinite(p.ExpectedHomeGoals) && double.IsFinite(p.ExpectedAwayGoals), "M9 expected goals are finite");
             Check(p.ExpectedHomeGoals >= 0.05 && p.ExpectedHomeGoals <= 5.0, "M9 own expected goals are clamped to production bounds");
@@ -40,7 +43,23 @@ public static class M9PredictionRegression
             Check(simulation.Outcome is not null, "M9 Monte Carlo outcome exists");
             Check(Math.Abs(simulation.Outcome.WinProbability + simulation.Outcome.DrawProbability + simulation.Outcome.LossProbability - 1.0) <= 1e-9, "M9 simulation W/D/L sum to 1");
             Check(!string.IsNullOrWhiteSpace(m9.MostLikelyScore), "M9 most-likely score exists");
-            var direct = new M9MatchPredictionEngine().Predict(result.M6.BestCandidate!, result.M8, opponentRating, context.RatingContext.MatchLocation, players, opponent.LastMatchLineup, opponent.Players);
+
+            // Rebuild only the selected production candidate. M9 itself consumes lineup + rating
+            // and the explicit opponent rating; Matchup is not consulted on this overload.
+            var selectedCandidate = new TacticalCandidate(
+                result.FinalPlan.Lineup,
+                result.FinalPlan.Rating,
+                result.FinalPlan.Matchup,
+                result.FinalPlan.TacticalScore);
+            var direct = new M9MatchPredictionEngine().Predict(
+                selectedCandidate,
+                result.M8,
+                opponentRating,
+                context.RatingContext.MatchLocation,
+                players,
+                opponent.LastMatchLineup,
+                opponent.Players);
+            Check(direct.CandidateId == m9.CandidateId, "M9 direct recalculation candidate identity matches production result");
             Check(Equal(direct.Prediction.ExpectedHomeGoals, p.ExpectedHomeGoals), "M9 direct recalculation matches pipeline expected home goals");
             Check(Equal(direct.Prediction.ExpectedAwayGoals, p.ExpectedAwayGoals), "M9 direct recalculation matches pipeline expected away goals");
             Check(Equal(direct.Prediction.WinProbability, p.WinProbability), "M9 direct recalculation matches pipeline win probability");
