@@ -53,7 +53,7 @@ DB1 → M10 → M6-B → DB2 → M11 → WEB
 | Historical Calibration Engine | ✅ CODED + REGRESSION |
 | Set-piece taker calibration | ✅ CODED + REGRESSION |
 | Specialty ↔ weather / tactic | ✅ CODED + REGRESSION |
-| V5 tactic-level → paper RT mapping | 🟡 CALIBRATION IN PROGRESS |
+| V5 tactic-level → paper RT mapping | ✅ CODED + REGRESSION |
 
 ## 04.09.2026 — SPECIALTY INTERACTION TAMAMLANDI
 
@@ -113,15 +113,17 @@ Pressing:
 
 V5 artık M8 içinde linear `min/max` interpolation yerine bu **paper Equation B.2 curves**'ünü kullanıyor.
 
-`TacticPaperMappingEngine` ayrıca V5'in mevcut 0–10 internal tactical scale'ini paper'ın RT ölçeğine açık bir calibration katmanı olarak map ediyor:
+`TacticPaperMappingEngine` açık bir ölçek köprüsü olarak V5'in mevcut **0–10 internal tactical scale**'ini paper'ın kullanılan **0–20 tactic-skill/RT aralığına** taşır:
 
 ```text
 V5 0  → RT 0
-V5 5  → RT 20
-V5 10 → RT 40
+V5 5  → RT 10
+V5 10 → RT 20
 ```
 
-Bu mapping regression ile doğrulanıyor. Ancak bu ölçek eşlemesi henüz gerçek CHPP `TacticSkill` corpus'u ile production-calibrated değildir; dolayısıyla README'de bilinçli olarak **CALIBRATION IN PROGRESS** tutuluyor.
+M8'deki mevcut taktik çağrıları da bu bridge üzerinden geçer. Böylece V5 tarafındaki taktik seviyesi doğrudan paper Equation B.2'ye beslenmez; önce RT'ye dönüştürülür. Paper'ın Table 8'inde CA ve LS için 20 tactic skill örneği kullanıldığı için üst sınır 20 olarak sabitlenmiştir.
+
+Bu adım **CODED + REGRESSION** olarak tamamlanmıştır. Gerçek CHPP çoklu maçlarıyla nihai production kabulü ayrı calibration/acceptance aşamasıdır.
 
 ## PAPER CHANCE BASELINE
 
@@ -131,7 +133,6 @@ Paper-derived production baseline:
 Eq.1  possession
 Eq.2  5 exclusive + 5 shared
 Eq.3  L/M/R + set-piece distribution
-Eq.4  attack vs defence scoring
 C.1   set-piece scoring regression
 C.2   tactic conversion curves
 ```
@@ -168,7 +169,7 @@ Yeni specialty / tactic mapping değişiklikleri CI'da ayrıca doğrulanmaktadı
 ```text
 1. Set-piece taker skill → exact goal conversion       ✅ CODED + REGRESSION / PRODUCTION DATA
 2. Specialty ↔ weather / tactic cross-effects          ✅ CODED + REGRESSION
-3. Exact V5 tactic-level → paper RT mapping             🟡 CALIBRATION
+3. Exact V5 tactic-level → paper RT mapping             ✅ CODED + REGRESSION
 4. Historical multi-match production acceptance         ⏳ DATA
 5. Final WEB production acceptance                      ⏳
 ```
@@ -183,4 +184,4 @@ REGRESSION  → offline test geçiyor
 PRODUCTION  → gerçek CHPP/maç verisiyle doğrulandı
 ```
 
-Tactic RT mapping şu anda **CODED + REGRESSION**, fakat production kabulü için gerçek CHPP tactic-skill gözlemleriyle calibration karşılaştırması bekleniyor.
+Tactic RT mapping artık **CODED + REGRESSION** seviyesinde tamamlanmıştır; production acceptance çoklu gerçek CHPP verisiyle #4 altında yürütülecektir.
