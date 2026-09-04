@@ -23,8 +23,8 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
-          echo "🧪 V5 offline acceptance regression başlıyor..."
-          dotnet run --project HattrickAI_V5.OfflineTests/HattrickAI_V5.OfflineTests.csproj -- TestJSON/HattrickAI_V5_CHPP_FullOffline_2026-09-01.json
+          echo "🧪 V5 offline acceptance regression C12'den başlıyor..."
+          dotnet run --project HattrickAI_V5.OfflineTests/HattrickAI_V5.OfflineTests.csproj -- c12 TestJSON/HattrickAI_V5_CHPP_FullOffline_2026-09-01.json
           echo "✅ V5 offline acceptance regression tamamlandı"
 
       - name: Build Docker image
@@ -67,8 +67,7 @@ jobs:
           REMOTE_ARCHIVE="/tmp/${ARCHIVE}"
           echo "📤 Docker image Azure VM'ye gönderiliyor: ${REMOTE_ARCHIVE}"
           scp -i ~/.ssh/deploy_key "${ARCHIVE}" "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:${REMOTE_ARCHIVE}.upload"
-          ssh -i ~/.ssh/deploy_key "${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}" \
-            "mv '${REMOTE_ARCHIVE}.upload' '${REMOTE_ARCHIVE}'"
+          ssh -i ~/.ssh/deploy_key "${{ secrets.DEPLOY_SSH_KEY }}" "mv '${REMOTE_ARCHIVE}.upload' '${REMOTE_ARCHIVE}'"
           echo "✅ Image Azure VM'ye gönderildi"
 
       - name: Deploy on Azure VM
