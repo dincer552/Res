@@ -7,6 +7,9 @@ if (historicalCalibrationRegression != 0) return historicalCalibrationRegression
 var setPieceTakerCalibrationRegression = SetPieceTakerCalibrationRegression.Run();
 if (setPieceTakerCalibrationRegression != 0) return setPieceTakerCalibrationRegression;
 
+var specialtyInteractionRegression = SpecialtyInteractionRegression.Run();
+if (specialtyInteractionRegression != 0) return specialtyInteractionRegression;
+
 var longShotRegression = LongShotOpportunityRegression.Run();
 if (longShotRegression != 0) return longShotRegression;
 
