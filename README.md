@@ -54,6 +54,37 @@ DB1 → M10 → M6-B → DB2 → M11 → WEB
 | Set-piece taker calibration | ✅ CODED + REGRESSION |
 | Specialty ↔ weather / tactic | ✅ CODED + REGRESSION |
 | V5 tactic-level → paper RT mapping | ✅ CODED + REGRESSION |
+| Historical multi-match acceptance gate | 🟡 HARNESS + DATA VALIDATION |
+
+## HISTORICAL MULTI-MATCH PRODUCTION ACCEPTANCE
+
+`HistoricalMultiMatchProductionAcceptance` artık offline suite içine bağlıdır. Gate şu kontrolleri yapar:
+
+```text
+CHPP export schema/source doğrulaması
+finished match filtreleme
+benzersiz MatchID kontrolü
+final skor bütünlüğü
+multi-match kapsamı
+ayrıntılı CHPP match-engine kaydı kontrolü
+```
+
+Production activation için mevcut eşik:
+
+```text
+>= 250 finished matches / side
+AND
+>= 250 detailed CHPP match-engine records
+AND
+HistoricalCalibrationEngine gate:
+    >= 250 eligible matches
+    >= 250 Long Shot attempts
+    regression comparison
+```
+
+Mevcut `HattrickAI_V5_CHPP_FullOffline_2026-09-01.json` export'unda 8 own + 8 opponent finished match bulunuyor ve ayrıntılı match-engine verisi bulunan tek reference match mevcut. Bu nedenle acceptance harness çalışır durumda olsa da **production calibration henüz aktive edilmez**; veri yetersizliği bilinçli olarak gate tarafından `DATA_INCOMPLETE` olarak bırakılır.
+
+Bu ayrım önemlidir: gerçek CHPP verisiyle sadece sonuç listesini görmek, rating/tactic-skill girişlerini her tarihsel maç için bilmeden gerçek predictive acceptance anlamına gelmez. Veri sızıntısını önlemek için pre-match gözlenen rating/tactic inputs olmadan geçmiş maç üzerinde tahmin başarısı hesaplanmaz.
 
 ## 04.09.2026 — SPECIALTY INTERACTION TAMAMLANDI
 
@@ -67,67 +98,11 @@ DB1 → M10 → M6-B → DB2 → M11 → WEB
 - Head specialty corner/set-piece etkisi
 - Creative special-event amplification
 
-Hattrick'in geliştirici dokümantasyonu Technical/Powerful/Quick weather etkilerini %5, Quick CA bonusunu ise 1 ekstra Quick için %5 ve 8 için %14'e kadar tanımlar. V5, kaynakta açıkça bulunmayan ara katsayıları production gerçeği gibi sunmaz; calibration gerektiğinde ayrı tutulur.
-
-## HISTORICAL CALIBRATION
-
-Historical calibration katmanı gerçek CHPP gözlemlerini paper baseline ile karşılaştırmak üzere ayrı tutulur.
-
-Production activation gate:
-
-```text
->= 250 eligible matches
-AND
->= 250 Long Shot attempts
-AND
-regression comparison
-```
-
-Historical fit production katsayılarını otomatik değiştirmez.
-
-## SET-PIECE TAKER
-
-Set-piece taker skill için calibration engine ve regression mevcut. Taker seçimi ve gözlem corpus'u hazırdır; gerçek hidden-game-engine conversion katsayısı yeterli matched historical CHPP/event verisi gelmeden production katsayısı olarak aktive edilmez.
-
 ## PAPER M8 / TACTIC CONVERSION
 
-Paper Appendix C.2'de tactic conversion rate, tactic rating `RT` üzerinden Equation B.2 ile tanımlanır:
-
-```text
-Counter:
--0.617941717072569 + 0.104274398·RT
--0.00358354796·RT² + 0.0000434356·RT³
-
-AiM:
--0.00036765·RT² + 0.02180462·RT + 0.0705084
-
-AoW:
--0.00046569·RT² + 0.02894608·RT + 0.10514706
-
-Long Shot:
-0.00761935·RT + 0.07520052
-
-Pressing:
--0.00780421·RT² + 0.471402·RT - 1.10735
-```
-
-V5 artık M8 içinde linear `min/max` interpolation yerine bu **paper Equation B.2 curves**'ünü kullanıyor.
-
-`TacticPaperMappingEngine` açık bir ölçek köprüsü olarak V5'in mevcut **0–10 internal tactical scale**'ini paper'ın kullanılan **0–20 tactic-skill/RT aralığına** taşır:
-
-```text
-V5 0  → RT 0
-V5 5  → RT 10
-V5 10 → RT 20
-```
-
-M8'deki mevcut taktik çağrıları da bu bridge üzerinden geçer. Böylece V5 tarafındaki taktik seviyesi doğrudan paper Equation B.2'ye beslenmez; önce RT'ye dönüştürülür. Paper'ın Table 8'inde CA ve LS için 20 tactic skill örneği kullanıldığı için üst sınır 20 olarak sabitlenmiştir.
-
-Bu adım **CODED + REGRESSION** olarak tamamlanmıştır. Gerçek CHPP çoklu maçlarıyla nihai production kabulü ayrı calibration/acceptance aşamasıdır.
+Paper Appendix C.2'de tactic conversion rate, tactic rating `RT` üzerinden Equation B.2 ile tanımlanır. V5 bu eğrileri M8 içinde kullanır ve tactic scale bridge regression ile korunur.
 
 ## PAPER CHANCE BASELINE
-
-Paper-derived production baseline:
 
 ```text
 Eq.1  possession
@@ -137,7 +112,7 @@ C.1   set-piece scoring regression
 C.2   tactic conversion curves
 ```
 
-Paper'ın 1 milyon maçlık datasetinde tactic/tactic skill, sector ratings, midfield, ISP ratings ve specialty sayıları input olarak kullanılır.
+Paper çalışması 250 değişkenli 1 milyon CHPP maçlık veri kümesi kullandı; tactic/tactic skill, sector ratings, midfield, ISP ratings ve specialty sayıları gözlenen girdiler arasında yer aldı. Tahmin değerlendirmesinde gol farkı hatası ve HDA için RPS kullanıldı. fileciteturn676file0
 
 ## FULL CHPP JSON — OFFLINE ACCEPTANCE
 
@@ -146,23 +121,17 @@ TestJSON/
 └── HattrickAI_V5_CHPP_FullOffline_2026-09-01.json
 ```
 
-Offline zincirde M3→M11 akışının çalışması regression ile doğrulanır.
+Offline zincirde M3→M11 akışının çalışması regression ile doğrulanır. Historical acceptance gate aynı export'un geçmiş maç listesini ayrıca kontrol eder.
 
 ## CI CHECKPOINT
 
-Son doğrulanmış production workflow:
+Son doğrulanmış baseline:
 
 ```text
 HattrickAI V5 Deploy #505  → SUCCESS
-
-Offline regression   PASS
-Docker build         PASS
-Docker image upload  PASS
-Azure deployment     PASS
-Health check         PASS
 ```
 
-Yeni specialty / tactic mapping değişiklikleri CI'da ayrıca doğrulanmaktadır.
+Yeni historical acceptance, specialty ve tactic mapping değişiklikleri CI'da doğrulanmaktadır.
 
 ## KALANLAR
 
@@ -170,11 +139,9 @@ Yeni specialty / tactic mapping değişiklikleri CI'da ayrıca doğrulanmaktadı
 1. Set-piece taker skill → exact goal conversion       ✅ CODED + REGRESSION / PRODUCTION DATA
 2. Specialty ↔ weather / tactic cross-effects          ✅ CODED + REGRESSION
 3. Exact V5 tactic-level → paper RT mapping             ✅ CODED + REGRESSION
-4. Historical multi-match production acceptance         ⏳ DATA
+4. Historical multi-match production acceptance         🟡 HARNESS + DATA REQUIRED
 5. Final WEB production acceptance                      ⏳
 ```
-
-Buradaki `⏳ DATA` maddeleri kod eksikliği değildir; gerekli çoklu gerçek CHPP/event corpus veya hidden game-engine değişkenleri olmadan güvenilir production katsayısı üretilemez.
 
 ## KABUL KRİTERİ
 
@@ -184,4 +151,4 @@ REGRESSION  → offline test geçiyor
 PRODUCTION  → gerçek CHPP/maç verisiyle doğrulandı
 ```
 
-Tactic RT mapping artık **CODED + REGRESSION** seviyesinde tamamlanmıştır; production acceptance çoklu gerçek CHPP verisiyle #4 altında yürütülecektir.
+#4 için kod ve acceptance gate hazırdır. **Production kabulü için gereken tarihsel multi-match CHPP corpus henüz yeterli değildir.**
