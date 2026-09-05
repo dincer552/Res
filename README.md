@@ -16,6 +16,13 @@ AŞAMA 0  Kaynak envanteri
          - Test çıktıları
          - Referans PDF matematikleri
 
+AŞAMA 0.5 Motor / Kod Konum Haritası
+         - Her motorun GitHub dosya yolu
+         - Class ve ana fonksiyonlar
+         - Input / Output ilişkileri
+         - Motorlar arası veri akışı
+         - Kullanılan config ve katsayı kaynakları
+
 AŞAMA 1  Sistem mimarisi
          - Genel V5 akışı
          - Veri giriş/çıkış zinciri
@@ -61,6 +68,46 @@ Dokümantasyon prensibi:
 - Tahmin edilen veya varsayılan hesap yazılmayacak.
 - Kullanılan katsayılar sadece kod/config veya kaynak PDF'den alınacak.
 - Her motor için input, output, hesaplama mantığı ve kullanılan dosya yolu belirtilecek.
+
+### Motor / Kod ilişkilendirme standardı
+
+Her motor dokümanında aşağıdaki bilgiler bulunacak:
+
+- GitHub dosya yolu
+- Class adı
+- Ana çalışan fonksiyonlar
+- Aldığı veri (input)
+- Ürettiği veri (output)
+- Hesaplama mantığı
+- Kullandığı katsayılar ve kaynakları
+- Önceki ve sonraki motor bağlantısı
+
+Örnek dokümantasyon zinciri:
+
+```
+M3
+ |
+ | input/output
+ v
+M4
+ |
+ v
+M5
+ |
+ v
+M6-A
+ |
+ v
+...
+ |
+ v
+M11
+ |
+ v
+FinalPlan
+```
+
+Bu bölüm PDF manuelinde geliştirici referansı olarak kullanılacaktır.
 
 ---
 
