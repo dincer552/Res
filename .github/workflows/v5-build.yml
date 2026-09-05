@@ -56,11 +56,17 @@ jobs:
         shell: bash
         run: |
           set -Eeuo pipefail
+          DEPLOY_HOST="${{ secrets.DEPLOY_HOST }}"
+          DEPLOY_USER="${{ secrets.DEPLOY_USER }}"
           mkdir -p ~/.ssh
           printf '%s\n' "${{ secrets.DEPLOY_SSH_KEY }}" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
-          ssh-keyscan -H "${{ secrets.DEPLOY_HOST }}" >> ~/.ssh/known_hosts
-          echo "✅ SSH hazır"
+          test -s ~/.ssh/deploy_key
+          ssh-keygen -y -f ~/.ssh/deploy_key >/dev/null
+          ssh-keyscan -T 10 -p 22 -H "${DEPLOY_HOST}" >> ~/.ssh/known_hosts
+          test -s ~/.ssh/known_hosts
+          ssh -o BatchMode=yes -o ConnectTimeout=10 -o StrictHostKeyChecking=yes -i ~/.ssh/deploy_key "${DEPLOY_USER}@${DEPLOY_HOST}" "echo SSH_OK"
+          echo "✅ SSH hazır ve azureuser bağlantısı doğrulandı"
 
       - name: Upload Docker image
         shell: bash
