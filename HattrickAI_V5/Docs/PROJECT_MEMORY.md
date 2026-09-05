@@ -80,7 +80,7 @@ Therefore the production analysis pipeline currently enters the motor pipeline w
 
 `HattrickAI_V5/Core/AdvancedTacticalScenarioEngine.cs` maps the supplied team tactic to `AdvancedTactic`, calculates tactic skill and tactical effects, and returns the resulting scenario. It does **not** choose the team tactic.
 
-`HattrickAI_V5/Core/M8ChanceAllocationEngine.cs` also consumes the selected/supplied tactic to calculate tactic conversion and chance distribution. It does **not** select the tactic.
+`HattrickAI_V5/Core/M8ChanceAllocationEngine.cs` also consumes the supplied tactic to calculate tactic conversion and chance distribution. It does **not** select the tactic.
 
 `HattrickAI_V5/Core/M10FinalDecisionEngine.cs` selects the final formation/plan and match attitude. Its `SelectApproach` logic is about `TeamAttitude` (Normal / PlayItCool / MatchOfTheSeason), not `TeamTactic`.
 
@@ -107,6 +107,59 @@ Do not hardcode a tactical strategy merely to make the UI look complete.
 ### Documentation rule
 
 Any future UI or manual text claiming that V5 "calculates the best tactic" must first be backed by an actual selector/calculation path in code. Until such a path exists, document the tactic as supplied input (`Normal`) rather than as an engine decision.
+
+---
+
+# Stage 5 — Real Match Example — 2026-09-05
+
+The real CHPP fixture `TestJSON/HattrickAI_V5_CHPP_FullOffline_2026-09-01.json` was reviewed and documented in `HattrickAI_V5/Docs/REAL_MATCH_ANALYSIS.md`.
+
+Fixture SHA: `540a63d381defbf49d4d89553370b90114bf4815`.
+
+The example separates:
+
+- the future match `769648177` (Zeytinburnu Sahil Spor vs S4MSUNFC),
+- the opponent's historical reference match `769648173` (bombacı mülayim spor 3-2 Zeytinburnu Sahil Spor),
+- normalized player data,
+- M3 player-analysis output,
+- M4/M5 generated XI,
+- M7 regional ratings,
+- opponent threat/opportunity output.
+
+The fixture's stored `v5Analysis` does not expose complete standalone M8/M9/M10/M6-B/DB2/M11 final-result objects. Those values are therefore not reconstructed or invented in the Stage 5 documentation.
+
+Verified future-match XI from the fixture:
+
+```text
+3-5-2
+GK      Enzo Bultot
+DEF-CL  Abeiku Takyi
+DEF-C   Dawid Nocoń
+DEF-CR  Cristian Pesalovo
+W-L     Felix Gustavsson
+IM-L    Francisco Manuel
+IM-C    Milen Bozev
+IM-R    Bertalan Doktor
+W-R     Nándor Dobóvári
+FW-L    Adrian Beţa
+FW-R    Ersin Akşın
+```
+
+Verified V5 regional ratings:
+
+```text
+S4MSUNFC
+LD 9.75 / CD 16.00 / RD 9.75 / MID 6.25
+LA 10.25 / CA 11.50 / RA 9.25
+DEF 35.50 / ATT 31.00
+
+Zeytinburnu Sahil Spor
+LD 6.25 / CD 9.50 / RD 6.25 / MID 7.00
+LA 10.00 / CA 13.00 / RA 8.50
+DEF 22.00 / ATT 31.50
+```
+
+This example is reference data for the technical manual, not a claim that the historical match result is a V5 prediction.
 
 ---
 
