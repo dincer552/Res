@@ -34,7 +34,7 @@ AŞAMA 2  Veri modeli [TAMAMLANDI]
          - Match modeli
          - Database yapıları
 
-AŞAMA 3  Hattrick matematik modeli [SIRADA]
+AŞAMA 3  Hattrick matematik modeli [TAMAMLANDI]
          - Rating hesapları
          - Possession hesapları
          - Attack/defence bölgesel hesapları
