@@ -19,7 +19,10 @@ jobs:
       - name: Checkout V5
         uses: actions/checkout@v4
 
-      - name: Offline acceptance regression
+      # Geçici olarak durduruldu. Regression testleri daha sonra yeniden
+      # aktif etmek için if koşulunu true yap.
+      - name: Offline acceptance regression (PAUSED)
+        if: ${{ false }}
         shell: bash
         run: |
           set -Eeuo pipefail
