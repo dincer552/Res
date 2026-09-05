@@ -57,6 +57,35 @@ Her motor dokümanında aşağıdaki bilgiler bulunacak:
 
 ---
 
+## TEKNİK MANUEL İÇİNDEKİLER / KAYNAK HARİTASI
+
+Birleşik PDF tek başına kaynak değildir. Aşağıdaki `.md` dosyaları yaşayan teknik kaynaklardır; PDF ise bu kaynakların belirli tarihte alınmış sabit bir yayım/snapshot sürümüdür.
+
+1. `PROJECT_MEMORY.md` — proje hafızası, kararlar, sınırlar ve doğrulanmış proje durumu.
+2. `ENGINE_MAP.md` — motorların ve ilgili kod dosyalarının konum haritası.
+3. `CHANGE_HISTORY.md` — teknik değişiklik ve acceptance düzeltme geçmişi.
+4. `SYSTEM_ARCHITECTURE.md` — backend, pipeline ve runtime mimarisi.
+5. `DATA_MODEL.md` — ana veri yapıları, context nesneleri ve veri sözleşmeleri.
+6. `MATCH_ENGINE_MATH.md` — Hattrick maç motoru matematiği ve kullanılan referans bağıntılar.
+7. `MOTOR_TECHNICAL_MANUAL.md` — M3–M11 motorlarının teknik görevleri, girdileri, çıktıları ve katsayıları.
+8. `REAL_MATCH_ANALYSIS.md` — gerçek CHPP offline fixture üzerinden doğrulanmış örnek analiz.
+9. `WEB_USER_MANUAL.md` — son kullanıcı için web kullanım akışı.
+10. `WEB_INTERFACE.md` — web arayüzünün teknik davranışı.
+11. `WEB_UI_FILE_MAP.md` — frontend dosyalarının görev ve bağlantı haritası.
+12. `DEVELOPER_API_MANUAL.md` — ASP.NET Core, session, OAuth/CHPP, endpoint'ler ve developer test noktaları.
+13. `M8_PHASE_D_PDF_CALIBRATION.md` — M8 PDF/calibration özel teknik notları.
+
+### PDF kaynak snapshot kaydı
+
+- **PDF snapshot tarihi:** 05.09.2026
+- **PDF:** `HattrickAI_V5_Teknik_Manuel_A8_FINAL.pdf`
+- **PDF sayfa sayısı:** 208
+- **Kaynak indexi:** `HattrickAI_V5/Docs/TECHNICAL_MANUAL_INDEX.md`
+
+PDF yeniden oluşturulduğunda snapshot tarihi güncellenecek ve `TECHNICAL_MANUAL_INDEX.md` içindeki kaynak tarihleri yeniden kaydedilecek. Böylece herhangi bir PDF sürümünün hangi Markdown bilgi snapshot'ından üretildiği takip edilebilecek.
+
+---
+
 ## DOĞRULANMIŞ TEKNİK NOTLAR — 05.09.2026
 
 ### Taktik hesaplama / seçim durumu
@@ -98,3 +127,5 @@ Sonuç: UI'da `ORTADAN ATAK`, `KANATTAN ATAK` vb. değerleri motorun hesapladı�
 - `HattrickAI_V5/Docs/WEB_INTERFACE.md`
 - `HattrickAI_V5/Docs/WEB_UI_FILE_MAP.md`
 - `HattrickAI_V5/Docs/DEVELOPER_API_MANUAL.md`
+- `HattrickAI_V5/Docs/M8_PHASE_D_PDF_CALIBRATION.md`
+- `HattrickAI_V5/Docs/TECHNICAL_MANUAL_INDEX.md`
