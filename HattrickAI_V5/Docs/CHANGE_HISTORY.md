@@ -66,6 +66,33 @@ For the current web path, the truthful UI semantic is `TAKTİK YOK`; the underly
 
 ---
 
+## 2026-09-05 — Stage 5: Real Match Example Analysis
+
+Source fixture:
+
+`TestJSON/HattrickAI_V5_CHPP_FullOffline_2026-09-01.json`
+
+Fixture SHA:
+
+`540a63d381defbf49d4d89553370b90114bf4815`
+
+The fixture was used to create `HattrickAI_V5/Docs/REAL_MATCH_ANALYSIS.md`.
+
+Documented facts include:
+
+- future match `769648177`: Zeytinburnu Sahil Spor vs S4MSUNFC, 2026-09-06 15:00 UTC;
+- opponent historical reference match `769648173`: bombacı mülayim spor 3-2 Zeytinburnu Sahil Spor;
+- questionnaire values Coach=0, TeamSpirit=3, MatchImportance=0;
+- M3 player-analysis examples and eligibility;
+- M4/M5 generated `3-5-2` S4MSUNFC XI;
+- M7 own/opponent regional ratings;
+- opponent threat/opportunity values;
+- tactical-selector limitation.
+
+The fixture's stored `v5Analysis` does not provide complete standalone M8/M9/M10/M6-B/DB2/M11 final-result objects. These missing values were intentionally not reconstructed or invented.
+
+---
+
 ## Known Acceptance / Regression Documentation Risks
 
 - C13 previously compared exposed DB2 count against production SecondPass count incorrectly. The production pipeline exposes a formation-diversified DB2 subset, so exposed count and production DB2 count are not required to be equal.
