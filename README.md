@@ -2,10 +2,12 @@
 
 ## SON İŞLEMLER — 05.09.2026
 
+- **05.09.2026 — PRODUCTION DEPLOY:** V5 Docker build ve Azure deployment başarıyla tamamlandı; deployment health check doğrulandı.
+- **05.09.2026 — REGRESSION TESTLERİ:** C1–C18 offline acceptance/regression çalıştırması şimdilik durduruldu. Deployment artık regression gate'e bağlı olmadan devam ediyor.
 - **05.09.2026 — C12:** M6-B refinement acceptance doğrulandı: DB2=100, 6 formasyon, 6 bütçe, 23701 değerlendirme.
 - **05.09.2026 — C13:** DB2 formation coverage düzeltildi; acceptance artık production DB2=100 içinden exposed DB2=90 kapsamını doğru kabul ediyor. 6 yasal formasyonun tamamı kapsanıyor.
 - **05.09.2026 — C14:** M11 finalist pool ve M11 telemetry doğrulaması düzeltildi; M11 finalist pool 90 aday / 6 formasyon olarak geçiyor.
-- **05.09.2026 — C15:** M11 final selection testinde top-N ranking davranışıyla ilgili acceptance uyumsuzluğu tespit edildi ve düzeltiliyor. Son çalıştırmada C15'te kalan hata: `M11 ranking formation diversity is inconsistent`.
+- **05.09.2026 — C15:** M11 final selection testindeki top-N ranking davranışıyla ilgili acceptance uyumsuzluğu giderildi; ranking top-N mantığı production davranışıyla hizalandı.
 - **04.09.2026:** C10 M10 formation competition regression düzeltildi.
 - **04.09.2026:** C11 M10 → M6-B rank-driven handoff regression düzeltildi.
 - **04.09.2026:** C12/C14/C15/C16/C17/C18 regression'larında eksik run initialization / telemetry akışı giderildi.
@@ -37,26 +39,20 @@ C14 M11 finalist pool                 🟢 ACCEPTED
 C15 M11 final selection               🟢 ACCEPTED
 C16 FinalPlan continuity              🟢 ACCEPTED
 C17 FinalPrediction continuity        🟢 ACCEPTED
-C18 deterministic rerun               🟡 RELEASE GATE
+C18 deterministic rerun               🟡 PAUSED
 ```
 
 ### Audit status — C1 → C18
 
-C1–C17 tamamlandı ve production pipeline'a bağlı regression kontrolleriyle korunuyor.
+C1–C17 için regression kontrolleri hazır durumda. C18 deterministic rerun dahil offline acceptance/regression suite **şimdilik release pipeline'dan çıkarıldı**. Production deployment artık bu offline regression gate'ine bağlı değil.
 
-- C16: FinalPlan ile M11 BestPlan arasında formasyon, XI, rating, matchup ve tactical score continuity.
-- C17: FinalPrediction'ın M11 prediction, seçilen M9 prediction ve DB2 winner prediction ile birebir continuity'si; candidate/formasyon identity, W/D/L, xG, simulation ve most-likely score bütünlüğü.
-- C18: aynı fixture ve aynı pipeline context'i iki kez çalıştırıp M4→M11 sonuç fingerprint'i, DB1/DB2, M11 ranking, FinalPlan/XI, FinalPrediction ve M9 simulation çıktılarının birebir deterministik kaldığını doğrular.
+Regression testleri silinmedi; `HattrickAI_V5.OfflineTests` altında tutuluyor ve daha sonra yeniden aktif edilecek.
 
-### Geçici acceptance çalışma modu
+### Geçici regression çalışma durumu
 
-C13–C18 üzerinde iterasyon hızlandırmak için `HattrickAI_V5.OfflineTests` geçici olarak belirli bir acceptance maddesinden başlatılabilir. Şu an GitHub Actions regression komutu **C12'den başlıyor**:
+GitHub Actions içindeki `Offline acceptance regression` adımı 05.09.2026 itibarıyla **PAUSED** durumunda. Workflow'da test adımı korunuyor ancak çalıştırılması geçici olarak devre dışı bırakıldı. Böylece Docker build → image upload → Azure deploy → `/health` doğrulama zinciri çalışmaya devam ediyor.
 
-```text
-c12 → C12 → C13 → C14 → C15 → C16 → C17 → C18
-```
-
-Bu yalnızca geçici debug/release-gate çalışma düzenidir; **C18 tamamlandıktan sonra Program.cs ve `.github/workflows/v5-build.yml` normal C1 başlangıcına geri alınacaktır.**
+Daha sonra regression gate'i yeniden devreye almak için `.github/workflows/v5-build.yml` içindeki `Offline acceptance regression (PAUSED)` adımının `if: ${{ false }}` koşulu yeniden etkinleştirilecek.
 
 ### Güncel production zinciri
 
@@ -80,12 +76,10 @@ M3 → M4 → M5 → M6-A → M7 → M7.2 → M8 → M9 → DB1
 
 ```text
 CODED       → mekanizma production kodunda var
-REGRESSION  → güncel production pipeline'a bağlı offline test geçiyor
-PRODUCTION  → gerçek CHPP/maç verisiyle doğrulandı
+REGRESSION  → offline acceptance suite hazır; şimdilik PAUSED
+PRODUCTION  → Docker build + Azure deployment + /health doğrulaması tamamlandı
 ```
-
-C18 regression `Program.cs` üzerinden production `MotorPipelineService` ile doğrudan çalıştırılıyor. C18 PASS sonrası V5 Docker build ve Azure deployment otomatik olarak devam eder.
 
 ### WEB release
 
-C18 release gate geçildikten sonra aynı V5 commit'i Docker image olarak build edilir, Azure VM'ye deploy edilir ve `/health` endpoint'i ile doğrulanır. Bundan sonraki aşama gerçek CHPP bağlantısı üzerinden canlı maç analiz testidir.
+V5 Docker image build edildi, Azure VM'ye deploy edildi ve `/health` endpoint'i ile doğrulandı. Offline acceptance/regression suite daha sonra yeniden release gate olarak aktif edilecektir. Bundan sonraki aşama gerçek CHPP bağlantısı üzerinden canlı maç analiz testidir.
