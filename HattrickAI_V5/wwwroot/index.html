@@ -34,16 +34,16 @@ const QUESTIONS=[
  {key:'matchImportance',title:'Bu maçta hangi yaklaşımı kullanıyorsun?',options:[['Normal','Normal'],['PlayItCool','PIC • Rahat'],['MatchOfTheSeason','MOTS • Çok önemli']]}
 ];
 let answers={};let qIndex=0;let selected='';let lastAnalysis=null;
-const esc=s=>String(s??'').replace(/[&<>\"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','\"':'&quot;',"'":'&#039;'}[m]));
+const esc=s=>String(s??'').replace(/[&<>\\"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','\\"':'&quot;',"'":'&#039;'}[m]));
 function ratingValues(r){return r?[r.leftDefence,r.centralDefence,r.rightDefence,r.midfield,r.leftAttack,r.centralAttack,r.rightAttack]:null}
-function makeRatingBoard(r){const v=ratingValues(r);if(!v)return '';const fmt=x=>Number(x||0).toFixed(2).replace(/\.00$/,'');return '<div class="rating-board"><div class="rating-row"><span>'+fmt(v[0])+'</span><span>'+fmt(v[1])+'</span><span>'+fmt(v[2])+'</span></div><div class="rating-mid"><span>'+fmt(v[3])+'</span></div><div class="rating-row"><span>'+fmt(v[4])+'</span><span>'+fmt(v[5])+'</span><span>'+fmt(v[6])+'</span></div><div class="rating-label">DEF-L • DEF-C • DEF-R / MID / ATT-L • ATT-C • ATT-R</div></div>'}
+function makeRatingBoard(r){const v=ratingValues(r);if(!v)return '';const fmt=x=>Number(x||0).toFixed(2).replace(/\\.00$/,'');return '<div class="rating-board"><div class="rating-row"><span>'+fmt(v[0])+'</span><span>'+fmt(v[1])+'</span><span>'+fmt(v[2])+'</span></div><div class="rating-mid"><span>'+fmt(v[3])+'</span></div><div class="rating-row"><span>'+fmt(v[4])+'</span><span>'+fmt(v[5])+'</span><span>'+fmt(v[6])+'</span></div><div class="rating-label">DEF-L • DEF-C • DEF-R / MID / ATT-L • ATT-C • ATT-R</div></div>'}
 function makePitch(target,lineup,rating){const p=document.getElementById(target);p.innerHTML='<div class="midline"></div><div class="circle"></div><div class="box top"></div><div class="box bot"></div><div class="goal top"></div><div class="goal bot"></div>'+makeRatingBoard(rating)+'<div class="slots"></div>';const layer=p.querySelector('.slots');const players=new Map((lineup?.slots||[]).map(s=>[s.code,s]));for(const [code,cls] of SLOT_DEFS){const s=document.createElement('div');s.className='slot '+cls;const x=players.get(code);if(x?.playerName){s.classList.add('filled');s.innerHTML='<span class="slot-name">'+esc(x.playerName)+'</span><span class="slot-rating">RP='+Number(x.rating||0).toFixed(1)+'</span>'}else{s.classList.add('empty');s.innerHTML='<span class="slot-name"></span><span class="slot-rating"></span>'}layer.appendChild(s)}}
 function formatDate(value){const d=new Date(value);if(Number.isNaN(d.getTime()))return String(value||'');return d.toLocaleString('tr-TR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'})}
 async function json(url,opts){const r=await fetch(url,{cache:'no-store',...opts});const text=await r.text();let data={};try{data=text?JSON.parse(text):{}}catch{throw new Error('Sunucudan geçersiz yanıt geldi (HTTP '+r.status+').')}if(!r.ok)throw new Error(data.detail||data.title||data.message||('HTTP '+r.status));return data}
 function renderReference(m){const box=document.getElementById('oppReference');if(!m){box.style.display='none';return}const score=m.finished&&m.homeGoals!=null&&m.awayGoals!=null?esc(m.homeTeam)+' '+m.homeGoals+' – '+m.awayGoals+' '+esc(m.awayTeam):esc(m.homeTeam)+' – '+esc(m.awayTeam);const venue=m.opponentWasHome?'Rakip ev sahibi':'Rakip deplasmanda';document.getElementById('referenceScore').innerHTML=score;document.getElementById('referenceDetails').innerHTML='<span class="reference-type">'+esc(m.matchTypeName)+'</span>'+formatDate(m.date)+' • '+venue;box.style.display='block'}
 function copyText(text,button){const done=()=>{const old=button.textContent;button.textContent='KOPYALANDI';button.classList.add('ok');setTimeout(()=>{button.textContent=old;button.classList.remove('ok')},1400)};if(navigator.clipboard?.writeText){navigator.clipboard.writeText(text).then(done).catch(()=>fallbackCopy(text,done))}else fallbackCopy(text,done)}
 function fallbackCopy(text,done){const ta=document.createElement('textarea');ta.value=text;ta.style.position='fixed';ta.style.opacity='0';document.body.appendChild(ta);ta.select();try{document.execCommand('copy');done()}finally{ta.remove()}}
-function buildCopyText(kind){const x=lastAnalysis;if(!x)return 'Henüz analiz verisi yok.';const own=kind==='own';const lineup=own?x.own:x.opponent;const rating=own?x.ownRating:x.opponentRating;const title=own?(x.teamName||'TAKIM'):(x.opponentName||'RAKİP');const formation=own?(x.ownFormation||lineup?.formation||'—'):(x.opponentFormation||lineup?.formation||'Son maç');const rv=ratingValues(rating)||[];const lines=['HattrickAI V5 KOPYA','TAKIM: '+title,'DİZİLİŞ: '+formation,'','OYUNCULAR:'];for(const [code] of SLOT_DEFS){const p=(lineup?.slots||[]).find(s=>s.code===code);if(p?.playerName)lines.push(code+': '+p.playerName+' | RP='+Number(p.rating||0).toFixed(1))}lines.push('','BÖLGESEL RATING:','DEF-L: '+(rv[0]??'—'),'DEF-C: '+(rv[1]??'—'),'DEF-R: '+(rv[2]??'—'),'MID: '+(rv[3]??'—'),'ATT-L: '+(rv[4]??'—'),'ATT-C: '+(rv[5]??'—'),'ATT-R: '+(rv[6]??'—'));return lines.join('\n')}
+function buildCopyText(kind){const x=lastAnalysis;if(!x)return 'Henüz analiz verisi yok.';const own=kind==='own';const lineup=own?x.own:x.opponent;const rating=own?x.ownRating:x.opponentRating;const title=own?(x.teamName||'TAKIM'):(x.opponentName||'RAKİP');const formation=own?(x.ownFormation||lineup?.formation||'—'):(x.opponentFormation||lineup?.formation||'Son maç');const rv=ratingValues(rating)||[];const lines=['HattrickAI V5 KOPYA','TAKIM: '+title,'DİZİLİŞ: '+formation,'','OYUNCULAR:'];for(const [code] of SLOT_DEFS){const p=(lineup?.slots||[]).find(s=>s.code===code);if(p?.playerName)lines.push(code+': '+p.playerName+' | RP='+Number(p.rating||0).toFixed(1))}lines.push('','BÖLGESEL RATING:','DEF-L: '+(rv[0]??'—'),'DEF-C: '+(rv[1]??'—'),'DEF-R: '+(rv[2]??'—'),'MID: '+(rv[3]??'—'),'ATT-L: '+(rv[4]??'—'),'ATT-C: '+(rv[5]??'—'),'ATT-R: '+(rv[6]??'—'));return lines.join('\\n')}
 function copyLineup(kind){const button=document.getElementById(kind==='own'?'copyOwn':'copyOpp');copyText(buildCopyText(kind),button)}
 async function refreshStatus(){try{const b=await json('/api/v5/build');document.getElementById('build').textContent='build '+String(b.build||'dev').slice(0,7)}catch{document.getElementById('build').textContent='build ?'}try{const s=await json('/api/v5/status');const btn=document.getElementById('connect'),a=document.getElementById('analyze');if(s.connected){document.getElementById('statusDot').classList.add('on');document.getElementById('statusTitle').textContent='CHPP bağlı';document.getElementById('statusText').textContent='Hesap verileri hazır. Analizi çalıştırabilirsin.';btn.textContent='CHPP bağlı';btn.classList.remove('off');a.disabled=false}else{document.getElementById('statusDot').classList.remove('on');document.getElementById('statusTitle').textContent='CHPP bağlı değil';document.getElementById('statusText').textContent='Hesabı bağla, sonra analizi çalıştır.';btn.textContent='CHPP bağlan';btn.classList.add('off');a.disabled=true}}catch(e){document.getElementById('statusTitle').textContent='Durum alınamadı';document.getElementById('statusText').textContent=e.message}}
 function showQuestion(){const card=document.getElementById('questionCard');card.style.display='block';qIndex=0;answers={};renderQuestion();card.scrollIntoView({behavior:'smooth',block:'nearest'})}
@@ -55,6 +55,24 @@ document.getElementById('next').onclick=()=>{if(!selected)return;if(qIndex<QUEST
 document.getElementById('copyOwn').onclick=()=>copyLineup('own');
 document.getElementById('copyOpp').onclick=()=>copyLineup('opp');
 makePitch('ownPitch',{slots:[]},null);makePitch('oppPitch',{slots:[]},null);refreshStatus();
+</script>
+<script>
+(function(){
+  const HIDE_RE=/260\s+GEÇMİŞ\s+MAÇI\s+ÇEK|PRODUCTION\s+JSON\s+İNDİR/i;
+  function hideHistoricalExport(){
+    document.querySelectorAll('button,a,[role="button"]').forEach(function(el){
+      const text=(el.textContent||'').replace(/\s+/g,' ').trim();
+      if(HIDE_RE.test(text)){
+        const wrapper=el.closest('section,article,.panel')||el;
+        if(wrapper && wrapper!==document.body && wrapper.querySelector && HIDE_RE.test((wrapper.textContent||'').replace(/\s+/g,' ').trim())){
+          if(wrapper.id!=='analyze') wrapper.remove();
+        }else el.remove();
+      }
+    });
+  }
+  hideHistoricalExport();
+  new MutationObserver(hideHistoricalExport).observe(document.body,{childList:true,subtree:true});
+})();
 </script>
 </body>
 </html>
