@@ -65,9 +65,18 @@ AŞAMA 5  Gerçek maç örnek analizi [TAMAMLANDI]
          - Rakip threat/opportunity
          - Uydurulmamış çıktı sınırları
 
-AŞAMA 6  Web kullanıcı manueli [SIRADA]
+AŞAMA 6  Web kullanıcı manueli [TAMAMLANDI]
+         - Mevcut web ekranı
+         - CHPP bağlantı akışı
+         - Üç kullanıcı sorusu
+         - Analiz ve hata durumları
+         - Önerilen XI gösterimi
+         - Oyuncu davranış emirleri
+         - Bölgesel rating panosu
+         - Rakip gösterimi
+         - Taktik / diziliş ayrımı
 
-AŞAMA 7  Developer/API manueli
+AŞAMA 7  Developer/API manueli [SIRADA]
 ```
 
 Her aşama tamamlandığında bu bölüm güncellenecek ve hazırlanan PDF bölümleri manuel içerisine eklenecek.
@@ -150,6 +159,7 @@ Bu durum gerçek bir taktik selector bulunana kadar açık teknik gap olarak tut
 - **05.09.2026 — C14:** M11 finalist pool ve M11 telemetry doğrulaması düzeltildi; M11 finalist pool 90 aday / 6 formasyon olarak geçiyor.
 - **05.09.2026 — C15:** M11 final selection testindeki top-N ranking davranışıyla ilgili acceptance uyumsuzluğu giderildi; ranking top-N mantığı production davranışıyla hizalandı.
 - **05.09.2026 — AŞAMA 5:** `TestJSON/HattrickAI_V5_CHPP_FullOffline_2026-09-01.json` fixture'ı üzerinden gerçek maç örnek analizi dokümante edildi. Gelecek maç girdileri, rakip geçmiş maç referansı, M3/M4/M5/M7 gerçek çıktıları ve rakip threat/opportunity verileri `REAL_MATCH_ANALYSIS.md` içine işlendi. Fixture'da bulunmayan M8/M9/M10/M11 sonuçları özellikle üretilmedi.
+- **05.09.2026 — AŞAMA 6:** Mevcut `wwwroot/index.html` ve `motor-render.js` frontend davranışları incelendi ve `WEB_USER_MANUAL.md` içine işlendi. CHPP bağlantısı, üç kullanıcı sorusu, analiz durumları, XI/rating renderı, davranış emirleri, rakip görünümü ve taktik/diziliş ayrımı dokümante edildi.
 
 ## DOKÜMANTASYON DOSYALARI
 
@@ -161,3 +171,4 @@ Bu durum gerçek bir taktik selector bulunana kadar açık teknik gap olarak tut
 - `HattrickAI_V5/Docs/MATCH_ENGINE_MATH.md`
 - `HattrickAI_V5/Docs/MOTOR_TECHNICAL_MANUAL.md`
 - `HattrickAI_V5/Docs/REAL_MATCH_ANALYSIS.md`
+- `HattrickAI_V5/Docs/WEB_USER_MANUAL.md`
