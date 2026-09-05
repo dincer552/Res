@@ -16,11 +16,33 @@ Keep development decisions, engine mappings, and investigation results inside th
 
 ---
 
+## 2026-09-05 — Stage 1: System Architecture
+
+Created:
+
+- `HattrickAI_V5/Docs/SYSTEM_ARCHITECTURE.md`
+
+The document records the verified production flow from `AnalysisService` and CHPP input through `MatchDataContext`, M3-M11, Candidate DB #1/#2, `FinalPlan`, `FinalPrediction` and frontend response.
+
+Verified architectural boundaries include:
+
+- M3 = player suitability profiles.
+- M4 = legal/feasible formation candidates.
+- M5 = player-slot optimization.
+- M6 = formation-aware behaviour search and downstream evaluation.
+- M7 = regional rating scenario.
+- M7.2 = advanced tactical scenario based on supplied tactic.
+- M8 = chance/matchup calculation based on supplied tactical state.
+- M9 = match prediction.
+- M10 = formation competition/final decision and TeamAttitude handling.
+- M6-B = M10-rank-driven refinement.
+- M11 = final selection from DB2 finalists.
+
+The architecture document deliberately leaves unverified calculation details for later source inspection.
+
+---
+
 ## 2026-09-05 — Tactical Display Investigation
-
-### Goal
-
-Display the real calculated tactic in the Recommended XI card.
 
 ### Verified finding
 
@@ -36,15 +58,11 @@ The current web production analysis path does not contain a team-tactic selector
 
 `HattrickAI_V5/Core/M10FinalDecisionEngine.cs` selects a final formation/plan and can select `TeamAttitude`; this is separate from `TeamTactic`.
 
-### UI rule resulting from the investigation
+### UI rule
 
 Do not display `ORTADAN ATAK`, `KANATTAN ATAK`, `KONTRA ATAK`, etc. as a calculated engine decision unless an actual selector is added to the production pipeline.
 
 For the current web path, the truthful UI semantic is `TAKTİK YOK`; the underlying supplied value is `TeamTactic.Normal`.
-
-### Important unresolved item
-
-A future implementation may add a real tactical selector, but no such selector is documented as existing until it is found in the repository and verified through the production analysis path and tests.
 
 ---
 
