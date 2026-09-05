@@ -111,6 +111,28 @@ Bu bölüm PDF manuelinde geliştirici referansı olarak kullanılacaktır.
 
 ---
 
+## DOĞRULANMIŞ TEKNİK NOTLAR — 05.09.2026
+
+### Taktik hesaplama / seçim durumu
+
+Kod incelemesi sonucunda mevcut web production analiz akışında takım taktiğini seçen ayrı bir motor/selector bulunmadığı doğrulandı.
+
+`HattrickAI_V5/Core/AnalysisService.cs` içinde `RatingContext` oluşturulurken `TeamTactic.Normal` veriliyor.
+
+`HattrickAI_V5/Core/MotorPipelineService.cs` bu değeri `MatchState` üzerinden M7/M7.2/M8 hesaplarına taşıyor.
+
+`HattrickAI_V5/Core/AdvancedTacticalScenarioEngine.cs` verilen taktiğin etkilerini hesaplıyor; taktik seçmiyor.
+
+`HattrickAI_V5/Core/M8ChanceAllocationEngine.cs` verilen taktiğe göre dönüşüm ve şans dağılımı hesaplıyor; taktik seçmiyor.
+
+`HattrickAI_V5/Core/M10FinalDecisionEngine.cs` final plan/formasyon ve `TeamAttitude` seçebiliyor. `TeamAttitude`, `TeamTactic` değildir.
+
+Sonuç: UI'da `ORTADAN ATAK`, `KANATTAN ATAK` vb. değerleri motorun hesapladığı final taktikmiş gibi göstermek doğru değildir. Mevcut web path için gerçek durum `TAKTİK YOK` (altındaki input değeri `TeamTactic.Normal`) olarak dokümante edilmelidir.
+
+Bu durum gerçek bir taktik selector bulunana kadar açık teknik gap olarak tutulacaktır.
+
+---
+
 ## SON İŞLEMLER — 05.09.2026
 
 - **05.09.2026 — PRODUCTION DEPLOY:** V5 Docker build ve Azure deployment başarıyla tamamlandı; deployment health check doğrulandı.
