@@ -73,7 +73,7 @@ Sonuç: UI'da `ORTADAN ATAK`, `KANATTAN ATAK` vb. değerleri motorun hesapladı�
 - **05.09.2026 — C14:** M11 finalist pool ve telemetry doğrulaması düzeltildi; M11 finalist pool 90 aday / 6 formasyon olarak geçiyor.
 - **05.09.2026 — C15:** M11 final selection testindeki top-N ranking davranışı production davranışıyla hizalandı.
 - **05.09.2026 — AŞAMA 5:** Gerçek CHPP offline fixture üzerinden maç örnek analizi `REAL_MATCH_ANALYSIS.md` içine işlendi. Fixture'da bulunmayan M8/M9/M10/M11 sonuçları özellikle üretilmedi.
-- **05.09.2026 — AŞAMA 6:** `wwwroot/index.html` ve `motor-render.js` frontend davranışları `WEB_USER_MANUAL.md` içine işlendi.
+- **05.09.2026 — AŞAMA 6:** `wwwroot/index.html` ve `motor-render.js` frontend davranışları `WEB_USER_MANUAL.md` içine işlendi. Web klasöründeki gerçek dosya→ekran→sorumluluk ilişkisi ayrıca `WEB_INTERFACE.md` ve `WEB_UI_FILE_MAP.md` ile kayıt altına alındı.
 - **05.09.2026 — AŞAMA 7:** `Program.cs`, `ChppV5.cs` ve `AnalysisService.cs` üzerinden backend HTTP sınırı, session/OAuth akışı, CHPP XML client, production endpoint'leri, analysis data flow, historical opponent reconstruction ve HTTP hata davranışları `DEVELOPER_API_MANUAL.md` içine işlendi.
 
 ## DOKÜMANTASYON DOSYALARI
@@ -87,4 +87,6 @@ Sonuç: UI'da `ORTADAN ATAK`, `KANATTAN ATAK` vb. değerleri motorun hesapladı�
 - `HattrickAI_V5/Docs/MOTOR_TECHNICAL_MANUAL.md`
 - `HattrickAI_V5/Docs/REAL_MATCH_ANALYSIS.md`
 - `HattrickAI_V5/Docs/WEB_USER_MANUAL.md`
+- `HattrickAI_V5/Docs/WEB_INTERFACE.md`
+- `HattrickAI_V5/Docs/WEB_UI_FILE_MAP.md`
 - `HattrickAI_V5/Docs/DEVELOPER_API_MANUAL.md`
