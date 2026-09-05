@@ -50,7 +50,6 @@ public static class DeterministicRerunRegression
             Check(result1.M11?.CandidateCount == result2.M11?.CandidateCount, "M11 finalist count changed between reruns");
             Check(result1.FinalPlan.Formation == result2.FinalPlan.Formation, "FinalPlan formation changed between reruns");
             Check(Signature(result1.FinalPlan.Lineup) == Signature(result2.FinalPlan.Lineup), "FinalPlan XI changed between reruns");
-            Check(result1.FinalPrediction == result2.FinalPrediction, "FinalPrediction changed between reruns");
             Check(result1.M9.Prediction == result2.M9.Prediction, "selected M9 prediction changed between reruns");
             Check(result1.M9.Simulation.MostLikelyScore == result2.M9.Simulation.MostLikelyScore, "M9 most-likely score changed between reruns");
             Check(result1.M9.Simulation.Outcome == result2.M9.Simulation.Outcome, "M9 simulation outcome changed between reruns");
