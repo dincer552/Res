@@ -32,6 +32,7 @@ COPY HattrickAI_V5/wwwroot/formation-competition.js /app/wwwroot/formation-compe
 COPY HattrickAI_V5/wwwroot/m9-prediction.js /app/wwwroot/m9-prediction.js
 COPY HattrickAI_V5/wwwroot/calibration.js /app/wwwroot/calibration.js
 COPY HattrickAI_V5/wwwroot/motor-status.js /app/wwwroot/motor-status.js
+COPY HattrickAI_V5/wwwroot/m9-prediction-bridge.js /app/wwwroot/m9-prediction-bridge.js
 RUN sed -i \
   -e "s#const motors = \['M3','M4','M5','M6','M7','M7.2','M8','M9','M10','M6-B','M11'\];#const motorNames = {'M3':'Oyuncu Analizi','M4':'Formasyon Üretimi','M5':'11 Adayı Üretimi','M6':'Global Arama','M7':'Bölgesel Rating','M7.2':'Taktik Senaryo','M8':'Şans \& Eşleşme','M9':'Maç Tahmini','M10':'Formasyon Kararı','M6-B':'İkinci Arama / İyileştirme','M11':'Final Seçici'}; const displayMotorText = value => String(value ?? '').replace(/M7\\.2/g,'Taktik Senaryo').replace(/M6-B/g,'İkinci Arama / İyileştirme').replace(/M11/g,'Final Seçici').replace(/M10/g,'Formasyon Kararı').replace(/M9/g,'Maç Tahmini').replace(/M8/g,'Şans \& Eşleşme').replace(/M7/g,'Bölgesel Rating').replace(/M6/g,'Global Arama').replace(/M5/g,'11 Adayı Üretimi').replace(/M4/g,'Formasyon Üretimi').replace(/M3/g,'Oyuncu Analizi'); const motors = ['M3','M4','M5','M6','M7','M7.2','M8','M9','M10','M6-B','M11'];#" \
   -e 's#🧠 V5 Motor Logları • M3 → M11#🧠 V5 Motorlar#g' \
@@ -45,5 +46,5 @@ RUN sed -i \
   -e 's#\${log\.finalMessage}#\${displayMotorText(log.finalMessage)}#g' \
   /app/wwwroot/motor-logs.js
 RUN sed -i 's#</head>#<style>[id="v5MotorLogList"] b{width:155px!important;min-width:155px!important;flex:0 0 155px!important;line-height:1.2!important}</style></head>#' /app/wwwroot/index.html
-RUN sed -i 's#</body>#<script src="/copy-teams.js?v=2"></script><script src="/motor-logs.js?v=7"></script><script src="/motor-render.js?v=2"></script><script src="/match-select.js?v=2"></script><script src="/formation-competition.js?v=2"></script><script src="/m9-prediction.js?v=3"></script><script src="/calibration.js?v=3"></script><script src="/motor-status.js?v=2"></script></body>#' /app/wwwroot/index.html
+RUN sed -i 's#</body>#<script src="/copy-teams.js?v=2"></script><script src="/motor-logs.js?v=7"></script><script src="/motor-render.js?v=2"></script><script src="/match-select.js?v=2"></script><script src="/formation-competition.js?v=2"></script><script src="/m9-prediction.js?v=4"></script><script src="/calibration.js?v=3"></script><script src="/motor-status.js?v=2"></script><script src="/m9-prediction-bridge.js?v=1"></script></body>#' /app/wwwroot/index.html
 ENTRYPOINT ["dotnet","HattrickAI.V5.dll","--hostBuilder:reloadConfigOnChange=false"]
