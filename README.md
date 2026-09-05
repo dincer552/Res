@@ -9,14 +9,26 @@ Amaç: V5 motorlarının yaptığı işlemleri, kullanılan matematikleri, katsa
 ### Manuel hazırlama aşamaları
 
 ```
-AŞAMA 0  Kaynak envanteri                         [TAMAMLANDI]
-AŞAMA 0.5 Motor / Kod Konum Haritası             [KISMEN TAMAMLANDI]
-AŞAMA 1  Sistem mimarisi                         [TAMAMLANDI]
+AŞAMA 0  Kaynak envanteri
+         - Repository analizi
+         - Motor dosyaları
+         - Config dosyaları
+         - Test çıktıları
+         - Referans PDF matematikleri
+
+AŞAMA 0.5 Motor / Kod Konum Haritası
+         - Her motorun GitHub dosya yolu
+         - Class ve ana fonksiyonlar
+         - Input / Output ilişkileri
+         - Motorlar arası veri akışı
+         - Kullanılan config ve katsayı kaynakları
+
+AŞAMA 1  Sistem mimarisi [TAMAMLANDI]
          - Genel V5 akışı
          - Veri giriş/çıkış zinciri
          - Motorlar arası bağlantılar
 
-AŞAMA 2  Veri modeli
+AŞAMA 2  Veri modeli [DEVAM EDİYOR]
          - Player modeli
          - Team modeli
          - Match modeli
@@ -96,30 +108,6 @@ FinalPlan
 ```
 
 Bu bölüm PDF manuelinde geliştirici referansı olarak kullanılacaktır.
-
----
-
-## AŞAMA 1 DURUMU — SİSTEM MİMARİSİ
-
-Aşama 1'in doğrulanmış ayrıntılı dokümantasyonu:
-
-`HattrickAI_V5/Docs/SYSTEM_ARCHITECTURE.md`
-
-Bu belge production girişinden CHPP veri toplama, MatchDataContext oluşturma, M3-M11 pipeline, DB1/DB2 ve frontend'e dönüş zincirini açıklar.
-
-Önemli mimari ayrımlar da burada kayıtlıdır:
-
-- M4 legal formation adaylarını üretir.
-- M5 oyuncu-slot eşleştirmelerini optimize eder.
-- M6 davranış araması yapar ve downstream evaluator'ı çalıştırır.
-- M7 rating scenario üretir.
-- M7.2 ve M8 verilen taktiğin sonuçlarını hesaplar; team tactic seçmez.
-- M10 formasyon yarışması/final karar ve TeamAttitude tarafını yönetir.
-- M6-B M10 formation rank'e göre refinement yapar.
-- M11 DB2 final seçimidir.
-- Mevcut web production path `TeamTactic.Normal` ile başlar.
-
-Aşama 1'de doğrulanmamış ayrıntılar varsayımla doldurulmamıştır.
 
 ---
 
