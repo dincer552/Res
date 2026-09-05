@@ -40,7 +40,7 @@ AŞAMA 3  Hattrick matematik modeli [TAMAMLANDI]
          - Attack/defence bölgesel hesapları
          - Taktik dönüşümleri
 
-AŞAMA 4  Motor teknik dokümanları
+AŞAMA 4  Motor teknik dokümanları [TAMAMLANDI]
          - M3
          - M4
          - M5
@@ -55,7 +55,7 @@ AŞAMA 4  Motor teknik dokümanları
          - DB2
          - M11
 
-AŞAMA 5  Gerçek maç örnek analizi
+AŞAMA 5  Gerçek maç örnek analizi [SIRADA]
 
 AŞAMA 6  Web kullanıcı manueli
 
@@ -141,3 +141,13 @@ Bu durum gerçek bir taktik selector bulunana kadar açık teknik gap olarak tut
 - **05.09.2026 — C13:** DB2 formation coverage düzeltildi; acceptance artık production DB2=100 içinden exposed DB2=90 kapsamını doğru kabul ediyor. 6 yasal formasyonun tamamı kapsanıyor.
 - **05.09.2026 — C14:** M11 finalist pool ve M11 telemetry doğrulaması düzeltildi; M11 finalist pool 90 aday / 6 formasyon olarak geçiyor.
 - **05.09.2026 — C15:** M11 final selection testindeki top-N ranking davranışıyla ilgili acceptance uyumsuzluğu giderildi; ranking top-N mantığı production davranışıyla hizalandı.
+
+## DOKÜMANTASYON DOSYALARI
+
+- `HattrickAI_V5/Docs/PROJECT_MEMORY.md`
+- `HattrickAI_V5/Docs/ENGINE_MAP.md`
+- `HattrickAI_V5/Docs/CHANGE_HISTORY.md`
+- `HattrickAI_V5/Docs/SYSTEM_ARCHITECTURE.md`
+- `HattrickAI_V5/Docs/DATA_MODEL.md`
+- `HattrickAI_V5/Docs/MATCH_ENGINE_MATH.md`
+- `HattrickAI_V5/Docs/MOTOR_TECHNICAL_MANUAL.md`
