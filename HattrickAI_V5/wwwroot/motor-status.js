@@ -69,7 +69,12 @@
     }
   }
 
-  ensurePanel();
-  load();
-  setInterval(load, 1500);
+  function start() {
+    ensurePanel();
+    load();
+    setInterval(load, 1500);
+  }
+
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start);
+  else start();
 })();
