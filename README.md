@@ -10,73 +10,23 @@ Amaç: V5 motorlarının yaptığı işlemleri, kullanılan matematikleri, katsa
 
 ```
 AŞAMA 0  Kaynak envanteri
-         - Repository analizi
-         - Motor dosyaları
-         - Config dosyaları
-         - Test çıktıları
-         - Referans PDF matematikleri
-
 AŞAMA 0.5 Motor / Kod Konum Haritası
-         - Her motorun GitHub dosya yolu
-         - Class ve ana fonksiyonlar
-         - Input / Output ilişkileri
-         - Motorlar arası veri akışı
-         - Kullanılan config ve katsayı kaynakları
-
 AŞAMA 1  Sistem mimarisi [TAMAMLANDI]
-         - Genel V5 akışı
-         - Veri giriş/çıkış zinciri
-         - Motorlar arası bağlantılar
-
 AŞAMA 2  Veri modeli [TAMAMLANDI]
-         - Player modeli
-         - Team modeli
-         - Match modeli
-         - Database yapıları
-
 AŞAMA 3  Hattrick matematik modeli [TAMAMLANDI]
-         - Rating hesapları
-         - Possession hesapları
-         - Attack/defence bölgesel hesapları
-         - Taktik dönüşümleri
-
 AŞAMA 4  Motor teknik dokümanları [TAMAMLANDI]
-         - M3
-         - M4
-         - M5
-         - M6-A
-         - M7
-         - M7.2
-         - M8
-         - M9
-         - DB1
-         - M10
-         - M6-B
-         - DB2
-         - M11
-
 AŞAMA 5  Gerçek maç örnek analizi [TAMAMLANDI]
-         - Gerçek CHPP offline fixture
-         - Gelecek maç girdileri
-         - Rakip geçmiş maç referansı
-         - M3 gerçek çıktı örnekleri
-         - M4/M5 gerçek XI
-         - M7 regional ratings
-         - Rakip threat/opportunity
-         - Uydurulmamış çıktı sınırları
-
 AŞAMA 6  Web kullanıcı manueli [TAMAMLANDI]
-         - Mevcut web ekranı
-         - CHPP bağlantı akışı
-         - Üç kullanıcı sorusu
-         - Analiz ve hata durumları
-         - Önerilen XI gösterimi
-         - Oyuncu davranış emirleri
-         - Bölgesel rating panosu
-         - Rakip gösterimi
-         - Taktik / diziliş ayrımı
-
-AŞAMA 7  Developer/API manueli [SIRADA]
+AŞAMA 7  Developer/API manueli [TAMAMLANDI]
+         - ASP.NET Core uygulama başlangıcı ve DI
+         - Session sözleşmesi
+         - CHPP OAuth 1.0 akışı
+         - CHPP XML client
+         - Production endpoint kataloğu
+         - AnalysisService veri akışı
+         - Historical opponent reconstruction
+         - HTTP hata davranışları
+         - Developer test noktaları
 ```
 
 Her aşama tamamlandığında bu bölüm güncellenecek ve hazırlanan PDF bölümleri manuel içerisine eklenecek.
@@ -89,7 +39,6 @@ Dokümantasyon prensibi:
 ### Motor / Kod ilişkilendirme standardı
 
 Her motor dokümanında aşağıdaki bilgiler bulunacak:
-
 - GitHub dosya yolu
 - Class adı
 - Ana çalışan fonksiyonlar
@@ -98,33 +47,6 @@ Her motor dokümanında aşağıdaki bilgiler bulunacak:
 - Hesaplama mantığı
 - Kullandığı katsayılar ve kaynakları
 - Önceki ve sonraki motor bağlantısı
-
-Örnek dokümantasyon zinciri:
-
-```
-M3
- |
- | input/output
- v
-M4
- |
- v
-M5
- |
- v
-M6-A
- |
- v
-...
- |
- v
-M11
- |
- v
-FinalPlan
-```
-
-Bu bölüm PDF manuelinde geliştirici referansı olarak kullanılacaktır.
 
 ---
 
@@ -136,30 +58,23 @@ Kod incelemesi sonucunda mevcut web production analiz akışında takım taktiğ
 
 `HattrickAI_V5/Core/AnalysisService.cs` içinde `RatingContext` oluşturulurken `TeamTactic.Normal` veriliyor.
 
-`HattrickAI_V5/Core/MotorPipelineService.cs` bu değeri `MatchState` üzerinden M7/M7.2/M8 hesaplarına taşıyor.
+`HattrickAI_V5/Core/MotorPipelineService.cs` bu değeri M7/M7.2/M8 hesaplarına taşıyor.
 
-`HattrickAI_V5/Core/AdvancedTacticalScenarioEngine.cs` verilen taktiğin etkilerini hesaplıyor; taktik seçmiyor.
+`AdvancedTacticalScenarioEngine` verilen taktiğin etkilerini hesaplıyor; taktik seçmiyor. `M8ChanceAllocationEngine` verilen taktiğe göre dönüşüm ve şans dağılımı hesaplıyor; taktik seçmiyor. `M10FinalDecisionEngine` `TeamAttitude` yaklaşımı seçebiliyor; `TeamAttitude`, `TeamTactic` değildir.
 
-`HattrickAI_V5/Core/M8ChanceAllocationEngine.cs` verilen taktiğe göre dönüşüm ve şans dağılımı hesaplıyor; taktik seçmiyor.
-
-`HattrickAI_V5/Core/M10FinalDecisionEngine.cs` final plan/formasyon ve `TeamAttitude` seçebiliyor. `TeamAttitude`, `TeamTactic` değildir.
-
-Sonuç: UI'da `ORTADAN ATAK`, `KANATTAN ATAK` vb. değerleri motorun hesapladığı final taktikmiş gibi göstermek doğru değildir. Mevcut web path için gerçek durum `TAKTİK YOK` (altındaki input değeri `TeamTactic.Normal`) olarak dokümante edilmelidir.
-
-Bu durum gerçek bir taktik selector bulunana kadar açık teknik gap olarak tutulacaktır.
-
----
+Sonuç: UI'da `ORTADAN ATAK`, `KANATTAN ATAK` vb. değerleri motorun hesapladığı final taktikmiş gibi göstermek doğru değildir. Mevcut web path için gerçek durum `TAKTİK YOK` (input değeri `TeamTactic.Normal`) olarak dokümante edilmelidir.
 
 ## SON İŞLEMLER — 05.09.2026
 
 - **05.09.2026 — PRODUCTION DEPLOY:** V5 Docker build ve Azure deployment başarıyla tamamlandı; deployment health check doğrulandı.
 - **05.09.2026 — REGRESSION TESTLERİ:** C1–C18 offline acceptance/regression çalıştırması şimdilik durduruldu. Deployment artık regression gate'e bağlı olmadan devam ediyor.
 - **05.09.2026 — C12:** M6-B refinement acceptance doğrulandı: DB2=100, 6 formasyon, 6 bütçe, 23701 değerlendirme.
-- **05.09.2026 — C13:** DB2 formation coverage düzeltildi; acceptance artık production DB2=100 içinden exposed DB2=90 kapsamını doğru kabul ediyor. 6 yasal formasyonun tamamı kapsanıyor.
-- **05.09.2026 — C14:** M11 finalist pool ve M11 telemetry doğrulaması düzeltildi; M11 finalist pool 90 aday / 6 formasyon olarak geçiyor.
-- **05.09.2026 — C15:** M11 final selection testindeki top-N ranking davranışıyla ilgili acceptance uyumsuzluğu giderildi; ranking top-N mantığı production davranışıyla hizalandı.
-- **05.09.2026 — AŞAMA 5:** `TestJSON/HattrickAI_V5_CHPP_FullOffline_2026-09-01.json` fixture'ı üzerinden gerçek maç örnek analizi dokümante edildi. Gelecek maç girdileri, rakip geçmiş maç referansı, M3/M4/M5/M7 gerçek çıktıları ve rakip threat/opportunity verileri `REAL_MATCH_ANALYSIS.md` içine işlendi. Fixture'da bulunmayan M8/M9/M10/M11 sonuçları özellikle üretilmedi.
-- **05.09.2026 — AŞAMA 6:** Mevcut `wwwroot/index.html` ve `motor-render.js` frontend davranışları incelendi ve `WEB_USER_MANUAL.md` içine işlendi. CHPP bağlantısı, üç kullanıcı sorusu, analiz durumları, XI/rating renderı, davranış emirleri, rakip görünümü ve taktik/diziliş ayrımı dokümante edildi.
+- **05.09.2026 — C13:** DB2 formation coverage düzeltildi; acceptance production DB2=100 içinden exposed DB2=90 kapsamını doğru kabul ediyor. 6 yasal formasyonun tamamı kapsanıyor.
+- **05.09.2026 — C14:** M11 finalist pool ve telemetry doğrulaması düzeltildi; M11 finalist pool 90 aday / 6 formasyon olarak geçiyor.
+- **05.09.2026 — C15:** M11 final selection testindeki top-N ranking davranışı production davranışıyla hizalandı.
+- **05.09.2026 — AŞAMA 5:** Gerçek CHPP offline fixture üzerinden maç örnek analizi `REAL_MATCH_ANALYSIS.md` içine işlendi. Fixture'da bulunmayan M8/M9/M10/M11 sonuçları özellikle üretilmedi.
+- **05.09.2026 — AŞAMA 6:** `wwwroot/index.html` ve `motor-render.js` frontend davranışları `WEB_USER_MANUAL.md` içine işlendi.
+- **05.09.2026 — AŞAMA 7:** `Program.cs`, `ChppV5.cs` ve `AnalysisService.cs` üzerinden backend HTTP sınırı, session/OAuth akışı, CHPP XML client, production endpoint'leri, analysis data flow, historical opponent reconstruction ve HTTP hata davranışları `DEVELOPER_API_MANUAL.md` içine işlendi.
 
 ## DOKÜMANTASYON DOSYALARI
 
@@ -172,3 +87,4 @@ Bu durum gerçek bir taktik selector bulunana kadar açık teknik gap olarak tut
 - `HattrickAI_V5/Docs/MOTOR_TECHNICAL_MANUAL.md`
 - `HattrickAI_V5/Docs/REAL_MATCH_ANALYSIS.md`
 - `HattrickAI_V5/Docs/WEB_USER_MANUAL.md`
+- `HattrickAI_V5/Docs/DEVELOPER_API_MANUAL.md`
