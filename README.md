@@ -28,13 +28,13 @@ AŞAMA 1  Sistem mimarisi [TAMAMLANDI]
          - Veri giriş/çıkış zinciri
          - Motorlar arası bağlantılar
 
-AŞAMA 2  Veri modeli [DEVAM EDİYOR]
+AŞAMA 2  Veri modeli [TAMAMLANDI]
          - Player modeli
          - Team modeli
          - Match modeli
          - Database yapıları
 
-AŞAMA 3  Hattrick matematik modeli
+AŞAMA 3  Hattrick matematik modeli [SIRADA]
          - Rating hesapları
          - Possession hesapları
          - Attack/defence bölgesel hesapları
