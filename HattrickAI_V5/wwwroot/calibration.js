@@ -25,7 +25,7 @@ function buildTestDataset(d){
    ownTacticSkill:x.isHome?x.homeTacticSkill:x.awayTacticSkill,
    opponentTacticSkill:x.isHome?x.awayTacticSkill:x.homeTacticSkill,
    ownGoals:x.isHome?x.homeGoals:x.awayGoals,
-   opponentGoals:x.isHome?x.awayGoals:x.homeGoals
+   opponentGoals:x.isHome?x.opponentGoals:x.homeGoals
  }));
  return {
   schema:'hattrickai-v5-historical-production-v1',
@@ -39,26 +39,4 @@ function buildTestDataset(d){
   samples
  };
 }
-function init(){
- if(document.getElementById('m8CalibrationBox')) return;
- const host=document.querySelector('.analysis'); if(!host) return;
- const box=document.createElement('div'); box.id='m8CalibrationBox'; box.style.cssText='margin-top:12px;border:1px solid #dbe3de;border-radius:12px;background:#f7faf8;overflow:hidden';
- box.innerHTML='<button id="m8CalibrationBtn" type="button" style="width:100%;border:0;background:#f7faf8;padding:13px 14px;text-align:left;font:800 13px Arial;color:#27322d;cursor:pointer">📊 260 GEÇMİŞ MAÇI ÇEK + PRODUCTION JSON İNDİR</button><div id="m8CalibrationState" style="display:none;padding:10px 14px;border-top:1px solid #dbe3de;color:#66716b;font:11px/1.45 Arial"></div>';
- host.appendChild(box);
- const btn=box.querySelector('#m8CalibrationBtn'),state=box.querySelector('#m8CalibrationState');
- btn.onclick=async()=>{
-  btn.disabled=true; state.style.display='block';
-  state.textContent='CHPP 12 aylık arşiv taranıyor; 260 maçın matchdetails kayıtları sırayla çekiliyor. CHPP yükünü korumak için istekler arasında 5 sn bekleniyor…';
-  try{
-   const r=await fetch('/api/v5/reference-match?calibration=1&limit=260&ts='+Date.now(),{cache:'no-store'});
-   const d=await r.json().catch(()=>({}));
-   if(!r.ok)throw Error(d.detail||d.message||('HTTP '+r.status));
-   const dataset=buildTestDataset(d); downloadJson(dataset);
-   const ready=dataset.sampleCount>=250&&Number(d.detailsFetched)>=250&&Number(d.failedDetails||0)===0;
-   state.innerHTML='<b>HISTORICAL PRODUCTION DATA</b><br>Arşiv: '+esc(d.archiveUniqueMatchCount)+' benzersiz maç • Pencere: '+esc(d.archiveWindowCount)+' × '+esc(d.archiveWindowDays)+' gün<br>İstenen: '+esc(d.requestedLimit)+' • Detay: '+esc(d.detailsFetched)+' • Hatalı: '+esc(d.failedDetails||0)+'<br>Geçerli örnek: '+esc(dataset.sampleCount)+' • Toplam sektör şansı: '+esc(d.totalObservedSectorChances)+'<br><span style="color:#267448">'+(ready?'250+ kabul eşiği sağlandı.':'Veri çekildi ancak 250+ kabul eşiği henüz sağlanmadı.')+' JSON indirildi; üretim katsayıları değiştirilmedi.</span>';
-  }catch(e){state.textContent='❌ Veri çekilemedi: '+e.message}
-  finally{btn.disabled=false}
- };
-}
-if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
 })();
