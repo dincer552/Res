@@ -55,9 +55,17 @@ AŞAMA 4  Motor teknik dokümanları [TAMAMLANDI]
          - DB2
          - M11
 
-AŞAMA 5  Gerçek maç örnek analizi [SIRADA]
+AŞAMA 5  Gerçek maç örnek analizi [TAMAMLANDI]
+         - Gerçek CHPP offline fixture
+         - Gelecek maç girdileri
+         - Rakip geçmiş maç referansı
+         - M3 gerçek çıktı örnekleri
+         - M4/M5 gerçek XI
+         - M7 regional ratings
+         - Rakip threat/opportunity
+         - Uydurulmamış çıktı sınırları
 
-AŞAMA 6  Web kullanıcı manueli
+AŞAMA 6  Web kullanıcı manueli [SIRADA]
 
 AŞAMA 7  Developer/API manueli
 ```
@@ -141,6 +149,7 @@ Bu durum gerçek bir taktik selector bulunana kadar açık teknik gap olarak tut
 - **05.09.2026 — C13:** DB2 formation coverage düzeltildi; acceptance artık production DB2=100 içinden exposed DB2=90 kapsamını doğru kabul ediyor. 6 yasal formasyonun tamamı kapsanıyor.
 - **05.09.2026 — C14:** M11 finalist pool ve M11 telemetry doğrulaması düzeltildi; M11 finalist pool 90 aday / 6 formasyon olarak geçiyor.
 - **05.09.2026 — C15:** M11 final selection testindeki top-N ranking davranışıyla ilgili acceptance uyumsuzluğu giderildi; ranking top-N mantığı production davranışıyla hizalandı.
+- **05.09.2026 — AŞAMA 5:** `TestJSON/HattrickAI_V5_CHPP_FullOffline_2026-09-01.json` fixture'ı üzerinden gerçek maç örnek analizi dokümante edildi. Gelecek maç girdileri, rakip geçmiş maç referansı, M3/M4/M5/M7 gerçek çıktıları ve rakip threat/opportunity verileri `REAL_MATCH_ANALYSIS.md` içine işlendi. Fixture'da bulunmayan M8/M9/M10/M11 sonuçları özellikle üretilmedi.
 
 ## DOKÜMANTASYON DOSYALARI
 
@@ -151,3 +160,4 @@ Bu durum gerçek bir taktik selector bulunana kadar açık teknik gap olarak tut
 - `HattrickAI_V5/Docs/DATA_MODEL.md`
 - `HattrickAI_V5/Docs/MATCH_ENGINE_MATH.md`
 - `HattrickAI_V5/Docs/MOTOR_TECHNICAL_MANUAL.md`
+- `HattrickAI_V5/Docs/REAL_MATCH_ANALYSIS.md`
