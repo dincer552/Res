@@ -1,5 +1,16 @@
 # HattrickAI V5
 
+## SON İŞLEMLER — 05.09.2026
+
+- **05.09.2026 — C12:** M6-B refinement acceptance doğrulandı: DB2=100, 6 formasyon, 6 bütçe, 23701 değerlendirme.
+- **05.09.2026 — C13:** DB2 formation coverage düzeltildi; acceptance artık production DB2=100 içinden exposed DB2=90 kapsamını doğru kabul ediyor. 6 yasal formasyonun tamamı kapsanıyor.
+- **05.09.2026 — C14:** M11 finalist pool ve M11 telemetry doğrulaması düzeltildi; M11 finalist pool 90 aday / 6 formasyon olarak geçiyor.
+- **05.09.2026 — C15:** M11 final selection testinde top-N ranking davranışıyla ilgili acceptance uyumsuzluğu tespit edildi ve düzeltiliyor. Son çalıştırmada C15'te kalan hata: `M11 ranking formation diversity is inconsistent`.
+- **04.09.2026:** C10 M10 formation competition regression düzeltildi.
+- **04.09.2026:** C11 M10 → M6-B rank-driven handoff regression düzeltildi.
+- **04.09.2026:** C12/C14/C15/C16/C17/C18 regression'larında eksik run initialization / telemetry akışı giderildi.
+- **04.09.2026:** Acceptance çalışma modu geçici olarak C12'den başlatıldı; C12 → C18 sıralı release-gate akışı aktif edildi.
+
 ## FINAL WEB PRODUCTION ACCEPTANCE
 
 Aktif branch: `v5`.
